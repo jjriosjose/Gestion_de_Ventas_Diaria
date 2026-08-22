@@ -13,7 +13,7 @@ import {
   Gauge,
   ListChecks,
   LogOut,
-  Map,
+  Map as MapIcon,
   MapPinned,
   Menu,
   PhoneCall,
@@ -79,8 +79,8 @@ export function AppShell() {
         synthetic: true,
       }
     })
-    const unique = new Map<string, AlertItem>()
-    ;[...stored, ...upcoming].forEach((item) => unique.set(item.id, item))
+    const unique = new globalThis.Map<string, AlertItem>()
+    ;[...stored, ...upcoming].forEach((item: AlertItem) => unique.set(item.id, item))
     setNotifications(Array.from(unique.values()).slice(0, 20))
   }
   useEffect(() => { void loadNotifications() }, [employee?.id, loc.pathname])
@@ -113,7 +113,7 @@ export function AppShell() {
         <div className="user-chip"><div className="avatar">{employee?.full_name?.slice(0,1) || 'K'}</div><div><b>{employee?.full_name}</b><span>{employee?.job_title}</span></div></div>
       </div></header>
       <section className="content"><Outlet/></section>
-      <nav className="bottom-nav"><NavLink to="/"><Gauge/><span>Inicio</span></NavLink><NavLink to="/clientes"><Users/><span>Clientes</span></NavLink><NavLink to="/mapa"><Map/><span>Mapa</span></NavLink><NavLink to="/rutas"><Route/><span>Rutas</span></NavLink><button onClick={() => setDrawer(true)}><Menu/><span>Más</span></button></nav>
+      <nav className="bottom-nav"><NavLink to="/"><Gauge/><span>Inicio</span></NavLink><NavLink to="/clientes"><Users/><span>Clientes</span></NavLink><NavLink to="/mapa"><MapIcon/><span>Mapa</span></NavLink><NavLink to="/rutas"><Route/><span>Rutas</span></NavLink><button onClick={() => setDrawer(true)}><Menu/><span>Más</span></button></nav>
     </main>
   </div>
 }
