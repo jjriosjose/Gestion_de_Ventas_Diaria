@@ -133,7 +133,7 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
     if (!map) return
     const click = (event: L.LeafletMouseEvent) => { if (mode === 'POLYGON') setPolygon((points) => [...points, [event.latlng.lat, event.latlng.lng]]); if (mode === 'RADIUS') setRadiusCenter([event.latlng.lat, event.latlng.lng]) }
     map.on('click', click)
-    return () => map.off('click', click)
+    return () => { map.off('click', click) }
   }, [mode])
 
   useEffect(() => {
