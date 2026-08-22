@@ -14,6 +14,7 @@ export type Employee = {
 
 export type Client = {
   id: string
+  company_id?: string | null
   company_code?: string | null
   codempr: string
   cod_empresa?: string | null
@@ -24,6 +25,8 @@ export type Client = {
   region?: string | null
   province?: string | null
   municipality?: string | null
+  sector_id?: string | null
+  zone_id?: string | null
   client_type?: string | null
   legal_name: string
   contact_name?: string | null
