@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 — Planificación territorial + Mapa v2
+
+- Planificación con mapa sincronizado y selección visual de clientes.
+- Filtros en cascada: Región → Provincia → Municipio.
+- Filtros adicionales por gestor, empresa, GPS, calidad geográfica, disponibilidad y zona guardada.
+- La selección de vendedor mantiene el filtro de cartera homologada; Administrador/Supervisor puede incluir clientes externos de forma explícita.
+- Selección individual desde mapa/lista, selección por polígono y selección por radio.
+- Clustering propio sin dependencias adicionales para manejar cientos de georreferencias.
+- Bandeja ordenada de clientes seleccionados y orden aproximado por cercanía.
+- Mapa v2 con filtros territoriales/comerciales y visualización de zonas guardadas.
+- Creación de zonas por polígono o radio y contador de clientes incluidos.
+- Navegación a cada cliente mediante Google Maps.
+- Eliminación segura de planificaciones de prueba que nunca hayan iniciado.
+- Corrección del ciclo operativo: `VISITAS`, paradas `PENDIENTE` y rutas `ACTIVA`.
+- Políticas RLS para que cada empleado pueda ejecutar su propia ruta/paradas manteniendo lectura global para todo el equipo.
+
 ## 0.3.0 — Calidad geográfica + TMS ligero
 
 - Nuevo módulo **Calidad geográfica**.
