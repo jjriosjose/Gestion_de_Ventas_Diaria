@@ -15,7 +15,9 @@ type AvailabilityFilter = 'AVAILABLE' | 'ALL' | 'PLANNED'
 
 export function Planning() {
   const { employee } = useAuth()
-  const canOverridePortfolio = ['Administrador', 'Supervisor'].includes(employee?.app_role || '')
+  const canManagePlanning = ['Administrador', 'Supervisor'].includes(employee?.app_role || '')
+  const canOverridePortfolio = canManagePlanning
+
   const [vendors, setVendors] = useState<Employee[]>([])
   const [managers, setManagers] = useState<Employee[]>([])
   const [territories, setTerritories] = useState<any[]>([])
@@ -41,6 +43,7 @@ export function Planning() {
   const [availability, setAvailability] = useState<AvailabilityFilter>('AVAILABLE')
   const [territoryFilter, setTerritoryFilter] = useState('')
   const [busy, setBusy] = useState(false)
+
   const selectedVendor = vendors.find((item) => item.id === vendor)
 
   useEffect(() => {
@@ -54,6 +57,10 @@ export function Planning() {
       setTerritories(territoryResponse.data || [])
     })
   }, [])
+
+  useEffect(() => {
+    if (!canManagePlanning && employee?.employee_type === 'Vendedor' && !vendor) setVendor(employee.id)
+  }, [canManagePlanning, employee?.employee_type, employee?.id, vendor])
 
   useEffect(() => {
     setSelected([])
@@ -170,10 +177,12 @@ export function Planning() {
   const selectedGpsCount = useMemo(() => selectedClients.filter((client) => client.latitude != null && client.longitude != null).length, [selectedClients])
 
   const toggleClient = (clientId: string) => {
+    if (!canManagePlanning) return
     setSelected((current) => current.includes(clientId) ? current.filter((id) => id !== clientId) : [...current, clientId])
   }
 
   const addAreaSelection = (ids: string[]) => {
+    if (!canManagePlanning) return
     const visible = new Set(filteredClients.map((client) => client.id))
     setSelected((current) => Array.from(new Set([...current, ...ids.filter((id) => visible.has(id))])))
   }
@@ -192,7 +201,7 @@ export function Planning() {
   }
 
   const orderSelected = async () => {
-    if (selected.length < 2) return
+    if (!canManagePlanning || selected.length < 2) return
     let start: { latitude: number; longitude: number } | null = null
     try {
       const position = await currentPosition()
@@ -205,6 +214,7 @@ export function Planning() {
   }
 
   const create = async () => {
+    if (!canManagePlanning) return alert('Tu perfil tiene acceso de consulta. Solo Administración o Supervisión puede crear planificaciones.')
     if (!vendor || !date) return alert('Selecciona vendedor y fecha')
     if (type === 'VISITAS' && !selected.length) return alert('Selecciona al menos un cliente')
     if (type === 'CAPTACION' && !territory) return alert('Selecciona una zona')
@@ -214,6 +224,7 @@ export function Planning() {
     const notes = type === 'VISITAS'
       ? [region && `Región: ${region}`, province && `Provincia: ${province}`, municipality && `Municipio: ${municipality}`].filter(Boolean).join(' · ') || null
       : null
+
     const { data: plan, error } = await supabase
       .from('route_plans')
       .insert({
@@ -261,14 +272,14 @@ export function Planning() {
       <div className="page-head">
         <div>
           <span className="eyebrow">PLANIFICACIÓN TERRITORIAL</span>
-          <h2>Crear jornada</h2>
-          <p>Planifica por cartera, territorio y cercanía visual sin depender de Excel.</p>
+          <h2>{canManagePlanning ? 'Crear jornada' : 'Consultar planificación'}</h2>
+          <p>{canManagePlanning ? 'Planifica por cartera, territorio y cercanía visual sin depender de Excel.' : 'Consulta carteras, filtros territoriales y mapas. La creación y asignación está reservada a Administración/Supervisión.'}</p>
         </div>
       </div>
 
       <div className="planner-v2">
         <aside className="panel planner-sidebar">
-          <h3>Configuración</h3>
+          <h3>{canManagePlanning ? 'Configuración' : 'Modo consulta'}</h3>
           <div className="segmented">
             <button className={type === 'VISITAS' ? 'active' : ''} onClick={() => setType('VISITAS')}>Ruta de visitas</button>
             <button className={type === 'CAPTACION' ? 'active' : ''} onClick={() => setType('CAPTACION')}>Captación por zona</button>
@@ -285,37 +296,43 @@ export function Planning() {
           </label>
 
           {type === 'CAPTACION' ? (
-            <>
-              <label>Zona
-                <select value={territory} onChange={(event) => setTerritory(event.target.value)}>
-                  <option value="">Seleccionar zona...</option>
-                  {territories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
-                </select>
-              </label>
-              <label>Objetivo de prospectos
-                <input type="number" min={1} value={target} onChange={(event) => setTarget(Number(event.target.value))} />
-              </label>
-              <a className="secondary center" href="/mapa"><MapIcon size={17} /> Crear o revisar zonas</a>
-            </>
-          ) : (
-            <>
-              {canOverridePortfolio && vendor && (
-                <label className="checkbox">
-                  <input type="checkbox" checked={includeOutsidePortfolio} onChange={(event) => setIncludeOutsidePortfolio(event.target.checked)} />
-                  Incluir clientes fuera de esta cartera
+            canManagePlanning ? (
+              <>
+                <label>Zona
+                  <select value={territory} onChange={(event) => setTerritory(event.target.value)}>
+                    <option value="">Seleccionar zona...</option>
+                    {territories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
+                  </select>
                 </label>
-              )}
-              <div className="selected-summary-grid">
-                <div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div>
-                <div className="selected-summary-card"><span>Con GPS</span><strong>{selectedGpsCount}</strong></div>
-                <div className="selected-summary-card"><span>Sin GPS</span><strong>{selected.length - selectedGpsCount}</strong></div>
-              </div>
-            </>
+                <label>Objetivo de prospectos
+                  <input type="number" min={1} value={target} onChange={(event) => setTarget(Number(event.target.value))} />
+                </label>
+                <a className="secondary center" href="/mapa"><MapIcon size={17} /> Crear o revisar zonas</a>
+              </>
+            ) : <div className="empty-state"><b>Solo consulta</b><span>Las jornadas de captación se asignan desde Administración/Supervisión.</span></div>
+          ) : (
+            canManagePlanning ? (
+              <>
+                {canOverridePortfolio && vendor && (
+                  <label className="checkbox">
+                    <input type="checkbox" checked={includeOutsidePortfolio} onChange={(event) => setIncludeOutsidePortfolio(event.target.checked)} />
+                    Incluir clientes fuera de esta cartera
+                  </label>
+                )}
+                <div className="selected-summary-grid">
+                  <div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div>
+                  <div className="selected-summary-card"><span>Con GPS</span><strong>{selectedGpsCount}</strong></div>
+                  <div className="selected-summary-card"><span>Sin GPS</span><strong>{selected.length - selectedGpsCount}</strong></div>
+                </div>
+              </>
+            ) : <div className="empty-state"><b>Vista global habilitada</b><span>Puedes consultar cualquier cartera. No puedes seleccionar clientes ni crear rutas.</span></div>
           )}
 
-          <button className="primary full" disabled={busy || !vendor} onClick={() => void create()}>
-            <CalendarPlus size={18} />{busy ? 'Creando...' : 'Crear planificación'}
-          </button>
+          {canManagePlanning && (
+            <button className="primary full" disabled={busy || !vendor} onClick={() => void create()}>
+              <CalendarPlus size={18} />{busy ? 'Creando...' : 'Crear planificación'}
+            </button>
+          )}
         </aside>
 
         <main className="planner-main">
@@ -354,12 +371,12 @@ export function Planning() {
                 <div className="panel planner-map-panel">
                   <TerritoryClientMap
                     clients={filteredClients}
-                    selectedIds={selected}
-                    selectable
-                    areaTools
+                    selectedIds={canManagePlanning ? selected : []}
+                    selectable={canManagePlanning}
+                    areaTools={canManagePlanning}
                     height={580}
-                    onToggleClient={toggleClient}
-                    onAreaSelect={(ids) => addAreaSelection(ids)}
+                    onToggleClient={canManagePlanning ? toggleClient : undefined}
+                    onAreaSelect={canManagePlanning ? (ids) => addAreaSelection(ids) : undefined}
                   />
                 </div>
                 <div className="panel planner-list-panel">
@@ -367,22 +384,27 @@ export function Planning() {
                   <div className="planner-list-scroll">
                     {!vendor ? <div className="empty-state"><b>Selecciona un vendedor.</b></div> : filteredClients.length === 0 ? <div className="empty-state"><b>No hay clientes con estos filtros.</b></div> : filteredClients.slice(0, 250).map((client) => {
                       const on = selected.includes(client.id)
+                      if (!canManagePlanning) {
+                        return <div key={client.id} className="pick-row"><div><b>{client.legal_name}</b><span>{client.codempr} · {client.municipality || client.province || 'Sin localidad'} · {client.latitude != null ? 'GPS' : 'Sin GPS'}</span></div></div>
+                      }
                       return <button key={client.id} className={`pick-row ${on ? 'selected' : ''}`} onClick={() => toggleClient(client.id)}><div><b>{client.legal_name}</b><span>{client.codempr} · {client.municipality || client.province || 'Sin localidad'} · {client.latitude != null ? 'GPS' : 'Sin GPS'}</span></div>{on ? <X size={17} /> : <Plus size={17} />}</button>
                     })}
                   </div>
                 </div>
               </section>
 
-              <section className="panel planner-selected-panel">
-                <div className="planner-selected-head">
-                  <div><b>Secuencia de la planificación</b><span>El orden mostrado será el orden inicial de las paradas.</span></div>
-                  <div className="button-row"><button className="secondary compact" disabled={selected.length < 2} onClick={() => void orderSelected()}><Shuffle size={15} /> Ordenar por cercanía</button><button className="secondary compact" disabled={!selected.length} onClick={() => setSelected([])}><X size={15} /> Limpiar selección</button></div>
-                </div>
-                {!selected.length ? <div className="empty-state"><b>Selecciona clientes desde la lista, el mapa, un polígono o un radio.</b></div> : <div className="selected-route-strip">{selectedClients.map((client, index) => <div className="selected-stop-chip" key={client.id}><span className="order">{index + 1}</span><div><b>{client.legal_name}</b><span>{client.municipality || client.province || 'Sin localidad'}</span></div><button onClick={() => toggleClient(client.id)}><X size={14} /></button></div>)}</div>}
-              </section>
+              {canManagePlanning && (
+                <section className="panel planner-selected-panel">
+                  <div className="planner-selected-head">
+                    <div><b>Secuencia de la planificación</b><span>El orden mostrado será el orden inicial de las paradas.</span></div>
+                    <div className="button-row"><button className="secondary compact" disabled={selected.length < 2} onClick={() => void orderSelected()}><Shuffle size={15} /> Ordenar por cercanía</button><button className="secondary compact" disabled={!selected.length} onClick={() => setSelected([])}><X size={15} /> Limpiar selección</button></div>
+                  </div>
+                  {!selected.length ? <div className="empty-state"><b>Selecciona clientes desde la lista, el mapa, un polígono o un radio.</b></div> : <div className="selected-route-strip">{selectedClients.map((client, index) => <div className="selected-stop-chip" key={client.id}><span className="order">{index + 1}</span><div><b>{client.legal_name}</b><span>{client.municipality || client.province || 'Sin localidad'}</span></div><button onClick={() => toggleClient(client.id)}><X size={14} /></button></div>)}</div>}
+                </section>
+              )}
             </>
           ) : (
-            <section className="panel"><div className="empty-state"><MapIcon size={34} /><b>Jornada territorial de captación</b><span>Selecciona una zona guardada o crea una nueva desde el módulo Mapa.</span></div></section>
+            <section className="panel"><div className="empty-state"><MapIcon size={34} /><b>Jornada territorial de captación</b><span>{canManagePlanning ? 'Selecciona una zona guardada o crea una nueva desde el módulo Mapa.' : 'Consulta las jornadas de captación desde Rutas. La creación está reservada a Administración/Supervisión.'}</span></div></section>
           )}
         </main>
       </div>
