@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BarChart3,
+  BellRing,
   CalendarDays,
   Captions,
   ChevronLeft,
@@ -9,6 +10,7 @@ import {
   ClipboardList,
   ContactRound,
   Gauge,
+  ListChecks,
   LogOut,
   Map,
   MapPinned,
@@ -24,6 +26,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon]
 type NavGroup = {
@@ -46,6 +49,7 @@ const groups: NavGroup[] = [
   {
     label: 'Gestión',
     items: [
+      ['/cobertura', 'Cobertura cartera', ListChecks],
       ['/visitas', 'Visitas', ContactRound],
       ['/llamadas', 'Llamadas', PhoneCall],
       ['/agenda', 'Agenda / Showroom', CalendarDays],
@@ -71,9 +75,23 @@ export function AppShell() {
   const { employee, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [drawer, setDrawer] = useState(false)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const loc = useLocation()
   const allItems: NavItem[] = groups.flatMap((group) => group.items)
   const title = allItems.find((item) => item[0] === loc.pathname)?.[1] || 'Gestion de Ventas Diaria'
+
+  const loadNotifications = async () => {
+    if (!employee?.id) return setNotifications([])
+    const { data } = await supabase.from('notifications').select('*').eq('employee_id', employee.id).eq('status', 'UNREAD').order('created_at', { ascending: false }).limit(10)
+    setNotifications(data || [])
+  }
+  useEffect(() => { void loadNotifications() }, [employee?.id, loc.pathname])
+
+  const markRead = async (id: string) => {
+    await supabase.from('notifications').update({ status: 'READ', read_at: new Date().toISOString() }).eq('id', id)
+    await loadNotifications()
+  }
 
   const sidebar = (
     <>
@@ -151,7 +169,15 @@ export function AppShell() {
             <span className="eyebrow">ALMACENES KARAKA</span>
             <h1>{title}</h1>
           </div>
-          <div className="top-actions">
+          <div className="top-actions" style={{ position: 'relative' }}>
+            <button className="icon-btn" title="Alertas" onClick={() => setNotificationsOpen((value) => !value)} style={{ position: 'relative' }}>
+              <BellRing size={19} />
+              {notifications.length > 0 && <span style={{ position: 'absolute', right: -5, top: -6, minWidth: 18, height: 18, borderRadius: 9, background: 'var(--brand)', color: '#fff', fontSize: 9, display: 'grid', placeItems: 'center', padding: '0 4px' }}>{notifications.length}</span>}
+            </button>
+            {notificationsOpen && <div className="panel" style={{ position: 'absolute', right: 58, top: 48, width: 340, maxWidth: '80vw', zIndex: 90, padding: 10 }}>
+              <div className="panel-head"><div><b>Alertas pendientes</b><span>{notifications.length ? `${notifications.length} sin leer` : 'No tienes alertas'}</span></div></div>
+              <div className="cards-list">{notifications.map((item) => <button key={item.id} className="activity-card" onClick={() => void markRead(item.id)} style={{ width: '100%', textAlign: 'left', border: '1px solid var(--border)', background: 'var(--surface)' }}><div className="activity-main"><b>{item.title}</b><span>{item.message || ''}</span><small>{new Date(item.created_at).toLocaleString('es-DO')}</small></div></button>)}</div>
+            </div>}
             <button className="icon-btn" title="Filtros">
               <SlidersHorizontal size={19} />
             </button>
