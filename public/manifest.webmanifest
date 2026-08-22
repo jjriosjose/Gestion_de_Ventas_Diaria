@@ -1,0 +1,11 @@
+{
+  "name": "Gestion de Ventas Diaria",
+  "short_name": "Karaka Ventas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#be1e2d",
+  "icons": [
+    {"src":"/logo-karaka.png","sizes":"any","type":"image/png","purpose":"any"}
+  ]
+}

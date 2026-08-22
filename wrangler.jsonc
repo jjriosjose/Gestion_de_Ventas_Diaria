@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "gestion-de-ventas-diaria",
+  "compatibility_date": "2026-08-18",
+  "assets": {
+    "not_found_handling": "single-page-application"
+  }
+}
