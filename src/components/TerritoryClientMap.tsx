@@ -131,7 +131,10 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    const click = (event: L.LeafletMouseEvent) => { if (mode === 'POLYGON') setPolygon((points) => [...points, [event.latlng.lat, event.latlng.lng]]); if (mode === 'RADIUS') setRadiusCenter([event.latlng.lat, event.latlng.lng]) }
+    const click = (event: L.LeafletMouseEvent) => {
+      if (mode === 'POLYGON') setPolygon((points) => [...points, [event.latlng.lat, event.latlng.lng]])
+      if (mode === 'RADIUS') setRadiusCenter([event.latlng.lat, event.latlng.lng])
+    }
     map.on('click', click)
     return () => { map.off('click', click) }
   }, [mode])
@@ -146,8 +149,32 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
       if (polygon.length >= 3) L.polygon(polygon, { color: '#c71f2d', weight: 3, fillColor: '#c71f2d', fillOpacity: 0.1 }).addTo(layer)
     }
     if (mode === 'RADIUS' && radiusCenter) {
-      L.circle(radiusCenter, { radius: radiusKm * 1000, color: '#c71f2d', weight: 3, fillColor: '#c71f2d', fillOpacity: 0.1 }).addTo(layer)
-      L.circleMarker(radiusCenter, { radius: 5, color: '#c71f2d', fillOpacity: 1 }).addTo(layer)
+      const circle = L.circle(radiusCenter, { radius: radiusKm * 1000, color: '#c71f2d', weight: 3, fillColor: '#c71f2d', fillOpacity: 0.1 }).addTo(layer)
+      const centerIcon = L.divIcon({ className: 'radius-center-handle', html: '<span title="Arrastra para mover el radio"></span>', iconSize: [28, 28], iconAnchor: [14, 14] })
+      const resizeIcon = L.divIcon({ className: 'radius-resize-handle', html: '<span title="Arrastra para ampliar o reducir"></span>', iconSize: [24, 24], iconAnchor: [12, 12] })
+      const centerMarker = L.marker(radiusCenter, { draggable: true, icon: centerIcon, zIndexOffset: 1000 }).addTo(layer)
+      const resizeMarker = L.marker(radiusHandlePoint(radiusCenter, radiusKm), { draggable: true, icon: resizeIcon, zIndexOffset: 1000 }).addTo(layer)
+
+      centerMarker.on('drag', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
+        const nextCenter: [number, number] = [pos.lat, pos.lng]
+        circle.setLatLng(nextCenter)
+        resizeMarker.setLatLng(radiusHandlePoint(nextCenter, radiusKm))
+      })
+      centerMarker.on('dragend', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
+        setRadiusCenter([pos.lat, pos.lng])
+      })
+      resizeMarker.on('drag', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
+        const km = Math.max(0.5, Math.min(50, haversineKm({ latitude: radiusCenter[0], longitude: radiusCenter[1] }, { latitude: pos.lat, longitude: pos.lng })))
+        circle.setRadius(km * 1000)
+      })
+      resizeMarker.on('dragend', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
+        const km = Math.max(0.5, Math.min(50, haversineKm({ latitude: radiusCenter[0], longitude: radiusCenter[1] }, { latitude: pos.lat, longitude: pos.lng })))
+        setRadiusKm(Math.round(km * 10) / 10)
+      })
     }
   }, [mode, polygon, radiusCenter, radiusKm])
 
@@ -155,8 +182,16 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
   const stopDrawing = () => { clearDraft(); setMode('NONE') }
   const applyPolygon = () => { if (polygon.length < 3) return; const ids = geocoded.filter((client) => pointInPolygon(client.latitude!, client.longitude!, polygon)).map((client) => client.id); onAreaSelect?.(ids, { kind: 'POLYGON', points: polygon }) }
   const applyRadius = () => { if (!radiusCenter) return; const center = { latitude: radiusCenter[0], longitude: radiusCenter[1] }; const ids = geocoded.filter((client) => haversineKm(center, client) <= radiusKm).map((client) => client.id); onAreaSelect?.(ids, { kind: 'RADIUS', center: radiusCenter, radiusKm }) }
+  const updateRadius = (value: number) => setRadiusKm(Math.max(0.5, Math.min(50, Number.isFinite(value) ? value : 5)))
 
-  return <div className="territorial-map-shell" style={{ minHeight: height }}><div ref={host} className="territorial-map" style={{ minHeight: height }} /><div className="territorial-map-summary"><b>{geocoded.length.toLocaleString()} en mapa</b><span>{selectedIds.length.toLocaleString()} seleccionados</span></div>{areaTools && <div className="territorial-map-tools"><button className={mode === 'POLYGON' ? 'active' : ''} onClick={() => { setMode(mode === 'POLYGON' ? 'NONE' : 'POLYGON'); clearDraft() }} title="Seleccionar por polígono"><Pentagon size={16} /> Polígono</button><button className={mode === 'RADIUS' ? 'active' : ''} onClick={() => { setMode(mode === 'RADIUS' ? 'NONE' : 'RADIUS'); clearDraft() }} title="Seleccionar por radio"><CircleDot size={16} /> Radio</button>{mode === 'POLYGON' && <><span className="tool-hint">{polygon.length < 3 ? 'Marca al menos 3 puntos' : `${polygon.length} puntos`}</span><button disabled={!polygon.length} onClick={() => setPolygon((points) => points.slice(0, -1))}><Undo2 size={15} /></button><button disabled={polygon.length < 3} className="apply" onClick={applyPolygon}>Seleccionar área</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'RADIUS' && <><select value={radiusKm} onChange={(event) => setRadiusKm(Number(event.target.value))}>{[2, 3, 5, 8, 10, 15, 20].map((km) => <option value={km} key={km}>{km} km</option>)}</select><span className="tool-hint">{radiusCenter ? 'Centro definido' : 'Pulsa el centro en el mapa'}</span><button disabled={!radiusCenter} className="apply" onClick={applyRadius}>Seleccionar radio</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'NONE' && <button onClick={clearDraft} title="Limpiar herramienta"><RotateCcw size={15} /></button>}</div>}</div>
+  return <div className="territorial-map-shell" style={{ minHeight: height }}><div ref={host} className="territorial-map" style={{ minHeight: height }} /><div className="territorial-map-summary"><b>{geocoded.length.toLocaleString()} en mapa</b><span>{selectedIds.length.toLocaleString()} seleccionados</span></div>{areaTools && <div className="territorial-map-tools"><button className={mode === 'POLYGON' ? 'active' : ''} onClick={() => { setMode(mode === 'POLYGON' ? 'NONE' : 'POLYGON'); clearDraft() }} title="Seleccionar por polígono"><Pentagon size={16} /> Polígono</button><button className={mode === 'RADIUS' ? 'active' : ''} onClick={() => { setMode(mode === 'RADIUS' ? 'NONE' : 'RADIUS'); clearDraft() }} title="Seleccionar por radio"><CircleDot size={16} /> Radio</button>{mode === 'POLYGON' && <><span className="tool-hint">{polygon.length < 3 ? 'Marca al menos 3 puntos' : `${polygon.length} puntos`}</span><button disabled={!polygon.length} onClick={() => setPolygon((points) => points.slice(0, -1))}><Undo2 size={15} /></button><button disabled={polygon.length < 3} className="apply" onClick={applyPolygon}>Seleccionar área</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'RADIUS' && <><label className="radius-size-control"><input type="number" min="0.5" max="50" step="0.5" value={radiusKm} onChange={(event) => updateRadius(Number(event.target.value))}/><span>km</span></label><input className="radius-range" type="range" min="0.5" max="30" step="0.5" value={Math.min(30, radiusKm)} onChange={(event) => updateRadius(Number(event.target.value))}/><span className="tool-hint">{radiusCenter ? 'Arrastra el centro o el borde' : 'Pulsa el centro en el mapa'}</span><button disabled={!radiusCenter} className="apply" onClick={applyRadius}>Seleccionar radio</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'NONE' && <button onClick={clearDraft} title="Limpiar herramienta"><RotateCcw size={15} /></button>}</div>}</div>
+}
+
+function radiusHandlePoint(center: [number, number], radiusKm: number): [number, number] {
+  const latitude = center[0]
+  const longitude = center[1]
+  const cos = Math.max(0.1, Math.cos(latitude * Math.PI / 180))
+  return [latitude, longitude + radiusKm / (111.32 * cos)]
 }
 
 function escapeHtml(value: string) { return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] || character)) }
