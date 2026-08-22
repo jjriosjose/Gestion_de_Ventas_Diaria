@@ -109,12 +109,12 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
     }
     if (!showOfficialBoundaries) return
 
-    const layer = L.tileLayer.wms('https://geoportal.iderd.gob.do/geoserver/wms', {
-      layers: 'geonode:RD_PROV',
+    const layer = L.tileLayer.wms('https://geoportal.iderd.gob.do/geoserver/gwc/service/wms', {
+      layers: 'ign:Provincias',
       format: 'image/png',
       transparent: true,
       version: '1.1.1',
-      opacity: 0.78,
+      opacity: 0.9,
       pane: 'official-boundaries',
       attribution: 'Límites oficiales: IDERD / IGN-JJHM',
     })
@@ -250,7 +250,7 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
     <div ref={host} className={`territorial-map basemap-${basemap.toLowerCase()}`} style={{ minHeight: height }} />
     <div className="territorial-map-view-control">
       <label className="map-view-select"><Layers3 size={15}/><span>Vista</span><select value={basemap} onChange={(event) => setBasemap(event.target.value as BasemapMode)} aria-label="Vista del mapa"><option value="STREETS">Calles</option><option value="LIGHT">Claro</option><option value="DARK">Oscuro</option><option value="CONTRAST">Alto contraste</option></select></label>
-      <label className="official-boundary-toggle" title="Mostrar límites provinciales oficiales publicados por IDERD / IGN-JJHM"><input type="checkbox" checked={showOfficialBoundaries} onChange={(event) => setShowOfficialBoundaries(event.target.checked)}/><MapPinned size={14}/><span>Límites oficiales</span></label>
+      <label className="official-boundary-toggle" title="Mostrar límites provinciales oficiales publicados por IDERD / IGN-JJHM"><input type="checkbox" checked={showOfficialBoundaries} onChange={(event) => setShowOfficialBoundaries(event.target.checked)}/><MapPinned size={14}/><span>Límites</span></label>
     </div>
     <div className="territorial-map-summary"><b>{geocoded.length.toLocaleString()} en mapa</b><span>{selectedIds.length.toLocaleString()} seleccionados</span></div>
     {areaTools && <div className="territorial-map-tools"><button className={mode === 'POLYGON' ? 'active' : ''} onClick={() => { setMode(mode === 'POLYGON' ? 'NONE' : 'POLYGON'); clearDraft() }} title="Seleccionar por polígono"><Pentagon size={16} /> Polígono</button><button className={mode === 'RADIUS' ? 'active' : ''} onClick={() => { setMode(mode === 'RADIUS' ? 'NONE' : 'RADIUS'); clearDraft() }} title="Seleccionar por radio"><CircleDot size={16} /> Radio</button>{mode === 'POLYGON' && <><span className="tool-hint">{polygon.length < 3 ? 'Marca al menos 3 puntos' : `${polygon.length} puntos`}</span><button disabled={!polygon.length} onClick={() => setPolygon((points) => points.slice(0, -1))}><Undo2 size={15} /></button><button disabled={polygon.length < 3} className="apply" onClick={applyPolygon}>Seleccionar área</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'RADIUS' && <><label className="radius-size-control"><input type="number" min="0.5" max="50" step="0.5" value={radiusKm} onChange={(event) => updateRadius(Number(event.target.value))}/><span>km</span></label><input className="radius-range" type="range" min="0.5" max="30" step="0.5" value={Math.min(30, radiusKm)} onChange={(event) => updateRadius(Number(event.target.value))}/><span className="tool-hint">{radiusCenter ? 'Arrastra el centro o el borde' : 'Pulsa el centro en el mapa'}</span><button disabled={!radiusCenter} className="apply" onClick={applyRadius}>Seleccionar radio</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'NONE' && <button onClick={clearDraft} title="Limpiar herramienta"><RotateCcw size={15} /></button>}</div>}
