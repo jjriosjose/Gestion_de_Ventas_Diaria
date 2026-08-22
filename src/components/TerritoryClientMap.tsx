@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { CircleDot, Pentagon, RotateCcw, Undo2, X } from 'lucide-react'
+import { CircleDot, Layers3, MapPinned, Pentagon, RotateCcw, Undo2, X } from 'lucide-react'
 import type { Client } from '../types'
 import { haversineKm, pointInPolygon } from '../lib/spatial'
 import '../styles/territorial-v2.css'
+import '../styles/map-views.css'
 
 export type TerritorialArea =
   | { kind: 'POLYGON'; points: Array<[number, number]> }
@@ -26,7 +27,17 @@ type Props = {
 }
 
 type DrawMode = 'NONE' | 'POLYGON' | 'RADIUS'
+type BasemapMode = 'STREETS' | 'LIGHT' | 'DARK' | 'CONTRAST'
+
+const MAP_STYLE_KEY = 'karaka-map-style'
+const basemapModes: BasemapMode[] = ['STREETS', 'LIGHT', 'DARK', 'CONTRAST']
 const isGeocoded = (client: Client) => client.latitude != null && client.longitude != null
+
+const initialBasemap = (): BasemapMode => {
+  if (typeof window === 'undefined') return 'STREETS'
+  const saved = window.localStorage.getItem(MAP_STYLE_KEY) as BasemapMode | null
+  return saved && basemapModes.includes(saved) ? saved : 'STREETS'
+}
 
 export function TerritoryClientMap({ clients, selectedIds = [], selectable = false, areaTools = false, zones = [], showZones = true, focusPoint = null, height = 520, onToggleClient, onAreaSelect }: Props) {
   const host = useRef<HTMLDivElement | null>(null)
@@ -34,8 +45,11 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
   const clientLayerRef = useRef<L.LayerGroup | null>(null)
   const zoneLayerRef = useRef<L.LayerGroup | null>(null)
   const draftLayerRef = useRef<L.LayerGroup | null>(null)
+  const officialBoundaryLayerRef = useRef<L.TileLayer.WMS | null>(null)
   const [zoom, setZoom] = useState(8)
   const [mode, setMode] = useState<DrawMode>('NONE')
+  const [basemap, setBasemap] = useState<BasemapMode>(initialBasemap)
+  const [showOfficialBoundaries, setShowOfficialBoundaries] = useState(false)
   const [polygon, setPolygon] = useState<Array<[number, number]>>([])
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null)
   const [radiusKm, setRadiusKm] = useState(5)
@@ -52,17 +66,65 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
 
   useEffect(() => {
     if (!host.current || mapRef.current) return
-    const map = L.map(host.current, { zoomControl: false }).setView([18.7357, -70.1627], 8)
+    const map = L.map(host.current, { zoomControl: false, preferCanvas: true }).setView([18.7357, -70.1627], 8)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20, attribution: '© OpenStreetMap' }).addTo(map)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 20,
+      maxNativeZoom: 19,
+      updateWhenIdle: true,
+      keepBuffer: 2,
+      detectRetina: false,
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(map)
+    map.createPane('official-boundaries')
+    const officialPane = map.getPane('official-boundaries')
+    if (officialPane) {
+      officialPane.style.zIndex = '240'
+      officialPane.style.pointerEvents = 'none'
+    }
     mapRef.current = map
     clientLayerRef.current = L.layerGroup().addTo(map)
     zoneLayerRef.current = L.layerGroup().addTo(map)
     draftLayerRef.current = L.layerGroup().addTo(map)
     const syncZoom = () => setZoom(map.getZoom())
     map.on('zoomend', syncZoom)
-    return () => { map.off('zoomend', syncZoom); map.remove(); mapRef.current = null }
+    return () => {
+      map.off('zoomend', syncZoom)
+      map.remove()
+      mapRef.current = null
+      officialBoundaryLayerRef.current = null
+    }
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.localStorage.setItem(MAP_STYLE_KEY, basemap)
+  }, [basemap])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (officialBoundaryLayerRef.current) {
+      map.removeLayer(officialBoundaryLayerRef.current)
+      officialBoundaryLayerRef.current = null
+    }
+    if (!showOfficialBoundaries) return
+
+    const layer = L.tileLayer.wms('https://geoportal.iderd.gob.do/geoserver/wms', {
+      layers: 'geonode:RD_PROV',
+      format: 'image/png',
+      transparent: true,
+      version: '1.1.1',
+      opacity: 0.78,
+      pane: 'official-boundaries',
+      attribution: 'Límites oficiales: IDERD / IGN-JJHM',
+    })
+    layer.addTo(map)
+    officialBoundaryLayerRef.current = layer
+    return () => {
+      if (map.hasLayer(layer)) map.removeLayer(layer)
+      if (officialBoundaryLayerRef.current === layer) officialBoundaryLayerRef.current = null
+    }
+  }, [showOfficialBoundaries])
 
   useEffect(() => {
     const map = mapRef.current
@@ -184,7 +246,15 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
   const applyRadius = () => { if (!radiusCenter) return; const center = { latitude: radiusCenter[0], longitude: radiusCenter[1] }; const ids = geocoded.filter((client) => haversineKm(center, client) <= radiusKm).map((client) => client.id); onAreaSelect?.(ids, { kind: 'RADIUS', center: radiusCenter, radiusKm }) }
   const updateRadius = (value: number) => setRadiusKm(Math.max(0.5, Math.min(50, Number.isFinite(value) ? value : 5)))
 
-  return <div className="territorial-map-shell" style={{ minHeight: height }}><div ref={host} className="territorial-map" style={{ minHeight: height }} /><div className="territorial-map-summary"><b>{geocoded.length.toLocaleString()} en mapa</b><span>{selectedIds.length.toLocaleString()} seleccionados</span></div>{areaTools && <div className="territorial-map-tools"><button className={mode === 'POLYGON' ? 'active' : ''} onClick={() => { setMode(mode === 'POLYGON' ? 'NONE' : 'POLYGON'); clearDraft() }} title="Seleccionar por polígono"><Pentagon size={16} /> Polígono</button><button className={mode === 'RADIUS' ? 'active' : ''} onClick={() => { setMode(mode === 'RADIUS' ? 'NONE' : 'RADIUS'); clearDraft() }} title="Seleccionar por radio"><CircleDot size={16} /> Radio</button>{mode === 'POLYGON' && <><span className="tool-hint">{polygon.length < 3 ? 'Marca al menos 3 puntos' : `${polygon.length} puntos`}</span><button disabled={!polygon.length} onClick={() => setPolygon((points) => points.slice(0, -1))}><Undo2 size={15} /></button><button disabled={polygon.length < 3} className="apply" onClick={applyPolygon}>Seleccionar área</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'RADIUS' && <><label className="radius-size-control"><input type="number" min="0.5" max="50" step="0.5" value={radiusKm} onChange={(event) => updateRadius(Number(event.target.value))}/><span>km</span></label><input className="radius-range" type="range" min="0.5" max="30" step="0.5" value={Math.min(30, radiusKm)} onChange={(event) => updateRadius(Number(event.target.value))}/><span className="tool-hint">{radiusCenter ? 'Arrastra el centro o el borde' : 'Pulsa el centro en el mapa'}</span><button disabled={!radiusCenter} className="apply" onClick={applyRadius}>Seleccionar radio</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'NONE' && <button onClick={clearDraft} title="Limpiar herramienta"><RotateCcw size={15} /></button>}</div>}</div>
+  return <div className="territorial-map-shell" style={{ minHeight: height }}>
+    <div ref={host} className={`territorial-map basemap-${basemap.toLowerCase()}`} style={{ minHeight: height }} />
+    <div className="territorial-map-view-control">
+      <label className="map-view-select"><Layers3 size={15}/><span>Vista</span><select value={basemap} onChange={(event) => setBasemap(event.target.value as BasemapMode)} aria-label="Vista del mapa"><option value="STREETS">Calles</option><option value="LIGHT">Claro</option><option value="DARK">Oscuro</option><option value="CONTRAST">Alto contraste</option></select></label>
+      <label className="official-boundary-toggle" title="Mostrar límites provinciales oficiales publicados por IDERD / IGN-JJHM"><input type="checkbox" checked={showOfficialBoundaries} onChange={(event) => setShowOfficialBoundaries(event.target.checked)}/><MapPinned size={14}/><span>Límites oficiales</span></label>
+    </div>
+    <div className="territorial-map-summary"><b>{geocoded.length.toLocaleString()} en mapa</b><span>{selectedIds.length.toLocaleString()} seleccionados</span></div>
+    {areaTools && <div className="territorial-map-tools"><button className={mode === 'POLYGON' ? 'active' : ''} onClick={() => { setMode(mode === 'POLYGON' ? 'NONE' : 'POLYGON'); clearDraft() }} title="Seleccionar por polígono"><Pentagon size={16} /> Polígono</button><button className={mode === 'RADIUS' ? 'active' : ''} onClick={() => { setMode(mode === 'RADIUS' ? 'NONE' : 'RADIUS'); clearDraft() }} title="Seleccionar por radio"><CircleDot size={16} /> Radio</button>{mode === 'POLYGON' && <><span className="tool-hint">{polygon.length < 3 ? 'Marca al menos 3 puntos' : `${polygon.length} puntos`}</span><button disabled={!polygon.length} onClick={() => setPolygon((points) => points.slice(0, -1))}><Undo2 size={15} /></button><button disabled={polygon.length < 3} className="apply" onClick={applyPolygon}>Seleccionar área</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'RADIUS' && <><label className="radius-size-control"><input type="number" min="0.5" max="50" step="0.5" value={radiusKm} onChange={(event) => updateRadius(Number(event.target.value))}/><span>km</span></label><input className="radius-range" type="range" min="0.5" max="30" step="0.5" value={Math.min(30, radiusKm)} onChange={(event) => updateRadius(Number(event.target.value))}/><span className="tool-hint">{radiusCenter ? 'Arrastra el centro o el borde' : 'Pulsa el centro en el mapa'}</span><button disabled={!radiusCenter} className="apply" onClick={applyRadius}>Seleccionar radio</button><button onClick={stopDrawing}><X size={15} /></button></>}{mode === 'NONE' && <button onClick={clearDraft} title="Limpiar herramienta"><RotateCcw size={15} /></button>}</div>}
+  </div>
 }
 
 function radiusHandlePoint(center: [number, number], radiusKm: number): [number, number] {
