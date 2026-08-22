@@ -22,6 +22,8 @@ export type Client = {
   g_cartera?: string | null
   vendor_employee_id?: string | null
   manager_employee_id?: string | null
+  vendor_assignment_override?: boolean
+  manager_assignment_override?: boolean
   region?: string | null
   province?: string | null
   municipality?: string | null
