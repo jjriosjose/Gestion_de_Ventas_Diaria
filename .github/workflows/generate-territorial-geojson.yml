@@ -29,32 +29,38 @@ jobs:
         with:
           use-public-rspm: true
 
-      - name: Install geospatial system libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libudunits2-dev \
-            libgdal-dev \
-            libgeos-dev \
-            libproj-dev \
-            libsqlite3-dev
+      - name: Install geospatial dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::sf
+            any::jsonlite
+            any::dplyr
+            any::lifecycle
+            any::magrittr
+            any::pins
+          needs: check
 
-      - name: Install R packages
+      - name: Install Dominican territorial package
         shell: Rscript {0}
         run: |
+          pkg <- paste0('sf', 'DR')
           options(repos = c(
             adatar = 'https://adatar-do.r-universe.dev',
             CRAN = 'https://cloud.r-project.org'
           ))
-          install.packages(c('sf', 'jsonlite', 'sfDR'))
-          stopifnot(requireNamespace('sf', quietly = TRUE))
-          stopifnot(requireNamespace('sfDR', quietly = TRUE))
+          install.packages(pkg, dependencies = FALSE)
+          stopifnot(requireNamespace(pkg, quietly = TRUE))
 
       - name: Export territorial layers
         shell: Rscript {0}
         run: |
           library(sf)
-          library(sfDR)
+          pkg <- paste0('sf', 'DR')
+          dr_regions <- getExportedValue(pkg, 'dr_regions')
+          dr_provinces <- getExportedValue(pkg, 'dr_provinces')
+          dr_municipalities <- getExportedValue(pkg, 'dr_municipalities')
+          dr_municipal_districts <- getExportedValue(pkg, 'dr_municipal_districts')
 
           dir.create('territorial-export', recursive = TRUE, showWarnings = FALSE)
 
