@@ -4,8 +4,8 @@ export type Employee = {
   full_name: string
   username: string
   job_title?: string | null
-  app_role: 'Administrador' | 'Supervisor' | 'Usuario' | 'SoloLectura'
-  employee_type: 'Gerencia' | 'Direccion' | 'Gestor' | 'Vendedor' | 'Otro'
+  app_role: 'Administrador' | 'Supervisor' | 'Usuario' | 'SoloLectura' | 'Recepcionista'
+  employee_type: 'Gerencia' | 'Direccion' | 'Gestor' | 'Vendedor' | 'Recepcion' | 'Otro'
   phone_display?: string | null
   phone_e164?: string | null
   active?: boolean
