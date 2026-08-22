@@ -19,6 +19,8 @@ export type Client = {
   cod_empresa?: string | null
   v_cartera?: string | null
   g_cartera?: string | null
+  vendor_employee_id?: string | null
+  manager_employee_id?: string | null
   region?: string | null
   province?: string | null
   municipality?: string | null
@@ -40,7 +42,6 @@ export type Client = {
   geo_status?: 'SIN_GEO' | 'SIN_VERIFICAR' | 'VERIFICADA' | 'POSIBLE_ERROR'
   geo_verified_at?: string | null
 }
-
 
 export type DailyEmployee = {
   day: string
