@@ -63,8 +63,8 @@ export function Routes() {
     setBusy(true)
     try {
       const [{ data: openVisits }, { data: unresolved }] = await Promise.all([
-        supabase.from('visits').select('id,clients(legal_name)').eq('route_session_id', session.id).is('ended_at', null).limit(5),
-        supabase.from('route_stops').select('id,status,clients(legal_name)').eq('route_plan_id', selected.id).in('status', ['PENDIENTE', 'EN_VISITA']).limit(20),
+        supabase.from('visits').select('id').eq('route_session_id', session.id).is('ended_at', null).limit(5),
+        supabase.from('route_stops').select('id,status').eq('route_plan_id', selected.id).in('status', ['PENDIENTE', 'EN_VISITA']).limit(20),
       ])
       if ((openVisits || []).length) throw new Error('Existe una visita abierta. Debes finalizarla antes de cerrar la ruta.')
       if ((unresolved || []).length) throw new Error(`Aún tienes ${(unresolved || []).length} parada(s) pendientes. Visítalas o registra el motivo de no realización.`)
@@ -101,8 +101,8 @@ export function Routes() {
     if (!session || !mine || !employee) return alert('Debes iniciar la ruta primero')
     setBusy(true)
     try {
-      const { data: openVisits } = await supabase.from('visits').select('id,clients(legal_name)').eq('employee_id', employee.id).is('ended_at', null).limit(1)
-      if ((openVisits || []).length) throw new Error(`Ya tienes una visita abierta${(openVisits || [])[0]?.clients?.legal_name ? ` en ${(openVisits || [])[0].clients.legal_name}` : ''}. Finalízala antes de registrar otra llegada.`)
+      const { data: openVisits } = await supabase.from('visits').select('id').eq('employee_id', employee.id).is('ended_at', null).limit(1)
+      if ((openVisits || []).length) throw new Error('Ya tienes una visita abierta. Finalízala antes de registrar otra llegada.')
       const position = await currentPosition()
       const { data, error } = await supabase.from('visits').insert({ route_session_id: session.id, route_stop_id: stop.id, client_id: stop.client_id, employee_id: employee.id, visit_kind: 'CLIENTE', planned: true, started_at: new Date().toISOString(), start_latitude: position.latitude, start_longitude: position.longitude, start_accuracy_m: position.accuracy }).select().single()
       if (error) throw error
