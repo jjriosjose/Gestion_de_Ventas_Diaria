@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - feature/geographic-intelligence-v2
-    paths:
-      - '.github/workflows/generate-territorial-geojson.yml'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
