@@ -155,23 +155,23 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
       const centerMarker = L.marker(radiusCenter, { draggable: true, icon: centerIcon, zIndexOffset: 1000 }).addTo(layer)
       const resizeMarker = L.marker(radiusHandlePoint(radiusCenter, radiusKm), { draggable: true, icon: resizeIcon, zIndexOffset: 1000 }).addTo(layer)
 
-      centerMarker.on('drag', (event: L.DragEndEvent) => {
-        const pos = event.target.getLatLng() as L.LatLng
+      centerMarker.on('drag', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
         const nextCenter: [number, number] = [pos.lat, pos.lng]
         circle.setLatLng(nextCenter)
         resizeMarker.setLatLng(radiusHandlePoint(nextCenter, radiusKm))
       })
-      centerMarker.on('dragend', (event: L.DragEndEvent) => {
-        const pos = event.target.getLatLng() as L.LatLng
+      centerMarker.on('dragend', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
         setRadiusCenter([pos.lat, pos.lng])
       })
-      resizeMarker.on('drag', (event: L.DragEndEvent) => {
-        const pos = event.target.getLatLng() as L.LatLng
+      resizeMarker.on('drag', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
         const km = Math.max(0.5, Math.min(50, haversineKm({ latitude: radiusCenter[0], longitude: radiusCenter[1] }, { latitude: pos.lat, longitude: pos.lng })))
         circle.setRadius(km * 1000)
       })
-      resizeMarker.on('dragend', (event: L.DragEndEvent) => {
-        const pos = event.target.getLatLng() as L.LatLng
+      resizeMarker.on('dragend', (event: L.LeafletEvent) => {
+        const pos = (event.target as L.Marker).getLatLng()
         const km = Math.max(0.5, Math.min(50, haversineKm({ latitude: radiusCenter[0], longitude: radiusCenter[1] }, { latitude: pos.lat, longitude: pos.lng })))
         setRadiusKm(Math.round(km * 10) / 10)
       })
