@@ -10,12 +10,7 @@ export type TerritorialArea =
   | { kind: 'POLYGON'; points: Array<[number, number]> }
   | { kind: 'RADIUS'; center: [number, number]; radiusKm: number }
 
-export type MapZone = {
-  id: string
-  name: string
-  territory_type?: string | null
-  geometry?: any
-}
+export type MapZone = { id: string; name: string; territory_type?: string | null; geometry?: any }
 
 type Props = {
   clients: Client[]
@@ -68,9 +63,7 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 })
   }, [geocoded])
 
-  useEffect(() => {
-    if (focusPoint && mapRef.current) mapRef.current.flyTo(focusPoint, 15)
-  }, [focusPoint])
+  useEffect(() => { if (focusPoint && mapRef.current) mapRef.current.flyTo(focusPoint, 15) }, [focusPoint])
 
   useEffect(() => {
     const map = mapRef.current
@@ -105,9 +98,9 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
         const selectedCount = bucket.filter((client) => selectedSet.has(client.id)).length
         const cluster = L.circleMarker([latitude, longitude], { radius: Math.min(24, 11 + Math.log2(bucket.length) * 2.4), weight: 3, color: '#ffffff', fillColor: selectedCount ? '#17865c' : '#c71f2d', fillOpacity: 0.94 })
         cluster.bindTooltip(`<div class="territorial-tooltip cluster"><b>${bucket.length} clientes</b>${selectedCount ? `<span>${selectedCount} seleccionados</span>` : '<span>Pulse para acercar</span>'}</div>`, { direction: 'top', opacity: 0.96 })
-        cluster.bindPermanentTooltip(String(bucket.length), { direction: 'center', className: 'cluster-count', opacity: 1 })
         cluster.on('click', () => map.flyTo([latitude, longitude], Math.min(18, zoom + 2)))
         cluster.addTo(layer)
+        L.marker([latitude, longitude], { interactive: false, icon: L.divIcon({ className: 'cluster-count-marker', html: `<span>${bucket.length}</span>`, iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(layer)
       })
     } else geocoded.forEach(createIndividual)
   }, [geocoded, mode, onToggleClient, selectable, selectedSet, zoom])
