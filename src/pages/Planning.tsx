@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, FilterX, Map, Plus, Search, Shuffle, X } from 'lucide-react'
+import { CalendarPlus, FilterX, Map as MapIcon, Plus, Search, Shuffle, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { currentPosition } from '../lib/geo'
@@ -295,7 +295,7 @@ export function Planning() {
               <label>Objetivo de prospectos
                 <input type="number" min={1} value={target} onChange={(event) => setTarget(Number(event.target.value))} />
               </label>
-              <a className="secondary center" href="/mapa"><Map size={17} /> Crear o revisar zonas</a>
+              <a className="secondary center" href="/mapa"><MapIcon size={17} /> Crear o revisar zonas</a>
             </>
           ) : (
             <>
@@ -382,7 +382,7 @@ export function Planning() {
               </section>
             </>
           ) : (
-            <section className="panel"><div className="empty-state"><Map size={34} /><b>Jornada territorial de captación</b><span>Selecciona una zona guardada o crea una nueva desde el módulo Mapa.</span></div></section>
+            <section className="panel"><div className="empty-state"><MapIcon size={34} /><b>Jornada territorial de captación</b><span>Selecciona una zona guardada o crea una nueva desde el módulo Mapa.</span></div></section>
           )}
         </main>
       </div>
