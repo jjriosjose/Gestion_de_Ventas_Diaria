@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - feature/geographic-intelligence-v2
+    paths:
+      - '.github/workflows/generate-territorial-geojson.yml'
   pull_request:
-    branches:
-      - main
+    paths:
+      - '.github/workflows/generate-territorial-geojson.yml'
+      - 'supabase/**'
+      - 'src/pages/DataQuality.tsx'
   workflow_dispatch:
 
 permissions:
@@ -25,21 +29,26 @@ jobs:
         with:
           use-public-rspm: true
 
-      - name: Install geospatial dependencies
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: |
-            any::sf
-            any::jsonlite
-          needs: check
+      - name: Install geospatial system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libudunits2-dev \
+            libgdal-dev \
+            libgeos-dev \
+            libproj-dev \
+            libsqlite3-dev
 
-      - name: Install sfDR
+      - name: Install R packages
         shell: Rscript {0}
         run: |
-          install.packages(
-            'sfDR',
-            repos = c('https://adatar-do.r-universe.dev', 'https://cloud.r-project.org')
-          )
+          options(repos = c(
+            adatar = 'https://adatar-do.r-universe.dev',
+            CRAN = 'https://cloud.r-project.org'
+          ))
+          install.packages(c('sf', 'jsonlite', 'sfDR'))
+          stopifnot(requireNamespace('sf', quietly = TRUE))
+          stopifnot(requireNamespace('sfDR', quietly = TRUE))
 
       - name: Export territorial layers
         shell: Rscript {0}
@@ -51,6 +60,7 @@ jobs:
 
           export_geojson <- function(x, path) {
             x <- st_make_valid(st_transform(x, 4326))
+            if (any(st_is_empty(x))) stop(sprintf('Empty geometries detected in %s', path))
             st_write(
               x,
               path,
@@ -59,29 +69,59 @@ jobs:
               quiet = TRUE,
               layer_options = c('COORDINATE_PRECISION=6')
             )
+            invisible(nrow(x))
           }
 
-          export_geojson(dr_regions(.sf = TRUE, .uniques = TRUE),
-                         'territorial-export/regions.geojson')
-          export_geojson(dr_provinces(.sf = TRUE, .reg = TRUE, .uniques = TRUE),
-                         'territorial-export/provinces.geojson')
-          export_geojson(dr_municipalities(.sf = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE),
-                         'territorial-export/municipalities.geojson')
-          export_geojson(dr_municipal_districts(.sf = TRUE, .mun = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE),
-                         'territorial-export/municipal-districts.geojson')
+          regions <- dr_regions(.sf = TRUE, .uniques = TRUE)
+          provinces <- dr_provinces(.sf = TRUE, .reg = TRUE, .uniques = TRUE)
+          municipalities <- dr_municipalities(.sf = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE)
+          municipal_districts <- dr_municipal_districts(.sf = TRUE, .mun = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE)
+
+          expected <- c(REGION = 10L, PROVINCIA = 32L, MUNICIPIO = 158L, DISTRITO_MUNICIPAL = 393L)
+          actual <- c(
+            REGION = nrow(regions),
+            PROVINCIA = nrow(provinces),
+            MUNICIPIO = nrow(municipalities),
+            DISTRITO_MUNICIPAL = nrow(municipal_districts)
+          )
+          if (!identical(unname(actual), unname(expected))) {
+            stop(sprintf(
+              'Unexpected territorial feature counts. Expected %s; got %s',
+              paste(expected, collapse = ','),
+              paste(actual, collapse = ',')
+            ))
+          }
+
+          all_bbox <- st_bbox(municipalities)
+          if (all_bbox[['xmin']] < -73 || all_bbox[['xmax']] > -67 || all_bbox[['ymin']] < 17 || all_bbox[['ymax']] > 21) {
+            stop(sprintf('Unexpected Dominican Republic bounding box: %s', paste(all_bbox, collapse = ',')))
+          }
+
+          export_geojson(regions, 'territorial-export/regions.geojson')
+          export_geojson(provinces, 'territorial-export/provinces.geojson')
+          export_geojson(municipalities, 'territorial-export/municipalities.geojson')
+          export_geojson(municipal_districts, 'territorial-export/municipal-districts.geojson')
 
           manifest <- data.frame(
-            layer = c('REGION', 'PROVINCIA', 'MUNICIPIO', 'DISTRITO_MUNICIPAL'),
-            expected_features = c(10L, 32L, 158L, 393L),
-            source = rep('sfDR 0.2.2 / IDERD / ONE Division Territorial 2021', 4),
+            layer = names(actual),
+            expected_features = as.integer(expected),
+            actual_features = as.integer(actual),
+            source = rep('sfDR / IDERD / ONE Division Territorial 2021', 4),
+            crs = rep(st_crs(municipalities)$input, 4),
+            generated_at_utc = rep(format(Sys.time(), tz = 'UTC', usetz = TRUE), 4),
             stringsAsFactors = FALSE
           )
           write.csv(manifest, 'territorial-export/manifest.csv', row.names = FALSE)
 
-      - name: Show generated files
+      - name: Validate generated files
         run: |
+          test -s territorial-export/regions.geojson
+          test -s territorial-export/provinces.geojson
+          test -s territorial-export/municipalities.geojson
+          test -s territorial-export/municipal-districts.geojson
           ls -lh territorial-export
           wc -c territorial-export/*.geojson
+          cat territorial-export/manifest.csv
 
       - name: Upload territorial artifact
         uses: actions/upload-artifact@v4
