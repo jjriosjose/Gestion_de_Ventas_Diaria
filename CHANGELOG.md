@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0 — Operación comercial + cobertura de cartera
+
+- Nuevo módulo **Cobertura cartera** para controlar visitas y llamadas obligatorias por cliente sin depender de una ruta planificada.
+- Frecuencia configurable por cliente: visitas/mes, llamadas/mes y separación mínima recomendada.
+- Asignación masiva de frecuencia usando los filtros territoriales/comerciales activos.
+- Nueva **jornada libre** para vendedores: pueden iniciar jornada sin ruta y gestionar directamente clientes de su cartera.
+- Workflow de visita corregido: inicio de ruta/salida → llegada al cliente → visita en curso → salida/finalización → siguiente cliente.
+- Bloqueo de múltiples visitas abiertas por empleado.
+- Una ruta no puede finalizar mientras existan visitas abiertas o paradas pendientes.
+- Visitas registran contacto, resultado comercial, próxima acción, seguimiento y fotografías/evidencias.
+- Solicitud de showroom desde visita o llamada, asignada automáticamente al V-Gestor homologado del cliente.
+- Showroom con estados de validación: pendiente, contactando, confirmada, reprogramada, no confirmada, cancelada, asistió y no asistió.
+- Alertas internas para el gestor cuando recibe una solicitud de showroom y para el solicitante cuando cambia el estado.
+- Módulo **Llamadas** ampliado con filtros, resultados estructurados, seguimiento y creación de solicitud showroom.
+- Agenda preparada para que el gestor valide la intención del cliente antes de convertirla en cita confirmada.
+- Edición de clientes con desplegables de Vendedor y Gestor activos.
+- Las asignaciones manuales quedan protegidas frente a futuras importaciones y cambios globales de homologación.
+- Administración de usuarios confirmada dentro de la app: creación, edición, rol, tipo de empleado, teléfono, clave y activación/desactivación mediante backend seguro.
+- Base de datos preparada para cobertura mensual, notificaciones, overrides manuales y analítica posterior.
+
 ## 0.4.0 — Planificación territorial + Mapa v2
 
 - Planificación con mapa sincronizado y selección visual de clientes.

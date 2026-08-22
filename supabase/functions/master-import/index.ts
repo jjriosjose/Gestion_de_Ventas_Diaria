@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
       })
     })
 
-    const { data: existingRows, error: existingError } = await admin.from('clients').select('codempr,source_data')
+    const { data: existingRows, error: existingError } = await admin.from('clients').select('codempr,source_data,vendor_employee_id,manager_employee_id,vendor_assignment_override,manager_assignment_override')
     if (existingError) throw existingError
     const existingMap = new Map<string, any>((existingRows || []).map((r: any) => [r.codempr, r]))
     let inserted = 0, updated = 0, unchanged = 0
@@ -112,9 +112,22 @@ Deno.serve(async (req: Request) => {
     const changedRows: any[] = []
     for (const item of normalized) {
       const current = existingMap.get(item.codempr)
-      if (!current) { inserted++; newRows.push({ ...item, created_by: authData.user.id, updated_by: authData.user.id }) }
-      else if (stableStringify(current.source_data || {}) === stableStringify(item.source_data || {})) unchanged++
-      else { updated++; changedRows.push({ ...item, updated_by: authData.user.id }) }
+      if (!current) {
+        inserted++
+        newRows.push({ ...item, vendor_assignment_override: false, manager_assignment_override: false, created_by: authData.user.id, updated_by: authData.user.id })
+      } else if (stableStringify(current.source_data || {}) === stableStringify(item.source_data || {})) {
+        unchanged++
+      } else {
+        updated++
+        changedRows.push({
+          ...item,
+          vendor_employee_id: current.vendor_assignment_override ? current.vendor_employee_id : item.vendor_employee_id,
+          manager_employee_id: current.manager_assignment_override ? current.manager_employee_id : item.manager_employee_id,
+          vendor_assignment_override: !!current.vendor_assignment_override,
+          manager_assignment_override: !!current.manager_assignment_override,
+          updated_by: authData.user.id,
+        })
+      }
     }
 
     const summary = { total_rows: rows.length, valid_rows: normalized.length, inserted_rows: inserted, updated_rows: updated, unchanged_rows: unchanged, error_rows: errors.length, georeferenced_rows: normalized.filter((r) => r.data_quality?.has_valid_georef).length, errors: errors.slice(0, 100) }
