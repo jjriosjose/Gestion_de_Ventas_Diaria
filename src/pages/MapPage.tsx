@@ -1,18 +1,168 @@
-import { useEffect,useRef,useState } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-import { Crosshair, Navigation, Pentagon, Save, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Crosshair, FilterX, Layers3, Pentagon, Save, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { googleMapsNavigation } from '../lib/geo'
+import { currentPosition } from '../lib/geo'
 import { useAuth } from '../context/AuthContext'
-import type { Client } from '../types'
-export function MapPage(){const {employee}=useAuth();const admin=['Administrador','Supervisor'].includes(employee?.app_role||'');const el=useRef<HTMLDivElement|null>(null);const mapRef=useRef<L.Map|null>(null);const layerRef=useRef<L.LayerGroup|null>(null);const drawLayer=useRef<L.Polygon|null>(null);const [clients,setClients]=useState<Client[]>([]);const [draw,setDraw]=useState(false);const [points,setPoints]=useState<[number,number][]>([]);const [zoneName,setZoneName]=useState('');const [saving,setSaving]=useState(false)
- useEffect(()=>{void supabase.from('clients').select('id,codempr,legal_name,v_cartera,g_cartera,province,municipality,latitude,longitude').not('latitude','is',null).not('longitude','is',null).limit(3000).then(({data})=>setClients((data||[]) as Client[]))},[])
- useEffect(()=>{if(!el.current||mapRef.current)return;const map=L.map(el.current,{zoomControl:false}).setView([18.7357,-70.1627],8);L.control.zoom({position:'bottomright'}).addTo(map);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap'}).addTo(map);mapRef.current=map;layerRef.current=L.layerGroup().addTo(map);return()=>{map.remove();mapRef.current=null}},[])
- useEffect(()=>{const layer=layerRef.current;if(!layer)return;layer.clearLayers();clients.forEach(c=>{if(c.latitude==null||c.longitude==null)return;const marker=L.circleMarker([c.latitude,c.longitude],{radius:6,weight:2,color:'#fff',fillColor:'#c51f2f',fillOpacity:.88});const nav=googleMapsNavigation(c.latitude,c.longitude);marker.bindPopup(`<div class="map-popup"><b>${escapeHtml(c.legal_name)}</b><small>${escapeHtml(c.codempr)}</small><span>V: ${escapeHtml(c.v_cartera||'—')}</span><span>G: ${escapeHtml(c.g_cartera||'—')}</span>${nav?`<a target="_blank" href="${nav}">Navegar con Google Maps</a>`:''}</div>`);marker.addTo(layer)})},[clients])
- useEffect(()=>{const map=mapRef.current;if(!map)return;const click=(e:L.LeafletMouseEvent)=>{if(draw)setPoints(p=>[...p,[e.latlng.lat,e.latlng.lng]])};map.on('click',click);return()=>{map.off('click',click)}},[draw])
- useEffect(()=>{const map=mapRef.current;if(!map)return;if(drawLayer.current){drawLayer.current.remove();drawLayer.current=null}if(points.length>=2){drawLayer.current=L.polygon(points,{color:'#c51f2f',weight:3,fillOpacity:.12}).addTo(map)}},[points])
- const locate=()=>navigator.geolocation?.getCurrentPosition(p=>mapRef.current?.flyTo([p.coords.latitude,p.coords.longitude],15))
- const saveZone=async()=>{if(points.length<3||!zoneName.trim())return;setSaving(true);const ring=points.map(([lat,lng])=>[lng,lat]);ring.push(ring[0]);const geo={type:'Polygon',coordinates:[ring]};const {error}=await supabase.rpc('create_territory_polygon',{p_name:zoneName.trim(),p_geojson:geo,p_territory_type:'CAPTACION',p_notes:'Zona dibujada desde el mapa'});setSaving(false);if(error)alert(error.message);else{alert('Zona guardada');setPoints([]);setZoneName('');setDraw(false)}}
- return <div className="page-stack map-page"><div className="page-head"><div><span className="eyebrow">MAPA OPERATIVO</span><h2>Clientes y zonas</h2><p>{clients.length.toLocaleString()} clientes georreferenciados cargados en el mapa.</p></div><div className="button-row"><button className="secondary" onClick={locate}><Crosshair size={17}/> Mi ubicación</button>{admin&&<button className={draw?'primary':'secondary'} onClick={()=>{setDraw(!draw);setPoints([])}}><Pentagon size={17}/>{draw?'Dibujando zona':'Crear zona'}</button>}</div></div>{draw&&<div className="zone-toolbar"><b>Dibuja la zona tocando/clickeando el mapa</b><input placeholder="Nombre de la zona" value={zoneName} onChange={e=>setZoneName(e.target.value)}/><span>{points.length} puntos</span><button className="secondary" onClick={()=>setPoints([])}><X size={16}/> Limpiar</button><button className="primary" disabled={points.length<3||!zoneName.trim()||saving} onClick={()=>void saveZone()}><Save size={16}/>{saving?'Guardando...':'Guardar zona'}</button></div>}<div className="map-shell"><div ref={el} className="leaflet-map"/><div className="map-legend"><b>Leyenda</b><span><i className="dot client"/> Cliente</span><span><Navigation size={14}/> Pulse un cliente para navegar</span></div></div></div>}
-function escapeHtml(s:string){return s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]||c))}
+import { TerritoryClientMap } from '../components/TerritoryClientMap'
+import type { MapZone, TerritorialArea } from '../components/TerritoryClientMap'
+import { uniqueSorted } from '../lib/spatial'
+import type { Client, Employee } from '../types'
+import '../styles/territorial-v2.css'
+
+type ZoneType = 'CAPTACION' | 'COMERCIAL' | 'OTRA'
+
+export function MapPage() {
+  const { employee } = useAuth()
+  const admin = ['Administrador', 'Supervisor'].includes(employee?.app_role || '')
+  const [clients, setClients] = useState<Client[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [zones, setZones] = useState<MapZone[]>([])
+  const [q, setQ] = useState('')
+  const [region, setRegion] = useState('')
+  const [province, setProvince] = useState('')
+  const [municipality, setMunicipality] = useState('')
+  const [vendor, setVendor] = useState('')
+  const [manager, setManager] = useState('')
+  const [geoStatus, setGeoStatus] = useState('ALL')
+  const [showZones, setShowZones] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [draftArea, setDraftArea] = useState<TerritorialArea | null>(null)
+  const [draftClientIds, setDraftClientIds] = useState<string[]>([])
+  const [zoneName, setZoneName] = useState('')
+  const [zoneType, setZoneType] = useState<ZoneType>('CAPTACION')
+  const [focusPoint, setFocusPoint] = useState<[number, number] | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    const [clientResponse, employeeResponse, zoneResponse] = await Promise.all([
+      supabase.from('clients').select('id,company_code,codempr,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,latitude,longitude,geo_status').limit(3000).order('legal_name'),
+      supabase.from('employees').select('*').eq('active', true).in('employee_type', ['Vendedor', 'Gestor']).order('full_name'),
+      supabase.from('territories').select('id,name,territory_type,geometry').eq('active', true).order('name'),
+    ])
+    setClients((clientResponse.data || []) as Client[])
+    setEmployees((employeeResponse.data || []) as Employee[])
+    setZones((zoneResponse.data || []) as MapZone[])
+  }
+
+  useEffect(() => { void load() }, [])
+  useEffect(() => { setProvince(''); setMunicipality('') }, [region])
+  useEffect(() => { setMunicipality('') }, [province])
+
+  const vendors = employees.filter((item) => item.employee_type === 'Vendedor')
+  const managers = employees.filter((item) => item.employee_type === 'Gestor')
+  const regionOptions = useMemo(() => uniqueSorted(clients.map((client) => client.region)), [clients])
+  const provinceOptions = useMemo(() => uniqueSorted(clients.filter((client) => !region || client.region === region).map((client) => client.province)), [clients, region])
+  const municipalityOptions = useMemo(() => uniqueSorted(clients.filter((client) => (!region || client.region === region) && (!province || client.province === province)).map((client) => client.municipality)), [clients, region, province])
+
+  const filteredClients = useMemo(() => {
+    const term = q.trim().toLocaleLowerCase('es')
+    return clients.filter((client) => {
+      if (term && !`${client.legal_name} ${client.codempr}`.toLocaleLowerCase('es').includes(term)) return false
+      if (region && client.region !== region) return false
+      if (province && client.province !== province) return false
+      if (municipality && client.municipality !== municipality) return false
+      if (vendor && client.vendor_employee_id !== vendor) return false
+      if (manager && client.manager_employee_id !== manager) return false
+      if (geoStatus !== 'ALL' && client.geo_status !== geoStatus) return false
+      return true
+    })
+  }, [clients, q, region, province, municipality, vendor, manager, geoStatus])
+
+  const geocodedCount = filteredClients.filter((client) => client.latitude != null && client.longitude != null).length
+
+  const clearFilters = () => {
+    setQ('')
+    setRegion('')
+    setProvince('')
+    setMunicipality('')
+    setVendor('')
+    setManager('')
+    setGeoStatus('ALL')
+  }
+
+  const locate = async () => {
+    try {
+      const position = await currentPosition()
+      setFocusPoint([position.latitude, position.longitude])
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No fue posible obtener la ubicación')
+    }
+  }
+
+  const cancelZone = () => {
+    setCreating(false)
+    setDraftArea(null)
+    setDraftClientIds([])
+    setZoneName('')
+  }
+
+  const saveZone = async () => {
+    if (!zoneName.trim() || !draftArea) return alert('Define el nombre y el área de la zona')
+    setSaving(true)
+    let id: string | null = null
+    let errorMessage: string | null = null
+
+    if (draftArea.kind === 'POLYGON') {
+      const ring = draftArea.points.map(([lat, lng]) => [lng, lat])
+      ring.push(ring[0])
+      const { data, error } = await supabase.rpc('create_territory_polygon', {
+        p_name: zoneName.trim(),
+        p_geojson: { type: 'Polygon', coordinates: [ring] },
+        p_territory_type: zoneType,
+        p_notes: `Zona creada desde Mapa v2 · ${draftClientIds.length} clientes dentro al momento de creación`,
+      })
+      id = data || null
+      errorMessage = error?.message || null
+    } else {
+      const { data, error } = await supabase.rpc('create_territory_radius', {
+        p_name: zoneName.trim(),
+        p_latitude: draftArea.center[0],
+        p_longitude: draftArea.center[1],
+        p_radius_m: draftArea.radiusKm * 1000,
+        p_territory_type: zoneType,
+        p_notes: `Zona radial creada desde Mapa v2 · ${draftClientIds.length} clientes dentro al momento de creación`,
+      })
+      id = data || null
+      errorMessage = error?.message || null
+    }
+
+    if (!errorMessage && id) {
+      const { error } = await supabase.from('territories').update({ region: region || null, province: province || null, municipality: municipality || null }).eq('id', id)
+      if (error) errorMessage = error.message
+    }
+
+    setSaving(false)
+    if (errorMessage) return alert(errorMessage)
+    alert('Zona guardada correctamente')
+    cancelZone()
+    await load()
+  }
+
+  return (
+    <div className="page-stack">
+      <div className="page-head">
+        <div><span className="eyebrow">MAPA TERRITORIAL</span><h2>Clientes y zonas</h2><p>{geocodedCount.toLocaleString()} clientes visibles con GPS de {filteredClients.length.toLocaleString()} filtrados.</p></div>
+        <div className="button-row"><button className="secondary" onClick={() => void locate()}><Crosshair size={17} /> Mi ubicación</button><label className="checkbox"><input type="checkbox" checked={showZones} onChange={(event) => setShowZones(event.target.checked)} /><Layers3 size={16} /> Mostrar zonas</label>{admin && <button className={creating ? 'primary' : 'secondary'} onClick={() => creating ? cancelZone() : setCreating(true)}><Pentagon size={17} />{creating ? 'Creando zona' : 'Crear zona'}</button>}</div>
+      </div>
+
+      <section className="panel planner-filter-panel">
+        <div className="planner-filter-grid">
+          <div className="search-field"><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Buscar cliente o código..." /></div>
+          <select value={region} onChange={(event) => setRegion(event.target.value)}><option value="">Todas las regiones</option>{regionOptions.map((value) => <option key={value}>{value}</option>)}</select>
+          <select value={province} onChange={(event) => setProvince(event.target.value)}><option value="">Todas las provincias</option>{provinceOptions.map((value) => <option key={value}>{value}</option>)}</select>
+          <select value={municipality} onChange={(event) => setMunicipality(event.target.value)}><option value="">Todos los municipios</option>{municipalityOptions.map((value) => <option key={value}>{value}</option>)}</select>
+          <select value={vendor} onChange={(event) => setVendor(event.target.value)}><option value="">Todos los vendedores</option>{vendors.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select>
+          <select value={manager} onChange={(event) => setManager(event.target.value)}><option value="">Todos los gestores</option>{managers.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select>
+          <select value={geoStatus} onChange={(event) => setGeoStatus(event.target.value)}><option value="ALL">Cualquier calidad GPS</option><option value="VERIFICADA">GPS verificado</option><option value="SIN_VERIFICAR">GPS sin verificar</option><option value="POSIBLE_ERROR">Posible error GPS</option><option value="SIN_GEO">Sin GPS</option></select>
+        </div>
+        <div className="planner-filter-actions"><div className="meta"><span>{filteredClients.length.toLocaleString()} clientes filtrados</span><span>{geocodedCount.toLocaleString()} visibles en mapa</span><span>{zones.length.toLocaleString()} zonas guardadas</span></div><button className="secondary compact" onClick={clearFilters}><FilterX size={15} /> Limpiar filtros</button></div>
+      </section>
+
+      {creating && <section className="panel zone-builder"><label>Nombre de la zona<input value={zoneName} onChange={(event) => setZoneName(event.target.value)} placeholder="Ej. Herrera Industrial" /></label><label>Uso<select value={zoneType} onChange={(event) => setZoneType(event.target.value as ZoneType)}><option value="CAPTACION">Captación</option><option value="COMERCIAL">Comercial</option><option value="OTRA">Otra</option></select></label><div className="zone-stat"><b>{draftClientIds.length}</b> clientes dentro</div><div className="button-row"><button className="secondary" onClick={cancelZone}><X size={16} /> Cancelar</button><button className="primary" disabled={!draftArea || !zoneName.trim() || saving} onClick={() => void saveZone()}><Save size={16} />{saving ? 'Guardando...' : 'Guardar zona'}</button></div></section>}
+
+      {showZones && zones.length > 0 && <div className="zone-list-mini">{zones.map((zone) => <span className="zone-pill" key={zone.id}><b>{zone.name}</b> · {zone.territory_type || 'Zona'}</span>)}</div>}
+
+      <TerritoryClientMap clients={filteredClients} selectedIds={draftClientIds} areaTools={creating} zones={zones} showZones={showZones} focusPoint={focusPoint} height={650} onAreaSelect={(ids, area) => { setDraftClientIds(ids); setDraftArea(area) }} />
+    </div>
+  )
+}
