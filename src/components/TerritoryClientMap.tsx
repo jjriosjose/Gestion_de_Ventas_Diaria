@@ -43,6 +43,14 @@ export function TerritoryClientMap({ clients, selectedIds = [], selectable = fal
   const geocoded = useMemo(() => clients.filter(isGeocoded), [clients])
 
   useEffect(() => {
+    if (!areaTools) {
+      setMode('NONE')
+      setPolygon([])
+      setRadiusCenter(null)
+    }
+  }, [areaTools])
+
+  useEffect(() => {
     if (!host.current || mapRef.current) return
     const map = L.map(host.current, { zoomControl: false }).setView([18.7357, -70.1627], 8)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
