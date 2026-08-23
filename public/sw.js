@@ -1,4 +1,4 @@
-const CACHE='gvd-shell-v058';
+const CACHE='gvd-shell-v059';
 const SHELL=['/manifest.webmanifest','/pwa-icon.svg','/pwa-maskable.svg','/logo-karaka.png'];
 
 self.addEventListener('install',event=>{
@@ -19,7 +19,6 @@ self.addEventListener('fetch',event=>{
   const request=event.request;
   const url=new URL(request.url);
 
-  // El HTML/navegación siempre intenta red primero para evitar ejecutar una versión vieja.
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
       try{
@@ -31,7 +30,6 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Los assets con hash y los recursos PWA pueden almacenarse.
   if(url.origin===self.location.origin && /\.(?:js|css|png|jpg|jpeg|webp|svg|woff2?|webmanifest)$/i.test(url.pathname)){
     event.respondWith((async()=>{
       const cached=await caches.match(request);

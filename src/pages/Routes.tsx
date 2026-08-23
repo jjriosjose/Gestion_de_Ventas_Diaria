@@ -1,19 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Ban, CheckCircle2, MapPin, Navigation, Play, RefreshCw, Square, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { currentPosition, googleMapsNavigation } from '../lib/geo'
 import { useAuth } from '../context/AuthContext'
+import { hasPermission } from '../lib/access'
+import { RouteSequenceMap } from '../components/RouteSequenceMap'
 import type { Employee } from '../types'
 import { exportPdf, exportXlsx } from '../lib/export'
+import '../styles/operational-v059.css'
 
 export function Routes() {
   const { employee } = useAuth()
   const navigate = useNavigate()
-  const admin = ['Administrador', 'Supervisor'].includes(employee?.app_role || '')
+  const admin = hasPermission(employee, 'planning.manage')
   const [plans, setPlans] = useState<any[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selected, setSelected] = useState<any | null>(null)
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [stops, setStops] = useState<any[]>([])
   const [session, setSession] = useState<any | null>(null)
   const [openVisit, setOpenVisit] = useState<any | null>(null)
@@ -22,7 +26,7 @@ export function Routes() {
 
   const load = async () => {
     const [{ data: planData }, { data: employeeData }] = await Promise.all([
-      supabase.from('route_plans').select('*').order('route_date', { ascending: false }).limit(100),
+      supabase.from('route_plans').select('*').eq('plan_type', 'VISITAS').order('route_date', { ascending: false }).limit(100),
       supabase.from('employees').select('*'),
     ])
     setPlans(planData || [])
@@ -38,13 +42,18 @@ export function Routes() {
       setStops(stopData || [])
       const { data: routeSession } = await supabase.from('route_sessions').select('*').eq('route_plan_id', selected.id).eq('employee_id', employee?.id || '').is('ended_at', null).maybeSingle()
       setSession(routeSession || null)
+    } else {
+      setStops([])
+      setSession(null)
     }
   }
 
   useEffect(() => { void load() }, [selected?.id, employee?.id])
+  useEffect(() => { setSelectedStopId(null) }, [selected?.id])
 
   const empName = (id: string) => employees.find((item) => item.id === id)?.full_name || '—'
   const mine = selected?.employee_id === employee?.id
+  const mappedStops = useMemo(() => stops.filter((stop) => stop.clients?.latitude != null && stop.clients?.longitude != null).length, [stops])
 
   const start = async () => {
     if (!selected || !mine || !employee) return
@@ -119,7 +128,8 @@ export function Routes() {
       const { error: stopError } = await supabase.from('route_stops').update({ status: 'EN_VISITA', visit_id: data.id }).eq('id', stop.id)
       if (stopError) throw stopError
       setOpenVisit({ ...data, clients: { legal_name: stop.clients?.legal_name } })
-      alert('Llegada registrada. Esta visita debe finalizarse antes de iniciar otra. Puedes escoger cualquier cliente pendiente como próxima parada después de registrar la salida.')
+      setSelectedStopId(stop.id)
+      alert('Llegada registrada. Esta visita debe finalizarse antes de iniciar otra.')
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Error al registrar la llegada')
     } finally {
@@ -130,7 +140,21 @@ export function Routes() {
 
   const report = stops.map((stop) => ({ Orden: stop.stop_order, Cliente: stop.clients?.legal_name || '', Codigo: stop.clients?.codempr || '', Municipio: stop.clients?.municipality || '', Prioridad: stop.priority, Estado: stop.status, Motivo: stop.reason_not_visited || '' }))
 
-  return <div className="page-stack"><div className="page-head"><div><span className="eyebrow">PLAN VS EJECUCIÓN</span><h2>Rutas asignadas</h2><p>La ruta inicia al salir. El vendedor puede alterar libremente el orden de las paradas, pero solo puede tener una visita abierta a la vez.</p></div><button className="secondary" onClick={() => void load()}><RefreshCw size={17} /> Actualizar</button></div><div className="split-view"><div className="panel route-list">{plans.map((plan) => <button key={plan.id} className={`route-card ${selected?.id === plan.id ? 'selected' : ''}`} onClick={() => setSelected(plan)}><div><b>{empName(plan.employee_id)}</b><span>{plan.route_date} · {plan.plan_type === 'CAPTACION' ? 'Captación' : 'Visitas'}</span></div><span className={`status ${plan.status?.toLowerCase()}`}>{plan.status}</span></button>)}</div><div className="panel route-detail">{!selected ? <div className="empty-state"><MapPin /><b>Selecciona una ruta</b></div> : <><div className="panel-head"><div><b>{empName(selected.employee_id)}</b><span>{selected.route_date} · {selected.title}</span></div><div className="button-row"><button className="secondary" onClick={() => void exportXlsx(`Ruta_${selected.route_date}`, report)}>Excel</button><button className="secondary" onClick={() => exportPdf(`Ruta ${selected.route_date}`, report)}>PDF</button>{admin && selected.status === 'PLANIFICADA' && <button className="danger" disabled={busy} onClick={() => void removePlan()}><Trash2 size={16} /> Eliminar prueba</button>}</div></div>{mine && <div className="route-actions">{!session ? <button className="primary" disabled={busy || selected.status === 'FINALIZADA'} onClick={() => void start()}><Play size={18} /> Iniciar ruta / salida</button> : <><span className="live-pill"><i /> Ruta activa desde {new Date(session.started_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</span>{openVisit && <button className="primary compact" onClick={() => navigate('/visitas')}><CheckCircle2 size={16}/> Finalizar visita actual</button>}<button className="danger" disabled={busy || !!openVisit} onClick={() => void end()}><Square size={18} /> Finalizar ruta</button></>}</div>}<div className="stop-list">{stops.length ? stops.map((stop) => { const current = openVisit?.route_stop_id === stop.id; const blockedByOtherVisit = !!openVisit && !current; return <div className={`stop-card ${current ? 'active-stop' : ''}`} key={stop.id}><span className="stop-order">{stop.stop_order}</span><div className="stop-main"><b>{stop.clients?.legal_name || 'Parada'}</b><span>{stop.clients?.codempr} · {stop.clients?.municipality || ''}</span><small>{current ? 'EN VISITA · debes registrar la salida' : stop.status}</small></div><div className="row-actions">{googleMapsNavigation(stop.clients?.latitude, stop.clients?.longitude) && <a className="icon-btn" target="_blank" rel="noreferrer" href={googleMapsNavigation(stop.clients?.latitude, stop.clients?.longitude)!}><Navigation size={17} /></a>}{mine && session && stop.status !== 'VISITADO' && <>{current ? <button className="primary compact" onClick={() => navigate('/visitas')}><CheckCircle2 size={16}/> Finalizar visita</button> : <button className="primary compact" disabled={busy || blockedByOtherVisit || stop.status === 'NO_VISITADO'} title={blockedByOtherVisit ? 'Finaliza la visita actual antes de iniciar otra' : 'Puedes visitar las paradas en cualquier orden'} onClick={() => void startVisit(stop)}><Play size={16}/> {blockedByOtherVisit ? 'Visita actual abierta' : 'Llegué / iniciar visita'}</button>}{!current && stop.status !== 'NO_VISITADO' && <button className="secondary compact" disabled={blockedByOtherVisit} onClick={() => setExceptionStop(stop)}><Ban size={16} /> No realizada</button>}</>}</div></div> }) : <div className="empty-state"><b>Jornada territorial sin paradas predefinidas.</b></div>}</div></>}</div></div>{exceptionStop && <RouteException stop={exceptionStop} onClose={() => setExceptionStop(null)} onSaved={() => { setExceptionStop(null); void load() }} />}</div>
+  return <div className="page-stack">
+    <div className="page-head"><div><span className="eyebrow">PLAN VS EJECUCIÓN</span><h2>Rutas asignadas</h2><p>Mapa y secuencia de paradas. La línea muestra el orden planificado; la navegación vial se abre con Google Maps.</p></div><button className="secondary" onClick={() => void load()}><RefreshCw size={17} /> Actualizar</button></div>
+    <div className="route-workspace">
+      <div className="panel route-list">{plans.map((plan) => <button key={plan.id} className={`route-card ${selected?.id === plan.id ? 'selected' : ''}`} onClick={() => setSelected(plan)}><div><b>{empName(plan.employee_id)}</b><span>{plan.route_date} · Visitas</span></div><span className={`status ${plan.status?.toLowerCase()}`}>{plan.status}</span></button>)}</div>
+      <div className="panel route-detail route-detail-compact">{!selected ? <div className="empty-state"><MapPin /><b>Selecciona una ruta para ver mapa y secuencia</b></div> : <>
+        <div className="route-detail-head"><div><b>{empName(selected.employee_id)}</b><span>{selected.route_date} · {selected.title}</span><span>{stops.length} paradas · {mappedStops} con GPS</span></div><div className="button-row"><button className="secondary compact" onClick={() => void exportXlsx(`Ruta_${selected.route_date}`, report)}>Excel</button><button className="secondary compact" onClick={() => exportPdf(`Ruta ${selected.route_date}`, report)}>PDF</button>{admin && selected.status === 'PLANIFICADA' && <button className="danger compact" disabled={busy} onClick={() => void removePlan()}><Trash2 size={15} /> Eliminar prueba</button>}</div></div>
+        {mine && <div className="route-actions">{!session ? <button className="primary" disabled={busy || selected.status === 'FINALIZADA'} onClick={() => void start()}><Play size={18} /> Iniciar ruta / salida</button> : <><span className="live-pill"><i /> Ruta activa desde {new Date(session.started_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</span>{openVisit && <button className="primary compact" onClick={() => navigate('/visitas')}><CheckCircle2 size={16}/> Finalizar visita actual</button>}<button className="danger" disabled={busy || !!openVisit} onClick={() => void end()}><Square size={18} /> Finalizar ruta</button></>}</div>}
+        <div className="route-map-grid">
+          <div className="route-map-panel"><RouteSequenceMap stops={stops} activeStopId={openVisit?.route_stop_id || null} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} height={540}/></div>
+          <div className="route-stop-panel"><div className="route-stop-summary"><div><b>Secuencia de paradas</b><span>Selecciona una parada para ubicarla en el mapa.</span></div><span>{stops.length}</span></div>{stops.length ? stops.map((stop) => { const current = openVisit?.route_stop_id === stop.id; const blockedByOtherVisit = !!openVisit && !current; const nav = googleMapsNavigation(stop.clients?.latitude, stop.clients?.longitude); return <div className={`route-stop-compact ${selectedStopId === stop.id ? 'selected' : ''} ${current ? 'current' : ''}`} key={stop.id} onClick={() => setSelectedStopId(stop.id)}><span className="stop-order">{stop.stop_order}</span><div className="stop-copy"><b>{stop.clients?.legal_name || 'Parada'}</b><span>{stop.clients?.codempr} · {stop.clients?.municipality || ''}</span><small>{current ? 'EN VISITA · registra la salida' : stop.status}</small></div><div className="route-stop-actions" onClick={(event) => event.stopPropagation()}>{nav && <a className="icon-btn compact" target="_blank" rel="noreferrer" href={nav} title="Navegar"><Navigation size={15}/></a>}{mine && session && stop.status !== 'VISITADO' && <>{current ? <button className="primary compact" onClick={() => navigate('/visitas')}><CheckCircle2 size={14}/></button> : <button className="primary compact" disabled={busy || blockedByOtherVisit || stop.status === 'NO_VISITADO'} title={blockedByOtherVisit ? 'Finaliza la visita actual' : 'Registrar llegada'} onClick={() => void startVisit(stop)}><Play size={14}/></button>}{!current && stop.status !== 'NO_VISITADO' && <button className="secondary compact" disabled={blockedByOtherVisit} title="No realizada" onClick={() => setExceptionStop(stop)}><Ban size={14}/></button>}</>}</div></div> }) : <div className="empty-state"><b>Esta ruta no tiene paradas.</b></div>}</div>
+        </div>
+      </>}</div>
+    </div>
+    {exceptionStop && <RouteException stop={exceptionStop} onClose={() => setExceptionStop(null)} onSaved={() => { setExceptionStop(null); void load() }} />}
+  </div>
 }
 
 function RouteException({ stop, onClose, onSaved }: { stop: any; onClose: () => void; onSaved: () => void }) {
