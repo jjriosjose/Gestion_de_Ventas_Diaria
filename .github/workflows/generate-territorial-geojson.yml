@@ -60,10 +60,11 @@ jobs:
             quiet = TRUE
           )
           stopifnot(requireNamespace('sfDR', quietly = TRUE))
+          stopifnot(utils::packageVersion('sfDR') == utils::package_version('0.2.2'))
           cat('sfDR version:', as.character(utils::packageVersion('sfDR')), '\n')
           cat('sfDR source commit:', commit, '\n')
 
-      - name: Export territorial layers
+      - name: Export and validate territorial layers
         shell: Rscript {0}
         run: |
           library(sf)
@@ -73,6 +74,7 @@ jobs:
           dr_municipalities <- getExportedValue('sfDR', 'dr_municipalities')
           dr_municipal_districts <- getExportedValue('sfDR', 'dr_municipal_districts')
 
+          # Guard against an upstream API change even though the source is pinned.
           expected_formals <- list(
             dr_regions = c('.sf', '.uniques'),
             dr_provinces = c('.sf', '.reg', '.uniques'),
@@ -104,40 +106,82 @@ jobs:
             x <- st_make_valid(x)
             x <- x[!st_is_empty(x), , drop = FALSE]
             if (nrow(x) == 0) stop(sprintf('%s has no usable geometries', label))
+
             invalid <- which(!st_is_valid(x))
             if (length(invalid) > 0) {
               stop(sprintf('%s contains %d invalid geometries after repair', label, length(invalid)))
             }
+
+            geometry_types <- unique(as.character(st_geometry_type(x, by_geometry = TRUE)))
+            unsupported <- setdiff(geometry_types, c('POLYGON', 'MULTIPOLYGON'))
+            if (length(unsupported) > 0) {
+              stop(sprintf(
+                '%s contains unsupported geometry types: %s',
+                label,
+                paste(unsupported, collapse = ', ')
+              ))
+            }
             x
           }
 
-          export_geojson <- function(x, path) {
-            st_write(
-              x,
-              path,
-              driver = 'GeoJSON',
-              delete_dsn = TRUE,
-              quiet = TRUE,
-              layer_options = c('COORDINATE_PRECISION=6')
-            )
-            invisible(nrow(x))
+          canonicalize_layer <- function(x, level, code_col, name_col, parent_col = NULL, layer_name) {
+            x <- normalize_layer(x, level)
+            required <- c(code_col, name_col)
+            if (!is.null(parent_col)) required <- c(required, parent_col)
+            missing <- setdiff(required, names(x))
+            if (length(missing) > 0) {
+              stop(sprintf(
+                '%s is missing required source columns: %s',
+                level,
+                paste(missing, collapse = ', ')
+              ))
+            }
+
+            x$level <- level
+            x$code <- trimws(as.character(x[[code_col]]))
+            x$name <- trimws(as.character(x[[name_col]]))
+            x$parent_code <- if (is.null(parent_col)) {
+              rep(NA_character_, nrow(x))
+            } else {
+              trimws(as.character(x[[parent_col]]))
+            }
+            x$layer <- layer_name
+
+            if (any(is.na(x$code) | !nzchar(x$code))) {
+              stop(sprintf('%s contains blank administrative codes', level))
+            }
+            if (any(is.na(x$name) | !nzchar(x$name))) {
+              stop(sprintf('%s contains blank administrative names', level))
+            }
+            if (!is.null(parent_col) && any(is.na(x$parent_code) | !nzchar(x$parent_code))) {
+              stop(sprintf('%s contains blank parent codes', level))
+            }
+            if (anyDuplicated(x$code)) {
+              duplicates <- unique(x$code[duplicated(x$code)])
+              stop(sprintf(
+                '%s contains duplicated administrative codes: %s',
+                level,
+                paste(head(duplicates, 10), collapse = ', ')
+              ))
+            }
+            x
           }
 
-          regions <- normalize_layer(
+          regions <- canonicalize_layer(
             dr_regions(.sf = TRUE, .uniques = TRUE),
-            'REGION'
+            'REGION', 'REG_ID', 'REG_NAME', NULL, 'sfDR:regions'
           )
-          provinces <- normalize_layer(
+          provinces <- canonicalize_layer(
             dr_provinces(.sf = TRUE, .reg = TRUE, .uniques = TRUE),
-            'PROVINCIA'
+            'PROVINCIA', 'PROV_ID', 'PROV_NAME', 'REG_ID', 'sfDR:provinces'
           )
-          municipalities <- normalize_layer(
+          municipalities <- canonicalize_layer(
             dr_municipalities(.sf = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE),
-            'MUNICIPIO'
+            'MUNICIPIO', 'MUN_ID', 'MUN_NAME', 'PROV_ID', 'sfDR:municipalities'
           )
-          municipal_districts <- normalize_layer(
+          municipal_districts <- canonicalize_layer(
             dr_municipal_districts(.sf = TRUE, .mun = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE),
-            'DISTRITO_MUNICIPAL'
+            'DISTRITO_MUNICIPAL', 'MD_ID', 'MD_NAME', 'MUN_ID', 'sfDR:municipal-districts'
           )
 
           expected <- c(
@@ -160,21 +204,99 @@ jobs:
             ))
           }
 
-          all_bbox <- st_bbox(municipalities)
-          if (
-            all_bbox[['xmin']] < -73 || all_bbox[['xmax']] > -67 ||
-            all_bbox[['ymin']] < 17 || all_bbox[['ymax']] > 21
-          ) {
-            stop(sprintf(
-              'Unexpected Dominican Republic bounding box: %s',
-              paste(all_bbox, collapse = ',')
-            ))
+          assert_parent_codes <- function(children, parents, child_label, parent_label) {
+            missing_parent <- setdiff(unique(children$parent_code), parents$code)
+            if (length(missing_parent) > 0) {
+              stop(sprintf(
+                '%s contains parent codes absent from %s: %s',
+                child_label,
+                parent_label,
+                paste(head(missing_parent, 10), collapse = ', ')
+              ))
+            }
+          }
+          assert_parent_codes(provinces, regions, 'PROVINCIA', 'REGION')
+          assert_parent_codes(municipalities, provinces, 'MUNICIPIO', 'PROVINCIA')
+          assert_parent_codes(municipal_districts, municipalities, 'DISTRITO_MUNICIPAL', 'MUNICIPIO')
+
+          for (layer in list(regions, provinces, municipalities, municipal_districts)) {
+            bbox <- st_bbox(layer)
+            if (
+              bbox[['xmin']] < -73 || bbox[['xmax']] > -67 ||
+              bbox[['ymin']] < 17 || bbox[['ymax']] > 21
+            ) {
+              stop(sprintf(
+                'Unexpected Dominican Republic bounding box for %s: %s',
+                unique(layer$level),
+                paste(bbox, collapse = ',')
+              ))
+            }
           }
 
-          export_geojson(regions, 'territorial-export/regions.geojson')
-          export_geojson(provinces, 'territorial-export/provinces.geojson')
-          export_geojson(municipalities, 'territorial-export/municipalities.geojson')
-          export_geojson(municipal_districts, 'territorial-export/municipal-districts.geojson')
+          export_geojson <- function(x, path) {
+            # Put the contract fields first while preserving upstream metadata for audit.
+            geometry_col <- attr(x, 'sf_column')
+            contract <- c('level', 'code', 'name', 'parent_code', 'layer')
+            source_cols <- setdiff(names(x), c(contract, geometry_col))
+            x <- x[, c(contract, source_cols, geometry_col), drop = FALSE]
+            st_write(
+              x,
+              path,
+              driver = 'GeoJSON',
+              delete_dsn = TRUE,
+              quiet = TRUE,
+              layer_options = c('COORDINATE_PRECISION=6')
+            )
+            invisible(nrow(x))
+          }
+
+          geojson_paths <- c(
+            REGION = 'territorial-export/regions.geojson',
+            PROVINCIA = 'territorial-export/provinces.geojson',
+            MUNICIPIO = 'territorial-export/municipalities.geojson',
+            DISTRITO_MUNICIPAL = 'territorial-export/municipal-districts.geojson'
+          )
+          export_geojson(regions, geojson_paths[['REGION']])
+          export_geojson(provinces, geojson_paths[['PROVINCIA']])
+          export_geojson(municipalities, geojson_paths[['MUNICIPIO']])
+          export_geojson(municipal_districts, geojson_paths[['DISTRITO_MUNICIPAL']])
+
+          # Build an ingest-ready JSON array matching public.ingest_administrative_areas:
+          # top-level level/code/name/layer/geometry plus the original properties object.
+          ingest_items <- list()
+          for (path in unname(geojson_paths)) {
+            fc <- jsonlite::read_json(path, simplifyVector = FALSE)
+            if (!identical(fc$type, 'FeatureCollection') || length(fc$features) == 0) {
+              stop(sprintf('Invalid GeoJSON feature collection: %s', path))
+            }
+            for (feature in fc$features) {
+              props <- feature$properties
+              ingest_items[[length(ingest_items) + 1L]] <- list(
+                level = props$level,
+                code = props$code,
+                name = props$name,
+                feature_id = props$code,
+                layer = props$layer,
+                properties = props,
+                geometry = feature$geometry
+              )
+            }
+          }
+          if (length(ingest_items) != sum(expected)) {
+            stop(sprintf(
+              'Unexpected ingest payload size. Expected %d; got %d',
+              sum(expected),
+              length(ingest_items)
+            ))
+          }
+          jsonlite::write_json(
+            ingest_items,
+            'territorial-export/administrative-areas-ingest.json',
+            auto_unbox = TRUE,
+            pretty = FALSE,
+            null = 'null',
+            digits = NA
+          )
 
           manifest <- data.frame(
             layer = names(actual),
@@ -182,20 +304,28 @@ jobs:
             actual_features = as.integer(actual),
             source = rep('sfDR / IDERD / ONE Division Territorial 2021', 4),
             source_commit = rep('b11b07f2911e2e08a8d653e39e5012a76a7da670', 4),
-            crs = rep(st_crs(municipalities)$input, 4),
+            crs = rep('EPSG:4326', 4),
             generated_at_utc = rep(format(Sys.time(), tz = 'UTC', usetz = TRUE), 4),
             stringsAsFactors = FALSE
           )
           write.csv(manifest, 'territorial-export/manifest.csv', row.names = FALSE)
 
+          cat('Validated territorial hierarchy:', paste(names(actual), actual, sep = '=', collapse = ', '), '\n')
+          cat('Validated total geometries:', sum(actual), '\n')
+          cat('Ingest-ready items:', length(ingest_items), '\n')
+
       - name: Validate generated files
+        shell: bash
         run: |
+          set -euo pipefail
           test -s territorial-export/regions.geojson
           test -s territorial-export/provinces.geojson
           test -s territorial-export/municipalities.geojson
           test -s territorial-export/municipal-districts.geojson
+          test -s territorial-export/administrative-areas-ingest.json
+          test -s territorial-export/manifest.csv
           ls -lh territorial-export
-          wc -c territorial-export/*.geojson
+          wc -c territorial-export/*.geojson territorial-export/administrative-areas-ingest.json
           cat territorial-export/manifest.csv
 
       - name: Upload territorial artifact
