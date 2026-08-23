@@ -18,7 +18,7 @@ export async function loadClientsPaged(selectColumns: string, vendorEmployeeId?:
     const { data, error } = await query
     if (error) throw new Error(`No fue posible cargar la cartera completa: ${error.message}`)
 
-    const page = (data || []) as Client[]
+    const page = (data || []) as unknown as Client[]
     rows.push(...page)
     if (page.length < PAGE_SIZE) break
   }
