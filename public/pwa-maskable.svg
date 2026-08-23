@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Karaka Ventas">
+  <rect width="512" height="512" fill="#be1e2d"/>
+  <circle cx="256" cy="256" r="184" fill="#ffffff"/>
+  <circle cx="350" cy="151" r="20" fill="#f6b717"/>
+  <text x="256" y="384" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="278" font-weight="800" fill="#be1e2d">K</text>
+</svg>
