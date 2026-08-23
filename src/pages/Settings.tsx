@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Check,KeyRound,Palette,Save,ShieldCheck,Smartphone } from 'lucide-react'
 import { useTheme,type ThemeName } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -15,5 +16,3 @@ export function Settings(){
     <div className="panel"><div className="settings-title"><Smartphone/><div><b>Mi cuenta</b><span>Perfil autenticado.</span></div></div><div className="profile-summary"><div className="avatar big">{employee?.full_name?.[0]}</div><b>{employee?.full_name}</b><span>@{employee?.username}</span><small>{employee?.job_title} · {employee?.access_profile||employee?.app_role}</small><small>{employee?.phone_display}</small></div></div>
   </div></div>
 }
-
-import { useState } from 'react'
