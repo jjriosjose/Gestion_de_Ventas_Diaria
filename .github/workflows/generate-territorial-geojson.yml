@@ -39,34 +39,75 @@ jobs:
             any::lifecycle
             any::magrittr
             any::pins
+            any::remotes
           needs: check
 
-      - name: Install Dominican territorial package
+      - name: Install pinned Dominican territorial package
         shell: Rscript {0}
         run: |
-          pkg <- paste0('sf', 'DR')
-          options(repos = c(
-            adatar = 'https://adatar-do.r-universe.dev',
-            CRAN = 'https://cloud.r-project.org'
-          ))
-          install.packages(pkg, dependencies = FALSE)
-          stopifnot(requireNamespace(pkg, quietly = TRUE))
+          # Pin the exact upstream source used by this project. Installing the
+          # moving R-universe build previously produced an internal API mismatch
+          # (`.distr`) that made territorial generation non-reproducible.
+          commit <- 'b11b07f2911e2e08a8d653e39e5012a76a7da670'
+          remotes::install_github(
+            paste0('adatar-do/sfDR@', commit),
+            dependencies = FALSE,
+            upgrade = 'never',
+            quiet = TRUE
+          )
+          stopifnot(requireNamespace('sfDR', quietly = TRUE))
+          cat('sfDR version:', as.character(utils::packageVersion('sfDR')), '\n')
+          cat('sfDR source commit:', commit, '\n')
 
       - name: Export territorial layers
         shell: Rscript {0}
         run: |
           library(sf)
-          pkg <- paste0('sf', 'DR')
-          dr_regions <- getExportedValue(pkg, 'dr_regions')
-          dr_provinces <- getExportedValue(pkg, 'dr_provinces')
-          dr_municipalities <- getExportedValue(pkg, 'dr_municipalities')
-          dr_municipal_districts <- getExportedValue(pkg, 'dr_municipal_districts')
+
+          dr_regions <- getExportedValue('sfDR', 'dr_regions')
+          dr_provinces <- getExportedValue('sfDR', 'dr_provinces')
+          dr_municipalities <- getExportedValue('sfDR', 'dr_municipalities')
+          dr_municipal_districts <- getExportedValue('sfDR', 'dr_municipal_districts')
+
+          expected_formals <- list(
+            dr_regions = c('.sf', '.uniques'),
+            dr_provinces = c('.sf', '.reg', '.uniques'),
+            dr_municipalities = c('.sf', '.prov', '.reg', '.uniques'),
+            dr_municipal_districts = c('.sf', '.mun', '.prov', '.reg', '.uniques')
+          )
+          actual_formals <- list(
+            dr_regions = names(formals(dr_regions)),
+            dr_provinces = names(formals(dr_provinces)),
+            dr_municipalities = names(formals(dr_municipalities)),
+            dr_municipal_districts = names(formals(dr_municipal_districts))
+          )
+          for (fn in names(expected_formals)) {
+            if (!identical(actual_formals[[fn]], expected_formals[[fn]])) {
+              stop(sprintf(
+                'Unexpected sfDR API for %s. Expected (%s); got (%s)',
+                fn,
+                paste(expected_formals[[fn]], collapse = ', '),
+                paste(actual_formals[[fn]], collapse = ', ')
+              ))
+            }
+          }
 
           dir.create('territorial-export', recursive = TRUE, showWarnings = FALSE)
 
+          normalize_layer <- function(x, label) {
+            if (!inherits(x, 'sf')) stop(sprintf('%s is not an sf object', label))
+            x <- st_transform(x, 4326)
+            x <- st_make_valid(x)
+            x <- x[!st_is_empty(x), , drop = FALSE]
+            if (nrow(x) == 0) stop(sprintf('%s has no usable geometries', label))
+            invalid <- which(!st_is_valid(x))
+            if (length(invalid) > 0) {
+              stop(sprintf('%s contains %d invalid geometries after repair', label, length(invalid)))
+            }
+            x
+          }
+
           export_geojson <- function(x, path) {
-            x <- st_make_valid(st_transform(x, 4326))
-            if (any(st_is_empty(x))) stop(sprintf('Empty geometries detected in %s', path))
             st_write(
               x,
               path,
@@ -78,12 +119,29 @@ jobs:
             invisible(nrow(x))
           }
 
-          regions <- dr_regions(.sf = TRUE, .uniques = TRUE)
-          provinces <- dr_provinces(.sf = TRUE, .reg = TRUE, .uniques = TRUE)
-          municipalities <- dr_municipalities(.sf = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE)
-          municipal_districts <- dr_municipal_districts(.sf = TRUE, .mun = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE)
+          regions <- normalize_layer(
+            dr_regions(.sf = TRUE, .uniques = TRUE),
+            'REGION'
+          )
+          provinces <- normalize_layer(
+            dr_provinces(.sf = TRUE, .reg = TRUE, .uniques = TRUE),
+            'PROVINCIA'
+          )
+          municipalities <- normalize_layer(
+            dr_municipalities(.sf = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE),
+            'MUNICIPIO'
+          )
+          municipal_districts <- normalize_layer(
+            dr_municipal_districts(.sf = TRUE, .mun = TRUE, .prov = TRUE, .reg = TRUE, .uniques = TRUE),
+            'DISTRITO_MUNICIPAL'
+          )
 
-          expected <- c(REGION = 10L, PROVINCIA = 32L, MUNICIPIO = 158L, DISTRITO_MUNICIPAL = 393L)
+          expected <- c(
+            REGION = 10L,
+            PROVINCIA = 32L,
+            MUNICIPIO = 158L,
+            DISTRITO_MUNICIPAL = 393L
+          )
           actual <- c(
             REGION = nrow(regions),
             PROVINCIA = nrow(provinces),
@@ -99,8 +157,14 @@ jobs:
           }
 
           all_bbox <- st_bbox(municipalities)
-          if (all_bbox[['xmin']] < -73 || all_bbox[['xmax']] > -67 || all_bbox[['ymin']] < 17 || all_bbox[['ymax']] > 21) {
-            stop(sprintf('Unexpected Dominican Republic bounding box: %s', paste(all_bbox, collapse = ',')))
+          if (
+            all_bbox[['xmin']] < -73 || all_bbox[['xmax']] > -67 ||
+            all_bbox[['ymin']] < 17 || all_bbox[['ymax']] > 21
+          ) {
+            stop(sprintf(
+              'Unexpected Dominican Republic bounding box: %s',
+              paste(all_bbox, collapse = ',')
+            ))
           }
 
           export_geojson(regions, 'territorial-export/regions.geojson')
@@ -113,6 +177,7 @@ jobs:
             expected_features = as.integer(expected),
             actual_features = as.integer(actual),
             source = rep('sfDR / IDERD / ONE Division Territorial 2021', 4),
+            source_commit = rep('b11b07f2911e2e08a8d653e39e5012a76a7da670', 4),
             crs = rep(st_crs(municipalities)$input, 4),
             generated_at_utc = rep(format(Sys.time(), tz = 'UTC', usetz = TRUE), 4),
             stringsAsFactors = FALSE
