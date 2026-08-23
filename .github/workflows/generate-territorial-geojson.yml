@@ -85,7 +85,7 @@ jobs:
             quiet = FALSE
           )
           stopifnot(requireNamespace('sfDR', quietly = TRUE))
-          stopifnot(utils::packageVersion('sfDR') == utils::package_version('0.2.2'))
+          stopifnot(utils::packageVersion('sfDR') == base::package_version('0.2.2'))
           cat('sfDR archive bytes:', archive_size, '\n')
           cat('sfDR version:', as.character(utils::packageVersion('sfDR')), '\n')
           cat('sfDR source commit:', commit, '\n')
