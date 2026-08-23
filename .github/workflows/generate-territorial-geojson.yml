@@ -45,12 +45,16 @@ jobs:
       - name: Install pinned Dominican territorial package
         shell: Rscript {0}
         run: |
-          # Pin the exact upstream source used by this project. Installing the
-          # moving R-universe build previously produced an internal API mismatch
-          # (`.distr`) that made territorial generation non-reproducible.
+          # Pin the exact upstream source used by this project. Downloading the
+          # public source archive avoids forwarding this repository's GITHUB_TOKEN
+          # to an unrelated public repository and makes the build reproducible.
           commit <- 'b11b07f2911e2e08a8d653e39e5012a76a7da670'
-          remotes::install_github(
-            paste0('adatar-do/sfDR@', commit),
+          source_url <- sprintf(
+            'https://codeload.github.com/adatar-do/sfDR/tar.gz/%s',
+            commit
+          )
+          remotes::install_url(
+            source_url,
             dependencies = FALSE,
             upgrade = 'never',
             quiet = TRUE
