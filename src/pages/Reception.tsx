@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarCheck, DoorOpen, LogOut, Plus, Search, UserRoundCheck, Users, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { hasPermission } from '../lib/access'
+import '../styles/operational-v059.css'
 
 const dayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
 const dayEnd = () => { const d = dayStart(); d.setDate(d.getDate() + 1); return d }
@@ -9,6 +11,7 @@ const futureEnd = () => { const d = dayStart(); d.setDate(d.getDate() + 8); retu
 
 export function Reception() {
   const { employee } = useAuth()
+  const canCreateProspect = hasPermission(employee, 'capture.create')
   const [appointments, setAppointments] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
@@ -55,10 +58,11 @@ export function Reception() {
         client_id: row.client_id || null,
         prospect_id: row.prospect_id || null,
         visitor_type: 'CITA',
-        visitor_name: row.clients?.legal_name || row.prospects?.legal_name || 'Cita',
+        visitor_name: row.clients?.contact_name || row.clients?.legal_name || row.prospects?.legal_name || 'Cita',
+        company_name: row.clients?.legal_name || row.prospects?.legal_name || null,
         phone: row.clients?.mobile || row.clients?.phone1 || row.prospects?.mobile || row.prospects?.phone || null,
         purpose: 'Cita showroom',
-        assigned_manager_id: row.assigned_manager_id || row.employee_id,
+        assigned_manager_id: row.assigned_manager_id || row.employee_id || null,
         check_in_by: employee.id,
         status: 'EN_ESPERA',
       })
@@ -78,11 +82,11 @@ export function Reception() {
     await load()
   }
 
-  const nameOf = (r: any) => r.clients?.legal_name || r.prospects?.legal_name || r.company_name || r.visitor_name || 'Visitante'
+  const nameOf = (r: any) => r.visitor_name || r.clients?.legal_name || r.prospects?.legal_name || r.company_name || 'Visitante'
 
   return <div className="page-stack">
     <div className="page-head">
-      <div><span className="eyebrow">CONTROL DE PRESENCIA</span><h2>Recepción showroom</h2><p>Registro independiente de llegadas y salidas físicas. La gestión comercial permanece a cargo del gestor.</p></div>
+      <div><span className="eyebrow">CONTROL DE PRESENCIA</span><h2>Recepción showroom</h2><p>Control de citas, llegadas, espera, atención y salida. Una consulta general puede registrarse sin asignar gestor.</p></div>
       <button className="primary" onClick={() => setWalkIn(true)}><Plus size={17}/> Llegada sin cita</button>
     </div>
 
@@ -96,7 +100,7 @@ export function Reception() {
     {loadError && <div className="panel"><b>Error cargando Recepción</b><span>{loadError}</span></div>}
 
     <div className="panel">
-      <div className="panel-head"><div><b>Citas esperadas hoy</b><span>Solo aparecen citas confirmadas/reprogramadas. La llegada real se registra aquí.</span></div></div>
+      <div className="panel-head"><div><b>Citas esperadas hoy</b><span>Recepción confirma la llegada física; el gestor continúa la atención comercial.</span></div></div>
       <div className="cards-list">
         {expected.length === 0 && <div className="empty-state"><b>No quedan citas confirmadas pendientes de llegada hoy.</b></div>}
         {expected.map(row => <div className="activity-card" key={row.id}><div className="activity-main"><b>{row.clients?.legal_name || row.prospects?.legal_name || 'Cita'}</b><span>{row.appointment_at ? new Date(row.appointment_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' }) : ''} · Gestor: {row.manager?.full_name || 'Sin asignar'}</span><small>{row.status.replaceAll('_',' ')}{row.clients?.contact_name ? ` · ${row.clients.contact_name}` : ''}</small></div><button className="primary compact" disabled={busy} onClick={() => void arriveAppointment(row)}><DoorOpen size={15}/> Llegó</button></div>)}
@@ -104,7 +108,7 @@ export function Reception() {
     </div>
 
     <div className="panel">
-      <div className="panel-head"><div><b>Próximas citas confirmadas</b><span>Vista anticipada de los próximos 7 días para que recepción sepa quién está previsto.</span></div><span className="badge">{upcoming.length}</span></div>
+      <div className="panel-head"><div><b>Próximas citas confirmadas</b><span>Vista anticipada de los próximos 7 días.</span></div><span className="badge">{upcoming.length}</span></div>
       <div className="cards-list">
         {upcoming.length === 0 && <div className="empty-state"><b>No hay citas confirmadas en los próximos 7 días.</b></div>}
         {upcoming.slice(0, 30).map(row => <div className="activity-card" key={row.id}><div className="activity-main"><b>{row.clients?.legal_name || row.prospects?.legal_name || 'Cita'}</b><span>{new Date(row.appointment_at).toLocaleString('es-DO')} · Gestor: {row.manager?.full_name || 'Sin asignar'}</span><small>{row.status.replaceAll('_',' ')}</small></div></div>)}
@@ -112,26 +116,29 @@ export function Reception() {
     </div>
 
     <div className="panel">
-      <div className="panel-head"><div><b>Movimientos de hoy</b><span>Entrada, espera, atención y salida se conservan como eventos físicos independientes.</span></div></div>
+      <div className="panel-head"><div><b>Movimientos de hoy</b><span>La entrada y la salida se conservan aunque la persona no requiera atención de un gestor.</span></div></div>
       <div className="cards-list">
         {entries.length === 0 && <div className="empty-state"><b>Aún no hay entradas registradas.</b></div>}
-        {entries.map(row => <div className="activity-card" key={row.id}><div className="activity-main"><b>{nameOf(row)}</b><span>Llegó {new Date(row.check_in_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })} · {row.manager?.full_name || 'Sin gestor'}</span><small>{row.visitor_type.replaceAll('_',' ')} · {row.status.replaceAll('_',' ')}{row.check_out_at ? ` · salió ${new Date(row.check_out_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}` : ''}</small></div>{!['SALIO','CANCELADO'].includes(row.status) && <button className="secondary compact" onClick={() => void checkOut(row)}><LogOut size={15}/> Registrar salida</button>}</div>)}
+        {entries.map(row => <div className="activity-card" key={row.id}><div className="activity-main"><b>{nameOf(row)}</b><span>{row.company_name && row.company_name !== row.visitor_name ? `${row.company_name} · ` : ''}Llegó {new Date(row.check_in_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })} · {row.manager?.full_name || 'Sin gestor asignado'}</span><small>{row.purpose || row.visitor_type.replaceAll('_',' ')} · {row.status.replaceAll('_',' ')}{row.check_out_at ? ` · salió ${new Date(row.check_out_at).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}` : ''}</small></div>{!['SALIO','CANCELADO'].includes(row.status) && <button className="secondary compact" onClick={() => void checkOut(row)}><LogOut size={15}/> Registrar salida</button>}</div>)}
       </div>
     </div>
 
-    {walkIn && <WalkInModal clients={clients} managers={managers} employeeId={employee?.id || ''} onClose={() => setWalkIn(false)} onSaved={() => { setWalkIn(false); void load() }}/>} 
+    {walkIn && <WalkInModal clients={clients} managers={managers} employeeId={employee?.id || ''} canCreateProspect={canCreateProspect} onClose={() => setWalkIn(false)} onSaved={() => { setWalkIn(false); void load() }}/>} 
   </div>
 }
 
-function WalkInModal({ clients, managers, employeeId, onClose, onSaved }: { clients: any[]; managers: any[]; employeeId: string; onClose: () => void; onSaved: () => void }) {
+function WalkInModal({ clients, managers, employeeId, canCreateProspect, onClose, onSaved }: { clients: any[]; managers: any[]; employeeId: string; canCreateProspect: boolean; onClose: () => void; onSaved: () => void }) {
   const [mode, setMode] = useState<'CLIENTE'|'NUEVO'>('CLIENTE')
   const [clientId, setClientId] = useState('')
   const [clientQuery, setClientQuery] = useState('')
   const [managerId, setManagerId] = useState('')
-  const [name, setName] = useState('')
+  const [visitorName, setVisitorName] = useState('')
   const [company, setCompany] = useState('')
   const [phone, setPhone] = useState('')
-  const [purpose, setPurpose] = useState('Visita showroom')
+  const [purposeType, setPurposeType] = useState('Consulta general')
+  const [purposeDetail, setPurposeDetail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [registerProspect, setRegisterProspect] = useState(false)
   const [busy, setBusy] = useState(false)
   const selectedClient = clients.find(c => c.id === clientId)
 
@@ -142,45 +149,68 @@ function WalkInModal({ clients, managers, employeeId, onClose, onSaved }: { clie
   }, [clients, clientQuery, selectedClient])
 
   useEffect(() => {
-    if (selectedClient?.manager_employee_id) setManagerId(selectedClient.manager_employee_id)
-  }, [selectedClient?.manager_employee_id])
+    if (!selectedClient) return
+    if (selectedClient.manager_employee_id) setManagerId(selectedClient.manager_employee_id)
+    setCompany(selectedClient.legal_name || '')
+    setVisitorName(selectedClient.contact_name || '')
+    setPhone(selectedClient.mobile || selectedClient.phone1 || '')
+  }, [selectedClient?.id])
 
   const chooseClient = (client: any) => {
     setClientId(client.id)
     setClientQuery(client.legal_name)
-    if (client.manager_employee_id) setManagerId(client.manager_employee_id)
   }
 
   const clearClient = () => {
     setClientId('')
     setClientQuery('')
     setManagerId('')
+    setVisitorName('')
+    setCompany('')
+    setPhone('')
+  }
+
+  const switchMode = (next: 'CLIENTE'|'NUEVO') => {
+    setMode(next)
+    clearClient()
+    setRegisterProspect(false)
   }
 
   const save = async () => {
     if (!employeeId) return
-    if (!managerId) return alert('Selecciona el gestor que atenderá a la persona.')
     if (mode === 'CLIENTE' && !clientId) return alert('Busca y selecciona el cliente.')
-    if (mode === 'NUEVO' && !name.trim() && !company.trim()) return alert('Indica el nombre de la persona o empresa.')
+    if (mode === 'NUEVO' && !visitorName.trim() && !company.trim()) return alert('Indica el nombre de la persona o empresa.')
     setBusy(true)
     try {
       let prospectId: string | null = null
-      if (mode === 'NUEVO') {
-        const { data, error } = await supabase.from('prospects').insert({ legal_name: company.trim() || name.trim(), contact_name: name.trim() || null, phone: phone.trim() || null, captured_by_employee_id: employeeId, assigned_manager_id: managerId, status: 'NUEVO', notes: 'Captado desde recepción showroom' }).select('id').single()
+      if (mode === 'NUEVO' && registerProspect) {
+        const { data, error } = await supabase.from('prospects').insert({
+          legal_name: company.trim() || visitorName.trim(),
+          contact_name: visitorName.trim() || null,
+          phone: phone.trim() || null,
+          captured_by_employee_id: employeeId,
+          assigned_manager_id: managerId || null,
+          status: 'NUEVO',
+          notes: `Identificado como posible cliente desde recepción. ${notes.trim()}`.trim(),
+        }).select('id').single()
         if (error) throw error
         prospectId = data.id
       }
+      const personName = visitorName.trim() || selectedClient?.contact_name || selectedClient?.legal_name || company.trim()
+      const companyName = mode === 'CLIENTE' ? selectedClient?.legal_name || null : company.trim() || null
+      const purpose = purposeDetail.trim() || purposeType
       const { error } = await supabase.from('reception_entries').insert({
         client_id: mode === 'CLIENTE' ? clientId : null,
         prospect_id: prospectId,
-        visitor_type: mode === 'CLIENTE' ? 'CLIENTE_SIN_CITA' : 'NUEVO',
-        visitor_name: mode === 'CLIENTE' ? selectedClient?.legal_name : name.trim() || company.trim(),
-        company_name: mode === 'NUEVO' ? company.trim() || null : null,
-        phone: mode === 'CLIENTE' ? selectedClient?.mobile || selectedClient?.phone1 || null : phone.trim() || null,
+        visitor_type: mode === 'CLIENTE' ? 'CLIENTE_SIN_CITA' : prospectId ? 'PROSPECTO' : 'VISITANTE',
+        visitor_name: personName,
+        company_name: companyName,
+        phone: phone.trim() || selectedClient?.mobile || selectedClient?.phone1 || null,
         purpose,
-        assigned_manager_id: managerId,
+        assigned_manager_id: managerId || null,
         check_in_by: employeeId,
-        status: 'EN_ESPERA',
+        status: managerId ? 'EN_ESPERA' : 'REGISTRADO',
+        notes: notes.trim() || null,
       })
       if (error) throw error
       onSaved()
@@ -189,18 +219,18 @@ function WalkInModal({ clients, managers, employeeId, onClose, onSaved }: { clie
     } finally { setBusy(false) }
   }
 
-  return <div className="modal-wrap"><button className="modal-backdrop" onClick={onClose}/><div className="modal"><div className="modal-head"><div><span className="eyebrow">NUEVA ENTRADA</span><h3>Llegada sin cita</h3><p>Busca rápidamente un cliente existente o registra una persona/empresa nueva.</p></div><button className="icon-btn" onClick={onClose}><X/></button></div>
-    <div className="tabs"><button className={mode === 'CLIENTE' ? 'active' : ''} onClick={() => setMode('CLIENTE')}>Cliente existente</button><button className={mode === 'NUEVO' ? 'active' : ''} onClick={() => setMode('NUEVO')}>Persona / empresa nueva</button></div>
-    <div className="form-grid one">
-      {mode === 'CLIENTE' ? <div style={{ position: 'relative' }}>
-        <label>Buscar cliente<div className="search-field"><Search size={18}/><input value={clientQuery} onChange={e => { setClientQuery(e.target.value); if (selectedClient) setClientId('') }} placeholder="Nombre, código, teléfono, contacto, municipio..."/></div></label>
-        {matches.length > 0 && <div className="panel" style={{ position: 'absolute', zIndex: 10, left: 0, right: 0, top: '100%', maxHeight: 280, overflow: 'auto', padding: 8 }}>
-          {matches.map(c => <button key={c.id} className="activity-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 6 }} onClick={() => chooseClient(c)}><div className="activity-main"><b>{c.legal_name}</b><span>{c.codempr} · {c.contact_name || 'Sin contacto'}</span><small>{c.phone1 || c.mobile || 'Sin teléfono'} · {c.municipality || c.province || ''}</small></div></button>)}
-        </div>}
-        {selectedClient && <div className="selected-client"><div><b>{selectedClient.legal_name}</b><span>{selectedClient.codempr} · {selectedClient.phone1 || selectedClient.mobile || 'Sin teléfono'} · {selectedClient.contact_name || 'Sin contacto'}</span></div><button className="secondary compact" onClick={clearClient}>Cambiar</button></div>}
-      </div> : <><label>Persona contacto<input value={name} onChange={e => setName(e.target.value)}/></label><label>Empresa / nombre comercial<input value={company} onChange={e => setCompany(e.target.value)}/></label><label>Teléfono<input value={phone} onChange={e => setPhone(e.target.value)}/></label></>}
-      <label>Gestor responsable<select value={managerId} onChange={e => setManagerId(e.target.value)}><option value="">Seleccionar gestor...</option>{managers.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}</select></label>
-      <label>Motivo<input value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="Compra, ver mercancía, seguimiento..."/></label>
+  return <div className="modal-wrap"><button className="modal-backdrop" onClick={onClose}/><div className="modal large"><div className="modal-head"><div><span className="eyebrow">NUEVA ENTRADA</span><h3>Llegada sin cita</h3><p>Registra quién llegó, motivo y destino. El gestor es opcional.</p></div><button className="icon-btn" onClick={onClose}><X/></button></div>
+    <div className="tabs"><button className={mode === 'CLIENTE' ? 'active' : ''} onClick={() => switchMode('CLIENTE')}>Cliente existente</button><button className={mode === 'NUEVO' ? 'active' : ''} onClick={() => switchMode('NUEVO')}>Persona / empresa nueva</button></div>
+    <div className="walkin-fields">
+      {mode === 'CLIENTE' && <div className="span-2" style={{ position: 'relative' }}><label>Buscar cliente<div className="search-field"><Search size={18}/><input value={clientQuery} onChange={e => { setClientQuery(e.target.value); if (selectedClient) setClientId('') }} placeholder="Nombre, código, teléfono, contacto, municipio..."/></div></label>{matches.length > 0 && <div className="panel" style={{ position: 'absolute', zIndex: 10, left: 0, right: 0, top: '100%', maxHeight: 280, overflow: 'auto', padding: 8 }}>{matches.map(c => <button key={c.id} className="activity-card" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 6 }} onClick={() => chooseClient(c)}><div className="activity-main"><b>{c.legal_name}</b><span>{c.codempr} · {c.contact_name || 'Sin contacto'}</span><small>{c.phone1 || c.mobile || 'Sin teléfono'} · {c.municipality || c.province || ''}</small></div></button>)}</div>}{selectedClient && <div className="selected-client"><div><b>{selectedClient.legal_name}</b><span>{selectedClient.codempr} · {selectedClient.phone1 || selectedClient.mobile || 'Sin teléfono'}</span></div><button className="secondary compact" onClick={clearClient}>Cambiar</button></div>}</div>}
+      <label>Nombre de la persona<input value={visitorName} onChange={e => setVisitorName(e.target.value)} placeholder={mode==='CLIENTE'?'Contacto que llegó':'Nombre y apellido'}/></label>
+      <label>Empresa / cliente<input value={company} onChange={e => setCompany(e.target.value)} disabled={mode==='CLIENTE'&&!!selectedClient} placeholder="Empresa o nombre comercial"/></label>
+      <label>Teléfono<input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Opcional"/></label>
+      <label className="optional-label">Gestor / destino<select value={managerId} onChange={e => setManagerId(e.target.value)}><option value="">Sin gestor asignado</option>{managers.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}</select></label>
+      <label>Tipo de visita<select value={purposeType} onChange={e => setPurposeType(e.target.value)}><option>Consulta general</option><option>Compra / ver mercancía</option><option>Seguimiento comercial</option><option>Entrega de documentos</option><option>Pago / asunto administrativo</option><option>Reunión</option><option>Otro</option></select></label>
+      <label>Detalle del motivo<input value={purposeDetail} onChange={e => setPurposeDetail(e.target.value)} placeholder="Ej. retirar factura, consultar disponibilidad..."/></label>
+      <label className="span-2">Observaciones<textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Información útil para recepción o el gestor..."/></label>
+      {mode==='NUEVO'&&canCreateProspect&&<div className="walkin-prospect-toggle span-2"><label className="checkbox"><input type="checkbox" checked={registerProspect} onChange={e=>setRegisterProspect(e.target.checked)}/> Registrar también como posible cliente / prospecto</label><div className="walkin-hint">Si está desmarcado, la persona queda únicamente en el control de recepción y no entra al módulo de Captación.</div></div>}
     </div>
     <div className="modal-actions"><button className="secondary" onClick={onClose}>Cancelar</button><button className="primary" disabled={busy} onClick={() => void save()}>{busy ? 'Guardando...' : 'Registrar llegada'}</button></div>
   </div></div>
