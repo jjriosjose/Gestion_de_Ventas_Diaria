@@ -7,6 +7,7 @@ import { orderByNearest, uniqueSorted } from '../lib/spatial'
 import { TerritoryClientMap } from '../components/TerritoryClientMap'
 import { geoQualityLabel, isGeoMismatch, loadGeoAssessmentMap, matchesGeoQualityFilter } from '../lib/geoQuality'
 import type { GeoAssessment, GeoQualityFilter } from '../lib/geoQuality'
+import { loadClientsPaged } from '../lib/clientLoader'
 import type { Client, Employee } from '../types'
 import '../styles/territorial-v2.css'
 
@@ -14,6 +15,8 @@ type PlanType = 'VISITAS' | 'CAPTACION'
 type GpsFilter = 'ALL' | 'WITH' | 'WITHOUT'
 type GeoFilter = 'ALL' | 'VERIFICADA' | 'SIN_VERIFICAR' | 'POSIBLE_ERROR'
 type AvailabilityFilter = 'AVAILABLE' | 'ALL' | 'PLANNED'
+
+const PLANNING_CLIENT_COLUMNS = 'id,company_code,codempr,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,sector_id,phone1,mobile,latitude,longitude,geo_status,last_invoice_date'
 
 export function Planning() {
   const { employee } = useAuth()
@@ -84,21 +87,16 @@ export function Planning() {
     let cancelled = false
     setLoadingClients(true)
     void (async () => {
-      let request = supabase
-        .from('clients')
-        .select('id,company_code,codempr,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,sector_id,phone1,mobile,latitude,longitude,geo_status,last_invoice_date')
-        .limit(3000)
-
-      if (!includeOutsidePortfolio) request = request.eq('vendor_employee_id', vendor)
-      const { data, error } = await request.order('legal_name')
-      if (!cancelled) {
-        if (error) {
+      try {
+        const rows = await loadClientsPaged(PLANNING_CLIENT_COLUMNS, includeOutsidePortfolio ? null : vendor)
+        if (!cancelled) setClients(rows)
+      } catch (error) {
+        if (!cancelled) {
           setClients([])
-          alert(`No fue posible cargar la cartera: ${error.message}`)
-        } else {
-          setClients((data || []) as Client[])
+          alert(error instanceof Error ? error.message : 'No fue posible cargar la cartera completa')
         }
-        setLoadingClients(false)
+      } finally {
+        if (!cancelled) setLoadingClients(false)
       }
     })()
 
