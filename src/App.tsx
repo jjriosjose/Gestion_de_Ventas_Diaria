@@ -18,5 +18,39 @@ import { Reports } from './pages/Reports'
 import { Admin } from './pages/Admin'
 import { Settings } from './pages/Settings'
 import { DataQuality } from './pages/DataQuality'
-function Protected(){const {session,loading}=useAuth();if(loading)return <div className="boot-screen"><img src="/logo-karaka.png"/><div className="boot-loader"><i/></div><span>Iniciando sistema...</span></div>;if(!session)return <Login/>;return <ThemeProvider><Routes><Route element={<AppShell/>}><Route index element={<Dashboard/>}/><Route path="clientes" element={<Clients/>}/><Route path="mapa" element={<MapPage/>}/><Route path="planificacion" element={<Planning/>}/><Route path="rutas" element={<RoutesPage/>}/><Route path="captacion" element={<Capture/>}/><Route path="cobertura" element={<Coverage/>}/><Route path="visitas" element={<Visits/>}/><Route path="llamadas" element={<Calls/>}/><Route path="agenda" element={<Agenda/>}/><Route path="recepcion" element={<Reception/>}/><Route path="reportes" element={<Reports/>}/><Route path="calidad-datos" element={<DataQuality/>}/><Route path="administracion" element={<Admin/>}/><Route path="configuracion" element={<Settings/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Route></Routes></ThemeProvider>}
+import { hasAnyAdminPermission, hasPermission, type PermissionKey } from './lib/access'
+
+function RequirePermission({ permission, children }: { permission: PermissionKey; children: React.ReactNode }) {
+  const { employee } = useAuth()
+  return hasPermission(employee, permission) ? <>{children}</> : <Navigate to="/" replace />
+}
+
+function RequireAdministration({ children }: { children: React.ReactNode }) {
+  const { employee } = useAuth()
+  return hasAnyAdminPermission(employee) ? <>{children}</> : <Navigate to="/" replace />
+}
+
+function Protected(){
+  const {session,employee,loading}=useAuth()
+  if(loading)return <div className="boot-screen"><img src="/logo-karaka.png"/><div className="boot-loader"><i/></div><span>Iniciando sistema...</span></div>
+  if(!session)return <Login/>
+  return <ThemeProvider><Routes><Route element={<AppShell/>}>
+    <Route index element={<RequirePermission permission="dashboard.view"><Dashboard/></RequirePermission>}/>
+    <Route path="clientes" element={<RequirePermission permission="clients.view"><Clients/></RequirePermission>}/>
+    <Route path="mapa" element={<RequirePermission permission="map.view"><MapPage/></RequirePermission>}/>
+    <Route path="planificacion" element={<RequirePermission permission="planning.view"><Planning/></RequirePermission>}/>
+    <Route path="rutas" element={<RequirePermission permission="routes.view"><RoutesPage/></RequirePermission>}/>
+    <Route path="captacion" element={<RequirePermission permission="capture.view"><Capture/></RequirePermission>}/>
+    <Route path="cobertura" element={<RequirePermission permission="coverage.view"><Coverage/></RequirePermission>}/>
+    <Route path="visitas" element={<RequirePermission permission="visits.view"><Visits/></RequirePermission>}/>
+    <Route path="llamadas" element={<RequirePermission permission="calls.view"><Calls/></RequirePermission>}/>
+    <Route path="agenda" element={<RequirePermission permission="agenda.view"><Agenda/></RequirePermission>}/>
+    <Route path="recepcion" element={<RequirePermission permission="reception.view"><Reception/></RequirePermission>}/>
+    <Route path="reportes" element={<RequirePermission permission="reports.view"><Reports/></RequirePermission>}/>
+    <Route path="calidad-datos" element={<RequirePermission permission="data_quality.view"><DataQuality/></RequirePermission>}/>
+    <Route path="administracion" element={<RequireAdministration><Admin/></RequireAdministration>}/>
+    <Route path="configuracion" element={<RequirePermission permission="settings.view"><Settings/></RequirePermission>}/>
+    <Route path="*" element={<Navigate to="/" replace/>}/>
+  </Route></Routes></ThemeProvider>
+}
 export default function App(){return <BrowserRouter><Protected/></BrowserRouter>}
