@@ -17,6 +17,7 @@ const statusInfo:Record<string,{label:string;detail:string}>={
   INCONSISTENCIA_VISITA:{label:'GPS de visita inconsistente',detail:'Maestro y coordenada guardada coinciden, pero la visita ocurrió en otra demarcación.'},
   INCONSISTENCIA_GRAVE:{label:'Inconsistencia fuerte',detail:'Las tres fuentes no permiten concluir una corrección segura. Requiere revisión.'},
   FUERA_DIVISION:{label:'Fuera de división',detail:'La coordenada no pudo resolverse contra la división territorial cargada.'},
+  SIN_CARTOGRAFIA:{label:'Sin cartografía',detail:'La instalación aún no tiene una división territorial activa para evaluar esta coordenada.'},
   SIN_GEO:{label:'Sin GPS',detail:'El cliente no tiene coordenadas para realizar el diagnóstico.'},
 }
 
@@ -37,23 +38,44 @@ export function DataQuality(){
   const [search,setSearch]=useState('')
   const [busy,setBusy]=useState(false)
 
+  const loadAllAssessments=async()=>{
+    const rows:any[]=[]
+    const pageSize=1000
+    for(let from=0;;from+=pageSize){
+      let query=supabase.from('client_geo_assessments').select('*').order('legal_name').range(from,from+pageSize-1)
+      if(assessmentStatus!=='ALL')query=query.eq('assessment_status',assessmentStatus)
+      const {data,error}=await query
+      if(error)throw error
+      rows.push(...(data||[]))
+      if((data?.length||0)<pageSize)break
+    }
+    return rows
+  }
+
   const load=async()=>{
     setBusy(true)
-    let aq=supabase.from('client_geo_assessments').select('*').order('legal_name').limit(500)
-    if(assessmentStatus!=='ALL')aq=aq.eq('assessment_status',assessmentStatus)
-    const [{data:s},{data:a},{data:e},{data:areas}]=await Promise.all([
-      supabase.from('geo_intelligence_summary').select('*'),
-      aq,
-      supabase.from('geo_verification_events').select('*,clients(codempr,legal_name,region,province,municipality),employees(full_name)').eq('status',eventStatus).order('captured_at',{ascending:false}).limit(250),
-      supabase.from('administrative_areas').select('area_level').eq('active',true),
-    ])
-    setSummary((s||[]) as IntelligenceSummary[])
-    setAssessments(a||[])
-    setEvents(e||[])
-    const counts:Record<string,number>={}
-    ;(areas||[]).forEach((row:any)=>{counts[row.area_level]=(counts[row.area_level]||0)+1})
-    setAreaCounts(counts)
-    setBusy(false)
+    try{
+      const [summaryResult,a,eventResult,areasResult]=await Promise.all([
+        supabase.from('geo_intelligence_summary').select('*'),
+        loadAllAssessments(),
+        supabase.from('geo_verification_events').select('*,clients(codempr,legal_name,region,province,municipality),employees(full_name)').eq('status',eventStatus).order('captured_at',{ascending:false}).limit(250),
+        supabase.from('administrative_areas').select('area_level').eq('active',true),
+      ])
+      if(summaryResult.error)throw summaryResult.error
+      if(eventResult.error)throw eventResult.error
+      if(areasResult.error)throw areasResult.error
+      setSummary((summaryResult.data||[]) as IntelligenceSummary[])
+      setAssessments(a)
+      setEvents(eventResult.data||[])
+      const counts:Record<string,number>={}
+      ;(areasResult.data||[]).forEach((row:any)=>{counts[row.area_level]=(counts[row.area_level]||0)+1})
+      setAreaCounts(counts)
+    }catch(error){
+      console.error('Unable to load geographic quality data',error)
+      alert('No se pudo cargar la calidad geográfica. Intenta actualizar nuevamente.')
+    }finally{
+      setBusy(false)
+    }
   }
   useEffect(()=>{void load()},[assessmentStatus,eventStatus])
 
