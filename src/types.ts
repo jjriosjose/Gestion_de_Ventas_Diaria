@@ -1,3 +1,5 @@
+export type AccessProfile = 'Administrador' | 'Supervisor' | 'Gestor' | 'Vendedor' | 'Recepcion' | 'SoloLectura'
+
 export type Employee = {
   id: string
   auth_user_id?: string | null
@@ -6,6 +8,8 @@ export type Employee = {
   job_title?: string | null
   app_role: 'Administrador' | 'Supervisor' | 'Usuario' | 'SoloLectura' | 'Recepcionista'
   employee_type: 'Gerencia' | 'Direccion' | 'Gestor' | 'Vendedor' | 'Recepcion' | 'Otro'
+  access_profile?: AccessProfile
+  permission_overrides?: Record<string, boolean>
   phone_display?: string | null
   phone_e164?: string | null
   active?: boolean
