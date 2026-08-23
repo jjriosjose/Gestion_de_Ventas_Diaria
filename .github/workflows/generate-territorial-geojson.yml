@@ -45,22 +45,48 @@ jobs:
       - name: Install pinned Dominican territorial package
         shell: Rscript {0}
         run: |
-          # Pin the exact upstream source used by this project. Downloading the
-          # public source archive avoids forwarding this repository's GITHUB_TOKEN
-          # to an unrelated public repository and makes the build reproducible.
+          # Pin the exact upstream source used by this project. remotes::install_url()
+          # infers archive type from the URL suffix, while GitHub codeload URLs end
+          # in the commit SHA. Download to an explicitly named .tar.gz first so the
+          # archive type is deterministic and no GitHub token is forwarded upstream.
           commit <- 'b11b07f2911e2e08a8d653e39e5012a76a7da670'
           source_url <- sprintf(
             'https://codeload.github.com/adatar-do/sfDR/tar.gz/%s',
             commit
           )
-          remotes::install_url(
+          archive <- tempfile(pattern = 'sfDR-', fileext = '.tar.gz')
+          utils::download.file(
             source_url,
+            destfile = archive,
+            mode = 'wb',
+            method = 'libcurl',
+            quiet = FALSE
+          )
+
+          archive_size <- file.info(archive)$size
+          if (is.na(archive_size) || archive_size < 1000000) {
+            stop(sprintf('Downloaded sfDR archive is unexpectedly small: %s bytes', archive_size))
+          }
+
+          archive_entries <- utils::untar(archive, list = TRUE)
+          description_entries <- grep('/DESCRIPTION$', archive_entries, value = TRUE)
+          if (length(description_entries) != 1L) {
+            stop(sprintf(
+              'Expected exactly one DESCRIPTION in sfDR archive; found %d',
+              length(description_entries)
+            ))
+          }
+
+          remotes::install_local(
+            archive,
             dependencies = FALSE,
             upgrade = 'never',
-            quiet = TRUE
+            force = TRUE,
+            quiet = FALSE
           )
           stopifnot(requireNamespace('sfDR', quietly = TRUE))
           stopifnot(utils::packageVersion('sfDR') == utils::package_version('0.2.2'))
+          cat('sfDR archive bytes:', archive_size, '\n')
           cat('sfDR version:', as.character(utils::packageVersion('sfDR')), '\n')
           cat('sfDR source commit:', commit, '\n')
 
