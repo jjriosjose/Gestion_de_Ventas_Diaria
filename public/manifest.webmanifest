@@ -1,11 +1,27 @@
 {
-  "name": "Gestion de Ventas Diaria",
+  "id": "/",
+  "name": "Gestión de Ventas Karaka",
   "short_name": "Karaka Ventas",
+  "description": "Gestión comercial diaria de Almacenes Karaka",
+  "lang": "es-DO",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f4f6f8",
+  "background_color": "#fffaf6",
   "theme_color": "#be1e2d",
+  "categories": ["business", "productivity"],
   "icons": [
-    {"src":"/logo-karaka.png","sizes":"any","type":"image/png","purpose":"any"}
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
   ]
 }

@@ -1,5 +1,5 @@
-const CACHE='gvd-shell-v051';
-const SHELL=['/logo-karaka.png','/manifest.webmanifest'];
+const CACHE='gvd-shell-v057';
+const SHELL=['/manifest.webmanifest','/pwa-icon.svg','/pwa-maskable.svg','/logo-karaka.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -31,7 +31,7 @@ self.addEventListener('fetch',event=>{
     return;
   }
 
-  // Los assets con hash pueden almacenarse: cambian de URL en cada build.
+  // Los assets con hash y los recursos PWA pueden almacenarse.
   if(url.origin===self.location.origin && /\.(?:js|css|png|jpg|jpeg|webp|svg|woff2?|webmanifest)$/i.test(url.pathname)){
     event.respondWith((async()=>{
       const cached=await caches.match(request);
