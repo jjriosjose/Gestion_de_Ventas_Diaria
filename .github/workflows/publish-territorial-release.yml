@@ -1,0 +1,99 @@
+name: Publish territorial geodata release
+
+on:
+  push:
+    branches:
+      - feature/geographic-intelligence-v2
+    paths:
+      - '.github/workflows/publish-territorial-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: geodata-sfdr-b11b07f
+      EXPECTED_SOURCE_COMMIT: b11b07f2911e2e08a8d653e39e5012a76a7da670
+    steps:
+      - name: Download latest validated territorial artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id="$(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=dominican-territorial-geojson&per_page=100" \
+              --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "feature/geographic-intelligence-v2")] | sort_by(.created_at) | reverse | .[0].id'
+          )"
+          if [[ -z "${artifact_id}" || "${artifact_id}" == "null" ]]; then
+            echo 'No validated territorial artifact found.' >&2
+            exit 1
+          fi
+          echo "Using artifact ${artifact_id}"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > territorial.zip
+          mkdir -p territorial-export
+          unzip -q territorial.zip -d territorial-export
+
+      - name: Validate immutable release payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in regions.geojson provinces.geojson municipalities.geojson municipal-districts.geojson manifest.csv; do
+            test -s "territorial-export/${file}"
+          done
+          python - <<'PY'
+          import csv, json, os
+          expected = {
+              'REGION': 10,
+              'PROVINCIA': 32,
+              'MUNICIPIO': 158,
+              'DISTRITO_MUNICIPAL': 393,
+          }
+          with open('territorial-export/manifest.csv', newline='', encoding='utf-8') as fh:
+              rows = list(csv.DictReader(fh))
+          actual = {r['layer']: int(r['actual_features']) for r in rows}
+          if actual != expected:
+              raise SystemExit(f'Unexpected manifest counts: {actual}')
+          commits = {r['source_commit'] for r in rows}
+          expected_commit = os.environ['EXPECTED_SOURCE_COMMIT']
+          if commits != {expected_commit}:
+              raise SystemExit(f'Unexpected source commit(s): {commits}')
+          files = {
+              'regions.geojson': 10,
+              'provinces.geojson': 32,
+              'municipalities.geojson': 158,
+              'municipal-districts.geojson': 393,
+          }
+          for path, count in files.items():
+              with open('territorial-export/' + path, encoding='utf-8') as fh:
+                  data = json.load(fh)
+              if data.get('type') != 'FeatureCollection' or len(data.get('features', [])) != count:
+                  raise SystemExit(f'Invalid feature count in {path}')
+          print('Validated release payload:', actual, 'total=', sum(actual.values()))
+          PY
+
+      - name: Publish versioned public geodata release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "feature/geographic-intelligence-v2" \
+              --title 'Dominican territorial geodata · sfDR b11b07f' \
+              --notes 'Validated administrative boundaries generated from sfDR / IDERD / ONE División Territorial 2021. Counts: 10 regions, 32 provinces, 158 municipalities, 393 municipal districts. EPSG:4326.'
+          fi
+          gh release upload "${RELEASE_TAG}" \
+            territorial-export/regions.geojson \
+            territorial-export/provinces.geojson \
+            territorial-export/municipalities.geojson \
+            territorial-export/municipal-districts.geojson \
+            territorial-export/manifest.csv \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json url,tagName,name
