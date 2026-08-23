@@ -40,6 +40,21 @@ export async function loadOfficialAreaGeometry(id: string): Promise<OfficialArea
 export function areaById(areas: OfficialArea[], id?: string | null) { return id ? areas.find((area) => area.id === id) || null : null }
 export function selectedOfficialAreaId(selection: OfficialSelection) { return selection.districtId || selection.municipalityId || selection.provinceId || selection.regionId }
 
+export function officialSelectionForArea(areas: OfficialArea[], areaId?: string | null): OfficialSelection {
+  const selection: OfficialSelection = { ...EMPTY_OFFICIAL_SELECTION }
+  let current = areaById(areas, areaId)
+  const visited = new Set<string>()
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id)
+    if (current.area_level === 'REGION') selection.regionId = current.id
+    if (current.area_level === 'PROVINCIA') selection.provinceId = current.id
+    if (current.area_level === 'MUNICIPIO') selection.municipalityId = current.id
+    if (current.area_level === 'DISTRITO_MUNICIPAL') selection.districtId = current.id
+    current = areaById(areas, current.parent_id)
+  }
+  return selection
+}
+
 export function officialSelectionNames(areas: OfficialArea[], selection: OfficialSelection) {
   return {
     region: areaById(areas, selection.regionId)?.name || '',
