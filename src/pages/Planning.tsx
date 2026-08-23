@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { currentPosition } from '../lib/geo'
 import { orderByNearest, uniqueSorted } from '../lib/spatial'
 import { TerritoryClientMap } from '../components/TerritoryClientMap'
+import { geoQualityLabel, isGeoMismatch, loadGeoAssessmentMap, matchesGeoQualityFilter } from '../lib/geoQuality'
+import type { GeoAssessment, GeoQualityFilter } from '../lib/geoQuality'
 import type { Client, Employee } from '../types'
 import '../styles/territorial-v2.css'
 
@@ -22,6 +24,7 @@ export function Planning() {
   const [managers, setManagers] = useState<Employee[]>([])
   const [territories, setTerritories] = useState<any[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [geoAssessments, setGeoAssessments] = useState<Map<string, GeoAssessment>>(new Map())
   const [plannedIds, setPlannedIds] = useState<Set<string>>(new Set())
   const [territoryClientIds, setTerritoryClientIds] = useState<Set<string> | null>(null)
   const [loadingClients, setLoadingClients] = useState(false)
@@ -40,6 +43,7 @@ export function Planning() {
   const [company, setCompany] = useState('')
   const [gpsFilter, setGpsFilter] = useState<GpsFilter>('ALL')
   const [geoFilter, setGeoFilter] = useState<GeoFilter>('ALL')
+  const [territorialQuality, setTerritorialQuality] = useState<GeoQualityFilter>('ALL')
   const [availability, setAvailability] = useState<AvailabilityFilter>('AVAILABLE')
   const [territoryFilter, setTerritoryFilter] = useState('')
   const [busy, setBusy] = useState(false)
@@ -50,11 +54,16 @@ export function Planning() {
     void Promise.all([
       supabase.from('employees').select('*').eq('active', true).in('employee_type', ['Vendedor', 'Gestor']).order('full_name'),
       supabase.from('territories').select('id,name,territory_type,region,province,municipality,active').eq('active', true).order('name'),
-    ]).then(([employeeResponse, territoryResponse]) => {
+      loadGeoAssessmentMap().catch((error) => {
+        console.error(error)
+        return new Map<string, GeoAssessment>()
+      }),
+    ]).then(([employeeResponse, territoryResponse, assessmentMap]) => {
       const list = (employeeResponse.data || []) as Employee[]
       setVendors(list.filter((item) => item.employee_type === 'Vendedor'))
       setManagers(list.filter((item) => item.employee_type === 'Gestor'))
       setTerritories(territoryResponse.data || [])
+      setGeoAssessments(assessmentMap)
     })
   }, [])
 
@@ -163,17 +172,19 @@ export function Planning() {
       if (gpsFilter === 'WITH' && !hasGps) return false
       if (gpsFilter === 'WITHOUT' && hasGps) return false
       if (geoFilter !== 'ALL' && client.geo_status !== geoFilter) return false
+      if (!matchesGeoQualityFilter(geoAssessments.get(client.id), territorialQuality)) return false
       const isPlanned = plannedIds.has(client.id)
       if (availability === 'AVAILABLE' && isPlanned) return false
       if (availability === 'PLANNED' && !isPlanned) return false
       if (territoryClientIds && !territoryClientIds.has(client.id)) return false
       return true
     })
-  }, [clients, q, region, province, municipality, manager, company, gpsFilter, geoFilter, plannedIds, availability, territoryClientIds])
+  }, [clients, q, region, province, municipality, manager, company, gpsFilter, geoFilter, geoAssessments, territorialQuality, plannedIds, availability, territoryClientIds])
 
   const clientById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients])
   const selectedClients = useMemo(() => selected.map((id) => clientById.get(id)).filter((client): client is Client => Boolean(client)), [selected, clientById])
   const filteredGpsCount = useMemo(() => filteredClients.filter((client) => client.latitude != null && client.longitude != null).length, [filteredClients])
+  const filteredMismatchCount = useMemo(() => filteredClients.filter((client) => isGeoMismatch(geoAssessments.get(client.id)?.assessment_status)).length, [filteredClients, geoAssessments])
   const selectedGpsCount = useMemo(() => selectedClients.filter((client) => client.latitude != null && client.longitude != null).length, [selectedClients])
 
   const toggleClient = (clientId: string) => {
@@ -196,6 +207,7 @@ export function Planning() {
     setCompany('')
     setGpsFilter('ALL')
     setGeoFilter('ALL')
+    setTerritorialQuality('ALL')
     setAvailability('AVAILABLE')
     setTerritoryFilter('')
   }
@@ -347,13 +359,14 @@ export function Planning() {
                 </div>
                 <div className="planner-filter-grid">
                   <div className="search-field"><Search size={17} /><input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Nombre, código o teléfono..." disabled={!vendor} /></div>
-                  <select value={region} onChange={(event) => setRegion(event.target.value)} disabled={!vendor}><option value="">Todas las regiones</option>{regionOptions.map((value) => <option key={value}>{value}</option>)}</select>
-                  <select value={province} onChange={(event) => setProvince(event.target.value)} disabled={!vendor}><option value="">Todas las provincias</option>{provinceOptions.map((value) => <option key={value}>{value}</option>)}</select>
-                  <select value={municipality} onChange={(event) => setMunicipality(event.target.value)} disabled={!vendor}><option value="">Todos los municipios</option>{municipalityOptions.map((value) => <option key={value}>{value}</option>)}</select>
+                  <select value={region} onChange={(event) => setRegion(event.target.value)} disabled={!vendor}><option value="">Todas las regiones (maestro)</option>{regionOptions.map((value) => <option key={value}>{value}</option>)}</select>
+                  <select value={province} onChange={(event) => setProvince(event.target.value)} disabled={!vendor}><option value="">Todas las provincias (maestro)</option>{provinceOptions.map((value) => <option key={value}>{value}</option>)}</select>
+                  <select value={municipality} onChange={(event) => setMunicipality(event.target.value)} disabled={!vendor}><option value="">Todos los municipios (maestro)</option>{municipalityOptions.map((value) => <option key={value}>{value}</option>)}</select>
                   <select value={manager} onChange={(event) => setManager(event.target.value)} disabled={!vendor}><option value="">Todos los gestores</option>{managers.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select>
                   <select value={company} onChange={(event) => setCompany(event.target.value)} disabled={!vendor}><option value="">Todas las empresas</option>{companyOptions.map((value) => <option key={value}>{value}</option>)}</select>
                   <select value={gpsFilter} onChange={(event) => setGpsFilter(event.target.value as GpsFilter)} disabled={!vendor}><option value="ALL">Con y sin GPS</option><option value="WITH">Solo con GPS</option><option value="WITHOUT">Solo sin GPS</option></select>
-                  <select value={geoFilter} onChange={(event) => setGeoFilter(event.target.value as GeoFilter)} disabled={!vendor}><option value="ALL">Cualquier calidad GPS</option><option value="VERIFICADA">GPS verificado</option><option value="SIN_VERIFICAR">GPS sin verificar</option><option value="POSIBLE_ERROR">Posible error GPS</option></select>
+                  <select value={geoFilter} onChange={(event) => setGeoFilter(event.target.value as GeoFilter)} disabled={!vendor}><option value="ALL">Cualquier estado GPS</option><option value="VERIFICADA">GPS verificado</option><option value="SIN_VERIFICAR">GPS sin verificar</option><option value="POSIBLE_ERROR">Posible error GPS</option></select>
+                  <select value={territorialQuality} onChange={(event) => setTerritorialQuality(event.target.value as GeoQualityFilter)} disabled={!vendor}><option value="ALL">Cualquier coherencia territorial</option><option value="COHERENTE">Maestro = coordenada</option><option value="DIFERENCIA">Maestro ≠ coordenada</option><option value="SIN_GEO">Sin GPS</option><option value="FUERA_DIVISION">Fuera de división</option><option value="VERIFICADO_VISITA">Verificado por visita</option></select>
                   <select value={availability} onChange={(event) => setAvailability(event.target.value as AvailabilityFilter)} disabled={!vendor}><option value="AVAILABLE">No planificados en esta fecha</option><option value="ALL">Todos</option><option value="PLANNED">Ya planificados</option></select>
                   <select value={territoryFilter} onChange={(event) => setTerritoryFilter(event.target.value)} disabled={!vendor}><option value="">Todas las zonas guardadas</option>{territories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>
                 </div>
@@ -361,6 +374,7 @@ export function Planning() {
                   <div className="meta">
                     <span>{loadingClients ? 'Cargando...' : `${filteredClients.length.toLocaleString()} resultados`}</span>
                     <span>{filteredGpsCount.toLocaleString()} visibles en mapa</span>
+                    <span>{filteredMismatchCount.toLocaleString()} con diferencia territorial</span>
                     <span>{plannedIds.size.toLocaleString()} ya planificados el {date}</span>
                   </div>
                   <button className="secondary compact" onClick={clearFilters}><FilterX size={15} /> Limpiar filtros</button>
@@ -371,6 +385,7 @@ export function Planning() {
                 <div className="panel planner-map-panel">
                   <TerritoryClientMap
                     clients={filteredClients}
+                    geoAssessments={geoAssessments}
                     selectedIds={canManagePlanning ? selected : []}
                     selectable={canManagePlanning}
                     areaTools={canManagePlanning}
@@ -384,10 +399,11 @@ export function Planning() {
                   <div className="planner-list-scroll">
                     {!vendor ? <div className="empty-state"><b>Selecciona un vendedor.</b></div> : filteredClients.length === 0 ? <div className="empty-state"><b>No hay clientes con estos filtros.</b></div> : filteredClients.slice(0, 250).map((client) => {
                       const on = selected.includes(client.id)
+                      const quality = geoQualityLabel(geoAssessments.get(client.id)?.assessment_status)
                       if (!canManagePlanning) {
-                        return <div key={client.id} className="pick-row"><div><b>{client.legal_name}</b><span>{client.codempr} · {client.municipality || client.province || 'Sin localidad'} · {client.latitude != null ? 'GPS' : 'Sin GPS'}</span></div></div>
+                        return <div key={client.id} className="pick-row"><div><b>{client.legal_name}</b><span>{client.codempr} · {client.municipality || client.province || 'Sin localidad'} · {quality}</span></div></div>
                       }
-                      return <button key={client.id} className={`pick-row ${on ? 'selected' : ''}`} onClick={() => toggleClient(client.id)}><div><b>{client.legal_name}</b><span>{client.codempr} · {client.municipality || client.province || 'Sin localidad'} · {client.latitude != null ? 'GPS' : 'Sin GPS'}</span></div>{on ? <X size={17} /> : <Plus size={17} />}</button>
+                      return <button key={client.id} className={`pick-row ${on ? 'selected' : ''}`} onClick={() => toggleClient(client.id)}><div><b>{client.legal_name}</b><span>{client.codempr} · {client.municipality || client.province || 'Sin localidad'} · {quality}</span></div>{on ? <X size={17} /> : <Plus size={17} />}</button>
                     })}
                   </div>
                 </div>
@@ -399,7 +415,7 @@ export function Planning() {
                     <div><b>Secuencia de la planificación</b><span>El orden mostrado será el orden inicial de las paradas.</span></div>
                     <div className="button-row"><button className="secondary compact" disabled={selected.length < 2} onClick={() => void orderSelected()}><Shuffle size={15} /> Ordenar por cercanía</button><button className="secondary compact" disabled={!selected.length} onClick={() => setSelected([])}><X size={15} /> Limpiar selección</button></div>
                   </div>
-                  {!selected.length ? <div className="empty-state"><b>Selecciona clientes desde la lista, el mapa, un polígono o un radio.</b></div> : <div className="selected-route-strip">{selectedClients.map((client, index) => <div className="selected-stop-chip" key={client.id}><span className="order">{index + 1}</span><div><b>{client.legal_name}</b><span>{client.municipality || client.province || 'Sin localidad'}</span></div><button onClick={() => toggleClient(client.id)}><X size={14} /></button></div>)}</div>}
+                  {!selected.length ? <div className="empty-state"><b>Selecciona clientes desde la lista, el mapa, un polígono o un radio.</b></div> : <div className="selected-route-strip">{selectedClients.map((client, index) => <div className="selected-stop-chip" key={client.id}><span className="order">{index + 1}</span><div><b>{client.legal_name}</b><span>{client.municipality || client.province || 'Sin localidad'} · {geoQualityLabel(geoAssessments.get(client.id)?.assessment_status)}</span></div><button onClick={() => toggleClient(client.id)}><X size={14} /></button></div>)}</div>}
                 </section>
               )}
             </>
