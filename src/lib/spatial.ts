@@ -70,7 +70,14 @@ export function orderByNearest<T extends LatLngLike>(items: T[], start?: LatLngL
   return [...ordered, ...withoutGeo]
 }
 
+const INVALID_FILTER_VALUES = new Set(['0', '[object object]', 'null', 'undefined', 'nan'])
+
+export function isUsableFilterValue(value: string | null | undefined) {
+  const clean = value?.trim()
+  return Boolean(clean) && !INVALID_FILTER_VALUES.has(clean!.toLowerCase())
+}
+
 export function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))))
+  return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => isUsableFilterValue(value))))
     .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
 }
