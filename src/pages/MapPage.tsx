@@ -8,10 +8,13 @@ import type { MapZone, TerritorialArea } from '../components/TerritoryClientMap'
 import { uniqueSorted } from '../lib/spatial'
 import { isGeoMismatch, loadGeoAssessmentMap, matchesGeoQualityFilter } from '../lib/geoQuality'
 import type { GeoAssessment, GeoQualityFilter } from '../lib/geoQuality'
+import { loadClientsPaged } from '../lib/clientLoader'
 import type { Client, Employee } from '../types'
 import '../styles/territorial-v2.css'
 
 type ZoneType = 'CAPTACION' | 'COMERCIAL' | 'OTRA'
+
+const MAP_CLIENT_COLUMNS = 'id,company_code,codempr,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,latitude,longitude,geo_status'
 
 export function MapPage() {
   const { employee } = useAuth()
@@ -38,8 +41,12 @@ export function MapPage() {
   const [saving, setSaving] = useState(false)
 
   const load = async () => {
-    const [clientResponse, employeeResponse, zoneResponse, assessmentMap] = await Promise.all([
-      supabase.from('clients').select('id,company_code,codempr,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,latitude,longitude,geo_status').limit(3000).order('legal_name'),
+    const [clientRows, employeeResponse, zoneResponse, assessmentMap] = await Promise.all([
+      loadClientsPaged(MAP_CLIENT_COLUMNS).catch((error) => {
+        console.error(error)
+        alert(error instanceof Error ? error.message : 'No fue posible cargar la cartera completa')
+        return [] as Client[]
+      }),
       supabase.from('employees').select('*').eq('active', true).in('employee_type', ['Vendedor', 'Gestor']).order('full_name'),
       supabase.from('territories').select('id,name,territory_type,geometry').eq('active', true).order('name'),
       loadGeoAssessmentMap().catch((error) => {
@@ -47,7 +54,7 @@ export function MapPage() {
         return new Map<string, GeoAssessment>()
       }),
     ])
-    setClients((clientResponse.data || []) as Client[])
+    setClients(clientRows)
     setEmployees((employeeResponse.data || []) as Employee[])
     setZones((zoneResponse.data || []) as MapZone[])
     setGeoAssessments(assessmentMap)
