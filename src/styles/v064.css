@@ -14,5 +14,5 @@
 .route-closure-result span{font-size:12px;color:var(--muted)}
 .route-closure-result.normal{border-left:4px solid var(--success)}
 .route-closure-result.partial{border-left:4px solid var(--warning)}
-.route-actions button.primary:disabled[title=""]{display:none}
+.route-detail:has(.route-closure-result) .route-actions{display:none}
 @media(max-width:700px){.closure-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.route-closure-result{align-items:flex-start;flex-direction:column}}
