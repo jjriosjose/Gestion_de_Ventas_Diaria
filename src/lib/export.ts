@@ -124,13 +124,59 @@ function drawManagerOverview(doc:jsPDF,managers:any[],top:number){
 
 function executivePdf(title:string,rows:Record<string,unknown>[]){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
-  doc.setProperties({title,subject:'Reporte Ejecutivo Diario',author:'Gestion de Ventas Diaria - Almacenes Karaka'})
-  addExecutiveHeader(doc,title,'Resumen gerencial de actividad, tiempos, cumplimiento y resultados comerciales.')
-  const totals={colaboradores:rows.length,planificados:rows.reduce((a,r)=>a+num(r.Planificados),0),visitados:rows.reduce((a,r)=>a+num(r.Visitados),0),llamadas:rows.reduce((a,r)=>a+num(r.Llamadas),0),contactados:rows.reduce((a,r)=>a+num(r.Contactados),0),showroom:rows.reduce((a,r)=>a+num(r.Showroom),0),compras:rows.reduce((a,r)=>a+num(r.Compras),0),ventas:rows.reduce((a,r)=>a+num(r.Ventas),0)}
-  drawKpis(doc,[{label:'Colaboradores',value:String(totals.colaboradores)},{label:'Cobertura real',value:`${totals.visitados}/${totals.planificados}`,note:`${ratioPct(totals.visitados,totals.planificados)}%`},{label:'Llamadas',value:`${totals.llamadas} / ${totals.contactados}`},{label:'Showroom',value:String(totals.showroom)},{label:'Compras',value:String(totals.compras)},{label:'Ventas',value:pdfMoney(totals.ventas)}],34)
-  const primaryHead=[['Colaborador','Cargo','Primera / última gestión','H. operativas','Plan','Visitas','Llamadas','Showroom','Compras','Ventas','Event.']]
-  const primaryBody=rows.map(r=>[text(r.Empleado),text(r.Cargo||r.Tipo),`${text(r.PrimeraGestion)} - ${text(r.UltimaGestion)}`,text(r['Horas operativas']||r.HorasOperativas),text(r.Planificados),text(r.Visitados),text(r.Llamadas),text(r.Showroom),text(r.Compras),text(r.Ventas),text(r.Eventualidades)])
-  autoTable(doc,{head:primaryHead,body:primaryBody,startY:58,theme:'grid',margin:{left:14,right:14,bottom:14},styles:{font:'helvetica',fontSize:7.2,cellPadding:1.7,overflow:'linebreak',valign:'middle',textColor:[45,50,58],lineColor:[226,229,234],lineWidth:0.15},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold',halign:'center',fontSize:6.8},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.setProperties({title,subject:'Resumen personal diario',author:'Gestion de Ventas Diaria - Almacenes Karaka'})
+  addExecutiveHeader(doc,title,`Resumen personal · versión ${APP_VERSION} · jornada, cumplimiento, tiempos y recorrido estimado.`)
+  const totals={
+    colaboradores:rows.length,
+    planificados:rows.reduce((a,r)=>a+num(r.Planificados),0),
+    visitados:rows.reduce((a,r)=>a+num(r.Visitados),0),
+    resueltos:rows.reduce((a,r)=>a+num(r.Resueltos),0),
+    llamadas:rows.reduce((a,r)=>a+num(r.Llamadas),0),
+    compras:rows.reduce((a,r)=>a+num(r.Compras),0),
+    ventas:rows.reduce((a,r)=>a+num(r.Ventas),0),
+    distancia:rows.reduce((a,r)=>a+num(r['Distancia GPS estimada']),0),
+    tramos:rows.reduce((a,r)=>a+num(r['Tramos GPS']),0)
+  }
+  drawKpis(doc,[
+    {label:'Cobertura real',value:`${totals.visitados}/${totals.planificados}`,note:`${ratioPct(totals.visitados,totals.planificados)}% visitados vs plan`},
+    {label:'Resolución',value:`${totals.resueltos}/${totals.planificados}`,note:`${ratioPct(totals.resueltos,totals.planificados)}% paradas resueltas`},
+    {label:'Jornada',value:text(rows[0]?.['Jornada ruta']||rows[0]?.['Horas operativas']||'0 min'),note:'inicio → cierre registrado'},
+    {label:'Distancia GPS*',value:`${totals.distancia.toLocaleString('es-DO',{minimumFractionDigits:1,maximumFractionDigits:2})} km`,note:`${totals.tramos} tramos · no es odómetro`},
+    {label:'Compras',value:String(totals.compras)},
+    {label:'Ventas',value:pdfMoney(totals.ventas)}
+  ],34)
+
+  const head=[['Colaborador','Horario','Jornada','Plan','Visitas','Cobertura','Resueltos','Resolución','Atención','Prom./visita','Traslado/espera*','Dist. GPS*','Tramos','Ventas']]
+  const body=rows.map(r=>[
+    text(r.Empleado),
+    `${text(r.PrimeraGestion)}–${text(r.UltimaGestion)}`,
+    text(r['Jornada ruta']||r['Horas operativas']),
+    text(r.Planificados),
+    text(r.Visitados),
+    `${text(r['Cobertura real %'])}%`,
+    text(r.Resueltos),
+    `${text(r['Resolución ruta %'])}%`,
+    text(r['Atención clientes']),
+    text(r['Promedio por visita']),
+    text(r['Traslado/espera estimado']),
+    text(r['Distancia GPS estimada']),
+    text(r['Tramos GPS']),
+    text(r.Ventas)
+  ])
+  autoTable(doc,{head,body,startY:59,theme:'grid',margin:{left:8,right:8,bottom:25},styles:{font:'helvetica',fontSize:5.8,cellPadding:1.5,overflow:'linebreak',valign:'middle',textColor:[45,50,58],lineColor:[226,229,234],lineWidth:0.15},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold',halign:'center',fontSize:5.6},alternateRowStyles:{fillColor:[249,250,251]}})
+  const tableEnd=Number((doc as any).lastAutoTable?.finalY||90)
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(35,41,49);doc.text('Lectura de la jornada',14,tableEnd+10)
+  const r=rows[0]||{}
+  const notes=[
+    `Atención a clientes: ${text(r['Atención clientes']||'0 min')} · Promedio por visita: ${text(r['Promedio por visita']||'0 min')}.`,
+    `Traslado / espera estimado: ${text(r['Traslado/espera estimado']||'0 min')} · Eventualidades: ${text(r['Tiempo eventualidades']||'0 min')}.`,
+    `Distancia GPS estimada: ${text(r['Distancia GPS estimada']||'0 km')} en ${text(r['Tramos GPS']||0)} tramos disponibles.`
+  ]
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(87,96,108)
+  notes.forEach((line,i)=>doc.text(line,14,tableEnd+16+i*5,{maxWidth:269}))
+  doc.setFontSize(5.8);doc.setTextColor(105,114,126)
+  doc.text('Cobertura = visitas completadas ÷ planificados. Resolución = paradas con resultado o justificación ÷ planificadas.',14,184)
+  doc.text('* Traslado/espera es tiempo residual estimado; no representa conducción pura. Distancia GPS es geodésica entre puntos disponibles; no equivale a odómetro.',14,189)
   addExecutiveFooter(doc);doc.save(`${title}.pdf`)
 }
 
