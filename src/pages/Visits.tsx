@@ -1,24 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, Camera, Check, MapPinCheck, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { currentPosition } from '../lib/geo'
 import { useAuth } from '../context/AuthContext'
 import { exportPdf, exportXlsx } from '../lib/export'
+import { ClientTypeFilter } from '../components/ClientTypeFilter'
+import type { ClientTypeFilterValue } from '../components/ClientTypeFilter'
 import '../styles/crm-v051.css'
 
 export function Visits() {
   const { employee } = useAuth()
   const [rows, setRows] = useState<any[]>([])
+  const [clientType,setClientType]=useState<ClientTypeFilterValue>('')
   const [finish, setFinish] = useState<any | null>(null)
 
   const load = async () => {
-    const { data } = await supabase.from('visits').select('*,clients(codempr,legal_name,manager_employee_id,contact_name,phone1,mobile),prospects(prospect_code,legal_name),employees(full_name)').order('started_at', { ascending: false }).limit(250)
+    const { data } = await supabase.from('visits').select('*,clients(codempr,legal_name,client_type,manager_employee_id,contact_name,phone1,mobile),prospects(prospect_code,legal_name),employees(full_name)').order('started_at', { ascending: false }).limit(250)
     setRows(data || [])
   }
   useEffect(() => { void load() }, [])
 
-  const report = rows.map(r => ({
+  const visibleRows=useMemo(()=>rows.filter(r=>!clientType||!r.client_id||r.clients?.client_type===clientType),[rows,clientType])
+  const report = visibleRows.map(r => ({
     Fecha: new Date(r.started_at).toLocaleDateString('es-DO'),
+    TipoCliente: r.clients?.client_type || '',
     Empleado: r.employees?.full_name || '',
     Cliente: r.clients?.legal_name || r.prospects?.legal_name || '',
     Llegada: new Date(r.started_at).toLocaleTimeString('es-DO'),
@@ -33,8 +38,8 @@ export function Visits() {
   }))
 
   return <div className="page-stack">
-    <div className="page-head"><div><span className="eyebrow">GESTIÓN DE CALLE</span><h2>Visitas</h2><p>La llegada inicia la visita y la salida la finaliza. Solo puede existir una visita abierta por empleado.</p></div><div className="button-row"><button className="secondary" onClick={() => void exportXlsx('Gestion_Visitas', report)}>Excel</button><button className="secondary" onClick={() => exportPdf('Gestión de Visitas', report)}>PDF</button></div></div>
-    <div className="cards-list">{rows.map(r => <div className={`activity-card ${!r.ended_at ? 'open' : ''}`} key={r.id}><div className="activity-icon"><MapPinCheck/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Visita'}</b><span>{r.employees?.full_name} · llegada {new Date(r.started_at).toLocaleString('es-DO')}</span><small>{r.ended_at ? `${r.result || r.purchase_result || 'Finalizada'} · ${durationLabel(r.started_at, r.ended_at)}${r.purchase_amount ? ` · RD$ ${Number(r.purchase_amount).toLocaleString('es-DO')}` : ''}` : 'VISITA EN CURSO · falta registrar la salida'}</small></div>{!r.ended_at && r.employee_id === employee?.id && <button className="primary compact" onClick={() => setFinish(r)}><Check size={16}/> Finalizar / salir</button>}</div>)}</div>
+    <div className="page-head"><div><span className="eyebrow">GESTIÓN DE CALLE</span><h2>Visitas</h2><p>La llegada inicia la visita y la salida la finaliza. Solo puede existir una visita abierta por empleado.</p></div><div className="button-row"><ClientTypeFilter value={clientType} onChange={setClientType}/><button className="secondary" onClick={() => void exportXlsx('Gestion_Visitas', report)}>Excel</button><button className="secondary" onClick={() => exportPdf('Gestión de Visitas', report)}>PDF</button></div></div>
+    <div className="cards-list">{visibleRows.map(r => <div className={`activity-card ${!r.ended_at ? 'open' : ''}`} key={r.id}><div className="activity-icon"><MapPinCheck/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Visita'}</b><span>{r.employees?.full_name} · {r.clients?.client_type||'SIN TIPO'} · llegada {new Date(r.started_at).toLocaleString('es-DO')}</span><small>{r.ended_at ? `${r.result || r.purchase_result || 'Finalizada'} · ${durationLabel(r.started_at, r.ended_at)}${r.purchase_amount ? ` · RD$ ${Number(r.purchase_amount).toLocaleString('es-DO')}` : ''}` : 'VISITA EN CURSO · falta registrar la salida'}</small></div>{!r.ended_at && r.employee_id === employee?.id && <button className="primary compact" onClick={() => setFinish(r)}><Check size={16}/> Finalizar / salir</button>}</div>)}</div>
     {finish && <FinishVisit row={finish} onClose={() => setFinish(null)} onSaved={() => { setFinish(null); void load() }}/>} 
   </div>
 }
