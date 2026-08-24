@@ -95,14 +95,26 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
       await uploadPhotos(p)
 
       if (showroomInterest === 'si') {
-        const managerId = row.clients?.manager_employee_id
-        if (managerId) {
-          const tentative = showroomDate ? new Date(showroomDate).toISOString() : null
-          const { error: appointmentError } = await supabase.from('appointments').insert({ client_id: row.client_id, employee_id: managerId, assigned_manager_id: managerId, requested_by_employee_id: employee.id, source_type: 'VISITA', source_visit_id: row.id, requested_at: endedAt, requested_appointment_at: tentative, appointment_at: tentative, appointment_type: 'SHOWROOM', status: 'PENDIENTE_VALIDACION', request_contact_name: contact || null, request_phone: row.clients?.phone1 || row.clients?.mobile || null, notes: notes || null })
-          if (appointmentError) throw appointmentError
-        } else {
-          alert('La visita se guardó, pero este cliente no tiene V-Gestor asignado. La solicitud de showroom no pudo generarse.')
-        }
+        const managerId = row.clients?.manager_employee_id || null
+        const tentative = showroomDate ? new Date(showroomDate).toISOString() : null
+        const { error: appointmentError } = await supabase.from('appointments').insert({
+          client_id: row.client_id,
+          employee_id: managerId || employee.id,
+          assigned_manager_id: managerId,
+          requested_by_employee_id: employee.id,
+          source_type: 'VISITA',
+          source_visit_id: row.id,
+          requested_at: endedAt,
+          requested_appointment_at: tentative,
+          appointment_at: tentative,
+          appointment_type: 'SHOWROOM',
+          status: 'PENDIENTE_VALIDACION',
+          request_contact_name: contact || null,
+          request_phone: row.clients?.phone1 || row.clients?.mobile || null,
+          notes: notes || null,
+        })
+        if (appointmentError) throw appointmentError
+        if (!managerId) alert('Solicitud de showroom creada. El cliente no tiene V-Gestor asignado; Dirección recibirá la alerta para asignar responsable sin perder la solicitud.')
       }
       onSaved()
     } catch (e) {
@@ -123,7 +135,7 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
 
       <label>¿Posible visita al showroom?<select value={showroomInterest} onChange={e => setShowroomInterest(e.target.value)}><option value="no">No</option><option value="si">Sí, cliente manifestó interés</option></select></label>
       <label>Próxima acción<select value={nextAction} onChange={e => setNextAction(e.target.value)} disabled={showroomInterest === 'si'}><option value="SIN_SEGUIMIENTO">Sin seguimiento</option><option value="VOLVER_VISITAR">Volver a visitar</option><option value="LLAMAR">Llamar</option><option value="ENVIAR_INFO">Enviar información</option><option value="OTRO">Otro</option></select></label>
-      {showroomInterest === 'si' && <><label>Fecha/hora tentativa showroom<input type="datetime-local" value={showroomDate} onChange={e => setShowroomDate(e.target.value)}/></label><label>Asignación<input disabled value={row.clients?.manager_employee_id ? 'Automática al V-Gestor' : 'SIN V-GESTOR ASIGNADO'}/></label><div className="span-2 info-box"><CalendarClock size={19}/><div><b>Solicitud de showroom pendiente de validación</b><span>El V-Gestor deberá llamar al cliente, confirmar o reprogramar la cita y registrar posteriormente si asistió.</span></div></div></>}
+      {showroomInterest === 'si' && <><label>Fecha/hora tentativa showroom<input type="datetime-local" value={showroomDate} onChange={e => setShowroomDate(e.target.value)}/></label><label>Asignación<input disabled value={row.clients?.manager_employee_id ? 'Automática al V-Gestor' : 'PENDIENTE DE ASIGNACIÓN POR DIRECCIÓN'}/></label><div className="span-2 info-box"><CalendarClock size={19}/><div><b>Solicitud de showroom pendiente de validación</b><span>{row.clients?.manager_employee_id ? 'El V-Gestor deberá llamar al cliente, confirmar o reprogramar la cita y registrar posteriormente si asistió.' : 'La solicitud se guardará aunque el cliente no tenga V-Gestor. Dirección recibirá la alerta y, al asignar el Gestor oficial del cliente, la solicitud pasará automáticamente a su bandeja.'}</span></div></div></>}
       <label>Fecha seguimiento<input type="date" value={followUp} onChange={e => setFollowUp(e.target.value)}/></label>
       <div />
 
