@@ -41,7 +41,7 @@ export function Login() {
         <h1>Bienvenido</h1>
         <p>Ingresa con tu usuario Karaka.</p>
         <label>Usuario
-          <div className="field"><UserRound size={18} /><input value={user} onChange={e => setUser(e.target.value)} autoComplete="username" placeholder="Ej. Jrios" /></div>
+          <div className="field"><UserRound size={18} /><input value={user} onChange={e => setUser(e.target.value)} autoComplete="username" placeholder="Ingrese su usuario" /></div>
         </label>
         <label>Contraseña
           <div className="field"><LockKeyhole size={18} /><input type={show ? 'text' : 'password'} value={pass} onChange={e => setPass(e.target.value)} autoComplete="current-password" /><button type="button" aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShow(!show)}>{show ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
