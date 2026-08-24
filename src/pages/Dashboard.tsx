@@ -9,6 +9,9 @@ const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Santo_D
 const zero={active_employees:0,planned_clients:0,visited_clients:0,received_clients:0,purchase_clients:0,sales_amount:0,calls:0,calls_contacted:0,appointments:0,showroom_attended:0,prospects_captured:0,routes_started:0,routes_completed:0,route_execution_pct:0,call_contact_rate_pct:0}
 const money=(value:any)=>`RD$${Number(value||0).toLocaleString('es-DO',{maximumFractionDigits:2})}`
 const firstName=(name:string)=>name?.trim().split(/\s+/)[0]||'—'
+const ratioPct=(value:number,total:number)=>total?Math.round((value/total)*1000)/10:0
+const coveragePct=(row:any)=>ratioPct(Number(row.visited_clients||0),Number(row.planned_clients||0))
+const resolutionPct=(row:any)=>ratioPct(Number(row.resolved_clients||0),Number(row.planned_clients||0))
 
 export function Dashboard(){
  const [global,setGlobal]=useState<any>(zero)
@@ -35,7 +38,7 @@ export function Dashboard(){
  useEffect(()=>{
   void load()
   const tables=['visits','calls','prospects','appointments','reception_entries','showroom_sessions','route_plans','route_stops','route_sessions','operational_incidents']
-  const ch=tables.reduce((channel,table)=>channel.on('postgres_changes',{event:'*',schema:'public',table},()=>void load()),supabase.channel('dashboard-live-v062')).subscribe()
+  const ch=tables.reduce((channel,table)=>channel.on('postgres_changes',{event:'*',schema:'public',table},()=>void load()),supabase.channel('dashboard-live-v063')).subscribe()
   const onFocus=()=>void load()
   window.addEventListener('focus',onFocus)
   return()=>{window.removeEventListener('focus',onFocus);void supabase.removeChannel(ch)}
@@ -45,7 +48,7 @@ export function Dashboard(){
  const managers=useMemo(()=>employees.filter(e=>e.employee_type==='Gestor').sort((a,b)=>(Number(b.calls_contacted||0)+Number(b.showroom_attended||0))-(Number(a.calls_contacted||0)+Number(a.showroom_attended||0))||Number(b.sales_amount||0)-Number(a.sales_amount||0)),[employees])
  const vendorChart=useMemo(()=>vendors.slice(0,8).map(e=>({name:firstName(e.full_name),Planificados:e.planned_clients||0,Visitados:e.visited_clients||0,Compras:e.purchase_clients||0})),[vendors])
  const managerChart=useMemo(()=>managers.slice(0,8).map(e=>({name:firstName(e.full_name),Llamadas:e.calls||0,Contactados:e.calls_contacted||0,Showroom:e.showroom_attended||0,Compras:e.purchase_clients||0})),[managers])
- const reportRows=employees.map(e=>({Empleado:e.full_name,Cargo:e.job_title||'',Tipo:e.employee_type,Planificados:e.planned_clients,Visitados:e.visited_clients,Recibidos:e.received_clients,Showroom:e.showroom_attended,Compraron:e.purchase_clients,Ventas:Number(e.sales_amount||0),Llamadas:e.calls,Contactados:e.calls_contacted,Citas:e.appointments,Captaciones:e.prospects_captured,RutasIniciadas:e.routes_started,RutasCerradas:e.routes_completed,Cumplimiento:`${e.route_compliance_pct||0}%`}))
+ const reportRows=employees.map(e=>({Empleado:e.full_name,Cargo:e.job_title||'',Tipo:e.employee_type,Planificados:e.planned_clients,Visitados:e.visited_clients,'Cobertura real %':coveragePct(e),Resueltos:e.resolved_clients||0,'Resolución ruta %':resolutionPct(e),'Jornada ruta segundos':e.route_window_seconds||0,'Atención clientes segundos':e.visit_seconds||0,'Traslado/espera estimado segundos':e.transit_wait_estimated_seconds||0,Recibidos:e.received_clients,Showroom:e.showroom_attended,Compraron:e.purchase_clients,Ventas:Number(e.sales_amount||0),Llamadas:e.calls,Contactados:e.calls_contacted,Citas:e.appointments,Captaciones:e.prospects_captured,RutasIniciadas:e.routes_started,RutasCerradas:e.routes_completed}))
 
  return <div className="page-stack executive-shell-v062">
   <div className="page-head"><div><span className="eyebrow">CENTRO DE OPERACIONES</span><h2>Resumen de hoy</h2><p>Lectura ejecutiva separada por función: operación de calle para Vendedores y CRM/Showroom para Gestores.</p></div><div className="button-row"><button className="secondary" onClick={()=>void load()}><RefreshCw size={17}/> Actualizar</button><button className="secondary" onClick={()=>void exportXlsx(`Resumen_Diario_${today()}`,reportRows)}>Excel</button><button className="secondary" onClick={()=>void exportDashboardPdf(today(),global,employees,stats)}>PDF ejecutivo</button></div></div>
@@ -57,7 +60,7 @@ export function Dashboard(){
 
   <div className="kpi-grid">
    <KpiCard label="Clientes" value={stats.clients} sub={`${stats.geo} con GPS · ${stats.verified} verificadas`} Icon={Users}/>
-   <KpiCard label="Planificados" value={global.planned_clients||0} sub={`${global.route_execution_pct||0}% ejecución`} Icon={Route}/>
+   <KpiCard label="Planificados" value={global.planned_clients||0} sub={`${global.route_execution_pct||0}% cobertura real`} Icon={Route}/>
    <KpiCard label="Visitados" value={global.visited_clients||0} sub={`${global.received_clients||0} recibidos`} Icon={MapPinCheck}/>
    <KpiCard label="Compraron" value={global.purchase_clients||0} sub={`${global.visit_purchase_clients||0} calle · ${global.showroom_purchase_clients||0} showroom`} Icon={ShoppingBag}/>
    <KpiCard label="Ventas" value={money(global.sales_amount)} sub="calle + showroom" Icon={CircleDollarSign}/>
@@ -73,7 +76,7 @@ export function Dashboard(){
   </div>
 
   <div className="executive-section-grid">
-   <TeamPanel title="Ranking de Vendedores" subtitle="Cobertura de ruta, visitas y resultado comercial" icon={<Route size={19}/>} count={vendors.length}>{vendors.length?vendors.slice(0,8).map((e,i)=><VendorRow key={e.employee_id} row={e} position={i+1}/>):<Empty text="Sin actividad de vendedores para esta fecha."/>}</TeamPanel>
+   <TeamPanel title="Ranking de Vendedores" subtitle="Cobertura real, resolución de ruta y resultado comercial" icon={<Route size={19}/>} count={vendors.length}>{vendors.length?vendors.slice(0,8).map((e,i)=><VendorRow key={e.employee_id} row={e} position={i+1}/>):<Empty text="Sin actividad de vendedores para esta fecha."/>}</TeamPanel>
    <TeamPanel title="Ranking de Gestores" subtitle="Contacto, showroom y conversión comercial" icon={<PhoneCall size={19}/>} count={managers.length}>{managers.length?managers.slice(0,8).map((e,i)=><ManagerRow key={e.employee_id} row={e} position={i+1}/>):<Empty text="Sin actividad de gestores para esta fecha."/>}</TeamPanel>
   </div>
  </div>
@@ -81,6 +84,6 @@ export function Dashboard(){
 
 function ChartPanel({title,subtitle,loading,empty,children}:{title:string;subtitle:string;loading:boolean;empty:boolean;children:ReactNode}){return <div className="panel executive-chart-card"><div className="panel-head"><div><b>{title}</b><span>{subtitle}</span></div><BarChart3 size={19}/></div>{loading?<div className="skeleton tall"/>:empty?<Empty text="Todavía no hay actividad registrada."/>:children}</div>}
 function TeamPanel({title,subtitle,icon,count,children}:{title:string;subtitle:string;icon:ReactNode;count:number;children:ReactNode}){return <section className="panel executive-team-panel"><div className="executive-team-header"><div className="executive-team-title"><div className="executive-team-title-icon">{icon}</div><div><b>{title}</b><span>{subtitle}</span></div></div><span className="badge">{count} con registro</span></div><div className="executive-team-content"><div className="executive-rank-list">{children}</div></div></section>}
-function VendorRow({row,position}:{row:any;position:number}){const coverage=Number(row.route_compliance_pct||0);return <div className="executive-rank-row"><span className="executive-rank-position">{position}</span><div className="executive-rank-person"><b>{row.full_name}</b><small>{row.job_title||'Vendedor'} · {coverage}% cobertura</small></div><div className="executive-rank-kpis"><span><b>{row.visited_clients||0}/{row.planned_clients||0}</b> visitas</span><span><b>{row.purchase_clients||0}</b> compras</span></div><div className="executive-rank-result"><strong>{money(row.sales_amount)}</strong><small>{row.routes_completed||0} rutas cerradas</small></div></div>}
+function VendorRow({row,position}:{row:any;position:number}){const coverage=coveragePct(row);const resolution=resolutionPct(row);return <div className="executive-rank-row"><span className="executive-rank-position">{position}</span><div className="executive-rank-person"><b>{row.full_name}</b><small>{row.job_title||'Vendedor'} · {coverage}% cobertura · {resolution}% resolución</small></div><div className="executive-rank-kpis"><span><b>{row.visited_clients||0}/{row.planned_clients||0}</b> visitas</span><span><b>{row.resolved_clients||0}</b> resueltos</span><span><b>{row.purchase_clients||0}</b> compras</span></div><div className="executive-rank-result"><strong>{money(row.sales_amount)}</strong><small>{row.routes_completed||0} rutas cerradas</small></div></div>}
 function ManagerRow({row,position}:{row:any;position:number}){return <div className="executive-rank-row"><span className="executive-rank-position">{position}</span><div className="executive-rank-person"><b>{row.full_name}</b><small>{row.job_title||'Gestor'} · {row.call_contact_rate_pct||0}% contacto</small></div><div className="executive-rank-kpis"><span><b>{row.calls_contacted||0}/{row.calls||0}</b> contactos</span><span><b>{row.showroom_attended||0}</b> showroom</span></div><div className="executive-rank-result"><strong>{money(row.sales_amount)}</strong><small>{row.purchase_clients||0} compras</small></div></div>}
 function Empty({text}:{text:string}){return <div className="empty-state"><span>◇</span><b>{text}</b></div>}

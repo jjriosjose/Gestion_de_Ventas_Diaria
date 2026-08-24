@@ -9,10 +9,12 @@ import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { hasAnyAdminPermission, hasPermission, profileForEmployee, type PermissionKey } from '../lib/access'
+import packageInfo from '../../package.json'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon, permission: PermissionKey | 'ADMIN_ANY']
 type NavGroup = { label: string; items: NavItem[] }
 type AlertItem = { id: string; title: string; message?: string | null; created_at: string; synthetic?: boolean }
+const APP_VERSION=packageInfo.version
 
 const groups: NavGroup[] = [
   { label: 'Operación', items: [
@@ -72,6 +74,7 @@ export function AppShell() {
       const items = group.items.filter((item) => allowed(item[3])); if (!items.length) return null
       return <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{items.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setDrawer(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><Icon size={19}/><span>{label}</span></NavLink>)}</div>
     })}</nav>
+    <div className="app-version">Versión {APP_VERSION}</div>
     <button className="logout nav-item" onClick={() => void logout()}><LogOut size={19}/><span>Cerrar sesión</span></button>
   </>
 

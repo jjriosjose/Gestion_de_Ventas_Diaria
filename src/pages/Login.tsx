@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Loader2, LockKeyhole, ShieldCheck, UserRound } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import packageInfo from '../../package.json'
 import '../styles/operational-v059.css'
 
 export function Login() {
@@ -49,6 +50,7 @@ export function Login() {
         {error && <div className="error-box">{error}</div>}
         <button className="primary login-button" disabled={busy}>{busy ? <><Loader2 className="spin" size={18} />Ingresando...</> : 'Entrar al sistema'}</button>
         <div className="recovery-disabled-note"><ShieldCheck size={17}/><div><b>¿Olvidaste tu contraseña?</b>Solicita a un administrador que te asigne una nueva clave. La recuperación automática por WhatsApp todavía no está habilitada.</div></div>
+        <small className="login-version">Versión {packageInfo.version}</small>
       </form>
     </div>
   </div>
