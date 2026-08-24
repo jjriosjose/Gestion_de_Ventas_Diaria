@@ -1,24 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, Camera, Check, MapPinCheck, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { currentPosition } from '../lib/geo'
 import { useAuth } from '../context/AuthContext'
 import { exportPdf, exportXlsx } from '../lib/export'
+import { ClientTypeFilter } from '../components/ClientTypeFilter'
+import type { ClientTypeFilterValue } from '../components/ClientTypeFilter'
 import '../styles/crm-v051.css'
 
 export function Visits() {
   const { employee } = useAuth()
   const [rows, setRows] = useState<any[]>([])
+  const [clientType,setClientType]=useState<ClientTypeFilterValue>('')
   const [finish, setFinish] = useState<any | null>(null)
 
   const load = async () => {
-    const { data } = await supabase.from('visits').select('*,clients(codempr,legal_name,manager_employee_id,contact_name,phone1,mobile),prospects(prospect_code,legal_name),employees(full_name)').order('started_at', { ascending: false }).limit(250)
+    const { data } = await supabase.from('visits').select('*,clients(codempr,legal_name,client_type,manager_employee_id,contact_name,phone1,mobile),prospects(prospect_code,legal_name),employees(full_name)').order('started_at', { ascending: false }).limit(250)
     setRows(data || [])
   }
   useEffect(() => { void load() }, [])
 
-  const report = rows.map(r => ({
+  const visibleRows=useMemo(()=>rows.filter(r=>!clientType||!r.client_id||r.clients?.client_type===clientType),[rows,clientType])
+  const report = visibleRows.map(r => ({
     Fecha: new Date(r.started_at).toLocaleDateString('es-DO'),
+    TipoCliente: r.clients?.client_type || '',
     Empleado: r.employees?.full_name || '',
     Cliente: r.clients?.legal_name || r.prospects?.legal_name || '',
     Llegada: new Date(r.started_at).toLocaleTimeString('es-DO'),
@@ -33,8 +38,8 @@ export function Visits() {
   }))
 
   return <div className="page-stack">
-    <div className="page-head"><div><span className="eyebrow">GESTIÓN DE CALLE</span><h2>Visitas</h2><p>La llegada inicia la visita y la salida la finaliza. Solo puede existir una visita abierta por empleado.</p></div><div className="button-row"><button className="secondary" onClick={() => void exportXlsx('Gestion_Visitas', report)}>Excel</button><button className="secondary" onClick={() => exportPdf('Gestión de Visitas', report)}>PDF</button></div></div>
-    <div className="cards-list">{rows.map(r => <div className={`activity-card ${!r.ended_at ? 'open' : ''}`} key={r.id}><div className="activity-icon"><MapPinCheck/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Visita'}</b><span>{r.employees?.full_name} · llegada {new Date(r.started_at).toLocaleString('es-DO')}</span><small>{r.ended_at ? `${r.result || r.purchase_result || 'Finalizada'} · ${durationLabel(r.started_at, r.ended_at)}${r.purchase_amount ? ` · RD$ ${Number(r.purchase_amount).toLocaleString('es-DO')}` : ''}` : 'VISITA EN CURSO · falta registrar la salida'}</small></div>{!r.ended_at && r.employee_id === employee?.id && <button className="primary compact" onClick={() => setFinish(r)}><Check size={16}/> Finalizar / salir</button>}</div>)}</div>
+    <div className="page-head"><div><span className="eyebrow">GESTIÓN DE CALLE</span><h2>Visitas</h2><p>La llegada inicia la visita y la salida la finaliza. Solo puede existir una visita abierta por empleado.</p></div><div className="button-row"><ClientTypeFilter value={clientType} onChange={setClientType}/><button className="secondary" onClick={() => void exportXlsx('Gestion_Visitas', report)}>Excel</button><button className="secondary" onClick={() => exportPdf('Gestión de Visitas', report)}>PDF</button></div></div>
+    <div className="cards-list">{visibleRows.map(r => <div className={`activity-card ${!r.ended_at ? 'open' : ''}`} key={r.id}><div className="activity-icon"><MapPinCheck/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Visita'}</b><span>{r.employees?.full_name} · {r.clients?.client_type||'SIN TIPO'} · llegada {new Date(r.started_at).toLocaleString('es-DO')}</span><small>{r.ended_at ? `${r.result || r.purchase_result || 'Finalizada'} · ${durationLabel(r.started_at, r.ended_at)}${r.purchase_amount ? ` · RD$ ${Number(r.purchase_amount).toLocaleString('es-DO')}` : ''}` : 'VISITA EN CURSO · falta registrar la salida'}</small></div>{!r.ended_at && r.employee_id === employee?.id && <button className="primary compact" onClick={() => setFinish(r)}><Check size={16}/> Finalizar / salir</button>}</div>)}</div>
     {finish && <FinishVisit row={finish} onClose={() => setFinish(null)} onSaved={() => { setFinish(null); void load() }}/>} 
   </div>
 }
@@ -95,14 +100,26 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
       await uploadPhotos(p)
 
       if (showroomInterest === 'si') {
-        const managerId = row.clients?.manager_employee_id
-        if (managerId) {
-          const tentative = showroomDate ? new Date(showroomDate).toISOString() : null
-          const { error: appointmentError } = await supabase.from('appointments').insert({ client_id: row.client_id, employee_id: managerId, assigned_manager_id: managerId, requested_by_employee_id: employee.id, source_type: 'VISITA', source_visit_id: row.id, requested_at: endedAt, requested_appointment_at: tentative, appointment_at: tentative, appointment_type: 'SHOWROOM', status: 'PENDIENTE_VALIDACION', request_contact_name: contact || null, request_phone: row.clients?.phone1 || row.clients?.mobile || null, notes: notes || null })
-          if (appointmentError) throw appointmentError
-        } else {
-          alert('La visita se guardó, pero este cliente no tiene V-Gestor asignado. La solicitud de showroom no pudo generarse.')
-        }
+        const managerId = row.clients?.manager_employee_id || null
+        const tentative = showroomDate ? new Date(showroomDate).toISOString() : null
+        const { error: appointmentError } = await supabase.from('appointments').insert({
+          client_id: row.client_id,
+          employee_id: managerId || employee.id,
+          assigned_manager_id: managerId,
+          requested_by_employee_id: employee.id,
+          source_type: 'VISITA',
+          source_visit_id: row.id,
+          requested_at: endedAt,
+          requested_appointment_at: tentative,
+          appointment_at: tentative,
+          appointment_type: 'SHOWROOM',
+          status: 'PENDIENTE_VALIDACION',
+          request_contact_name: contact || null,
+          request_phone: row.clients?.phone1 || row.clients?.mobile || null,
+          notes: notes || null,
+        })
+        if (appointmentError) throw appointmentError
+        if (!managerId) alert('Solicitud de showroom creada. El cliente no tiene V-Gestor asignado; Dirección recibirá la alerta para asignar responsable sin perder la solicitud.')
       }
       onSaved()
     } catch (e) {
@@ -123,7 +140,7 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
 
       <label>¿Posible visita al showroom?<select value={showroomInterest} onChange={e => setShowroomInterest(e.target.value)}><option value="no">No</option><option value="si">Sí, cliente manifestó interés</option></select></label>
       <label>Próxima acción<select value={nextAction} onChange={e => setNextAction(e.target.value)} disabled={showroomInterest === 'si'}><option value="SIN_SEGUIMIENTO">Sin seguimiento</option><option value="VOLVER_VISITAR">Volver a visitar</option><option value="LLAMAR">Llamar</option><option value="ENVIAR_INFO">Enviar información</option><option value="OTRO">Otro</option></select></label>
-      {showroomInterest === 'si' && <><label>Fecha/hora tentativa showroom<input type="datetime-local" value={showroomDate} onChange={e => setShowroomDate(e.target.value)}/></label><label>Asignación<input disabled value={row.clients?.manager_employee_id ? 'Automática al V-Gestor' : 'SIN V-GESTOR ASIGNADO'}/></label><div className="span-2 info-box"><CalendarClock size={19}/><div><b>Solicitud de showroom pendiente de validación</b><span>El V-Gestor deberá llamar al cliente, confirmar o reprogramar la cita y registrar posteriormente si asistió.</span></div></div></>}
+      {showroomInterest === 'si' && <><label>Fecha/hora tentativa showroom<input type="datetime-local" value={showroomDate} onChange={e => setShowroomDate(e.target.value)}/></label><label>Asignación<input disabled value={row.clients?.manager_employee_id ? 'Automática al V-Gestor' : 'PENDIENTE DE ASIGNACIÓN POR DIRECCIÓN'}/></label><div className="span-2 info-box"><CalendarClock size={19}/><div><b>Solicitud de showroom pendiente de validación</b><span>{row.clients?.manager_employee_id ? 'El V-Gestor deberá llamar al cliente, confirmar o reprogramar la cita y registrar posteriormente si asistió.' : 'La solicitud se guardará aunque el cliente no tenga V-Gestor. Dirección recibirá la alerta y, al asignar el Gestor oficial del cliente, la solicitud pasará automáticamente a su bandeja.'}</span></div></div></>}
       <label>Fecha seguimiento<input type="date" value={followUp} onChange={e => setFollowUp(e.target.value)}/></label>
       <div />
 
