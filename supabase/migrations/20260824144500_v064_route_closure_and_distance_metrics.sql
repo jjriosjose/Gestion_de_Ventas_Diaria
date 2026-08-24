@@ -216,9 +216,9 @@ with ordered_visits as (
         when ov.rn = 1
          and rs.start_latitude is not null and rs.start_longitude is not null
          and ov.start_latitude is not null and ov.start_longitude is not null
-        then ST_DistanceSphere(
-          ST_SetSRID(ST_MakePoint(rs.start_longitude, rs.start_latitude),4326),
-          ST_SetSRID(ST_MakePoint(ov.start_longitude, ov.start_latitude),4326)
+        then extensions.ST_DistanceSphere(
+          extensions.ST_SetSRID(extensions.ST_MakePoint(rs.start_longitude, rs.start_latitude),4326),
+          extensions.ST_SetSRID(extensions.ST_MakePoint(ov.start_longitude, ov.start_latitude),4326)
         )
         else 0
       end
@@ -228,9 +228,9 @@ with ordered_visits as (
         when ov.rn > 1
          and ov.prev_end_latitude is not null and ov.prev_end_longitude is not null
          and ov.start_latitude is not null and ov.start_longitude is not null
-        then ST_DistanceSphere(
-          ST_SetSRID(ST_MakePoint(ov.prev_end_longitude, ov.prev_end_latitude),4326),
-          ST_SetSRID(ST_MakePoint(ov.start_longitude, ov.start_latitude),4326)
+        then extensions.ST_DistanceSphere(
+          extensions.ST_SetSRID(extensions.ST_MakePoint(ov.prev_end_longitude, ov.prev_end_latitude),4326),
+          extensions.ST_SetSRID(extensions.ST_MakePoint(ov.start_longitude, ov.start_latitude),4326)
         )
         else 0
       end
@@ -241,9 +241,9 @@ with ordered_visits as (
          and rs.ended_at is not null
          and ov.end_latitude is not null and ov.end_longitude is not null
          and rs.end_latitude is not null and rs.end_longitude is not null
-        then ST_DistanceSphere(
-          ST_SetSRID(ST_MakePoint(ov.end_longitude, ov.end_latitude),4326),
-          ST_SetSRID(ST_MakePoint(rs.end_longitude, rs.end_latitude),4326)
+        then extensions.ST_DistanceSphere(
+          extensions.ST_SetSRID(extensions.ST_MakePoint(ov.end_longitude, ov.end_latitude),4326),
+          extensions.ST_SetSRID(extensions.ST_MakePoint(rs.end_longitude, rs.end_latitude),4326)
         )
         else 0
       end
