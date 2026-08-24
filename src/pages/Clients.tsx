@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { googleMapsNavigation } from '../lib/geo'
 import { exportPdf, exportXlsx } from '../lib/export'
 import { hasPermission } from '../lib/access'
+import { ClientTypeFilter } from '../components/ClientTypeFilter'
+import type { ClientTypeFilterValue } from '../components/ClientTypeFilter'
 import type { Client, Employee } from '../types'
 import { useAuth } from '../context/AuthContext'
 
@@ -18,6 +20,7 @@ export function Clients() {
   const [company, setCompany] = useState('')
   const [vendor, setVendor] = useState('')
   const [manager, setManager] = useState('')
+  const [clientType, setClientType] = useState<ClientTypeFilterValue>('')
   const [managerIdsForVendor, setManagerIdsForVendor] = useState<Set<string> | null>(null)
   const [page, setPage] = useState(0)
   const [total, setTotal] = useState(0)
@@ -31,6 +34,7 @@ export function Clients() {
     if (company) req = req.eq('company_code', company)
     if (vendor) req = req.eq('vendor_employee_id', vendor)
     if (manager) req = req.eq('manager_employee_id', manager)
+    if (clientType) req = req.eq('client_type', clientType)
     const { data, count } = await req.order('legal_name').range(page * PAGE, page * PAGE + PAGE - 1)
     setRows((data || []) as Client[]); setTotal(count || 0); setLoading(false)
   }
@@ -40,7 +44,7 @@ export function Clients() {
     setEmployees((data || []) as Employee[])
   }
 
-  useEffect(() => { const t = setTimeout(() => void load(), 250); return () => clearTimeout(t) }, [q, company, vendor, manager, page])
+  useEffect(() => { const t = setTimeout(() => void load(), 250); return () => clearTimeout(t) }, [q, company, vendor, manager, clientType, page])
   useEffect(() => { void loadEmployees() }, [])
   useEffect(() => {
     setManager('')
@@ -53,20 +57,21 @@ export function Clients() {
   const employeeName = (id?: string | null) => employees.find((e) => e.id === id)?.full_name || null
 
   const exportAll = async (kind: 'xlsx' | 'pdf') => {
-    let req = supabase.from('clients').select('codempr,company_code,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,phone1,mobile,email,latitude,longitude,active_status,geo_status')
+    let req = supabase.from('clients').select('codempr,company_code,client_type,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,phone1,mobile,email,latitude,longitude,active_status,geo_status')
     if (q.trim()) req = req.or(`legal_name.ilike.%${q.trim()}%,codempr.ilike.%${q.trim()}%`)
     if (company) req = req.eq('company_code', company)
     if (vendor) req = req.eq('vendor_employee_id', vendor)
     if (manager) req = req.eq('manager_employee_id', manager)
+    if (clientType) req = req.eq('client_type', clientType)
     const { data } = await req.order('legal_name').limit(5000)
-    const out = (data || []).map((r: any) => ({ Codigo: r.codempr, Empresa: r.company_code, 'Razon Social': r.legal_name, Vendedor: employeeName(r.vendor_employee_id) || r.v_cartera, Gestor: employeeName(r.manager_employee_id) || r.g_cartera, Region: r.region, Provincia: r.province, Municipio: r.municipality, Telefono: r.phone1, Celular: r.mobile, Email: r.email, Latitud: r.latitude, Longitud: r.longitude, Estado: r.active_status, 'Calidad Geo': r.geo_status }))
+    const out = (data || []).map((r: any) => ({ Codigo: r.codempr, Empresa: r.company_code, Tipo: r.client_type || '', 'Razon Social': r.legal_name, Vendedor: employeeName(r.vendor_employee_id) || r.v_cartera, Gestor: employeeName(r.manager_employee_id) || r.g_cartera, Region: r.region, Provincia: r.province, Municipio: r.municipality, Telefono: r.phone1, Celular: r.mobile, Email: r.email, Latitud: r.latitude, Longitud: r.longitude, Estado: r.active_status, 'Calidad Geo': r.geo_status }))
     if (kind === 'xlsx') await exportXlsx('Maestro_Clientes', out); else exportPdf('Maestro de Clientes', out)
   }
 
   return <div className="page-stack">
     <div className="page-head"><div><span className="eyebrow">MAESTRO EDITABLE</span><h2>Clientes</h2><p>Consulta centralizada de la cartera vigente.</p></div><div className="button-row"><button className="secondary" onClick={() => void exportAll('xlsx')}>Excel</button><button className="secondary" onClick={() => void exportAll('pdf')}>PDF</button></div></div>
-    <div className="filter-bar clients-filter-bar"><div className="search-field"><Search size={18}/><input placeholder="Buscar razón social, código o teléfono..." value={q} onChange={e => { setQ(e.target.value); setPage(0) }}/></div><select value={company} onChange={e => { setCompany(e.target.value); setPage(0) }}><option value="">Todas las empresas</option><option>KARAKA</option><option>DISTRIBUIDORA</option></select><select value={vendor} onChange={e => { setVendor(e.target.value); setPage(0) }}><option value="">Todos los vendedores</option>{vendors.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select><select value={manager} onChange={e => { setManager(e.target.value); setPage(0) }}><option value="">{vendor ? 'Gestores de este vendedor' : 'Todos los gestores'}</option>{managers.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select></div>
-    <div className="panel table-panel"><div className="table-meta"><b>{total.toLocaleString()} clientes</b><span>Página {page + 1} de {Math.max(1, Math.ceil(total / PAGE))}</span></div><div className="responsive-table"><table><thead><tr><th>Cliente</th><th>Empresa</th><th>Vendedor</th><th>Gestor</th><th>Ubicación</th><th>Contacto</th><th>Acciones</th></tr></thead><tbody>{loading ? <tr><td colSpan={7}><div className="skeleton"/></td></tr> : rows.map(c => <tr key={c.id}><td data-label="Cliente"><b>{c.legal_name}</b><small>{c.codempr}</small></td><td data-label="Empresa"><span className="badge">{c.company_code || '—'}</span></td><td data-label="Vendedor"><span>{employeeName(c.vendor_employee_id) || c.v_cartera || '—'}</span>{c.vendor_assignment_override && <small>Asignación manual</small>}</td><td data-label="Gestor"><span>{employeeName(c.manager_employee_id) || c.g_cartera || '—'}</span>{c.manager_assignment_override && <small>Asignación manual</small>}</td><td data-label="Ubicación"><span>{c.municipality || c.province || '—'}</span><small>{c.latitude != null ? <><MapPin size={12}/> Georreferenciado · {geoLabel(c.geo_status)}</> : 'Sin coordenadas · SIN GEO'}</small></td><td data-label="Contacto"><span>{c.phone1 || c.mobile || '—'}</span><small>{c.contact_name || ''}</small></td><td data-label="Acciones"><div className="row-actions">{googleMapsNavigation(c.latitude, c.longitude) && <a className="icon-btn" href={googleMapsNavigation(c.latitude, c.longitude)!} target="_blank" rel="noreferrer" title="Navegar"><Navigation size={17}/></a>}{canEdit && <button className="icon-btn" onClick={() => setEdit(c)} title="Editar"><PenLine size={17}/></button>}</div></td></tr>)}</tbody></table></div><div className="pagination"><button disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft/></button><span>{page + 1}</span><button disabled={(page + 1) * PAGE >= total} onClick={() => setPage(p => p + 1)}><ChevronRight/></button></div></div>
+    <div className="filter-bar clients-filter-bar"><div className="search-field"><Search size={18}/><input placeholder="Buscar razón social, código o teléfono..." value={q} onChange={e => { setQ(e.target.value); setPage(0) }}/></div><ClientTypeFilter value={clientType} onChange={value => { setClientType(value); setPage(0) }}/><select value={company} onChange={e => { setCompany(e.target.value); setPage(0) }}><option value="">Todas las empresas</option><option>KARAKA</option><option>DISTRIBUIDORA</option></select><select value={vendor} onChange={e => { setVendor(e.target.value); setPage(0) }}><option value="">Todos los vendedores</option>{vendors.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select><select value={manager} onChange={e => { setManager(e.target.value); setPage(0) }}><option value="">{vendor ? 'Gestores de este vendedor' : 'Todos los gestores'}</option>{managers.map((item) => <option value={item.id} key={item.id}>{item.full_name}</option>)}</select></div>
+    <div className="panel table-panel"><div className="table-meta"><b>{total.toLocaleString()} clientes</b><span>{clientType ? `${clientType} · ` : ''}Página {page + 1} de {Math.max(1, Math.ceil(total / PAGE))}</span></div><div className="responsive-table"><table><thead><tr><th>Cliente</th><th>Tipo</th><th>Empresa</th><th>Vendedor</th><th>Gestor</th><th>Ubicación</th><th>Contacto</th><th>Acciones</th></tr></thead><tbody>{loading ? <tr><td colSpan={8}><div className="skeleton"/></td></tr> : rows.map(c => <tr key={c.id}><td data-label="Cliente"><b>{c.legal_name}</b><small>{c.codempr}</small></td><td data-label="Tipo"><span className="badge">{c.client_type || '—'}</span></td><td data-label="Empresa"><span className="badge">{c.company_code || '—'}</span></td><td data-label="Vendedor"><span>{employeeName(c.vendor_employee_id) || c.v_cartera || '—'}</span>{c.vendor_assignment_override && <small>Asignación manual</small>}</td><td data-label="Gestor"><span>{employeeName(c.manager_employee_id) || c.g_cartera || '—'}</span>{c.manager_assignment_override && <small>Asignación manual</small>}</td><td data-label="Ubicación"><span>{c.municipality || c.province || '—'}</span><small>{c.latitude != null ? <><MapPin size={12}/> Georreferenciado · {geoLabel(c.geo_status)}</> : 'Sin coordenadas · SIN GEO'}</small></td><td data-label="Contacto"><span>{c.phone1 || c.mobile || '—'}</span><small>{c.contact_name || ''}</small></td><td data-label="Acciones"><div className="row-actions">{googleMapsNavigation(c.latitude, c.longitude) && <a className="icon-btn" href={googleMapsNavigation(c.latitude, c.longitude)!} target="_blank" rel="noreferrer" title="Navegar"><Navigation size={17}/></a>}{canEdit && <button className="icon-btn" onClick={() => setEdit(c)} title="Editar"><PenLine size={17}/></button>}</div></td></tr>)}</tbody></table></div><div className="pagination"><button disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft/></button><span>{page + 1}</span><button disabled={(page + 1) * PAGE >= total} onClick={() => setPage(p => p + 1)}><ChevronRight/></button></div></div>
     {edit && <EditClient client={edit} employees={employees} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load() }}/>} 
   </div>
 }
