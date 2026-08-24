@@ -12,22 +12,23 @@
 ## Producción actual
 
 - Aplicación: **Gestión de Ventas Diaria — Almacenes Karaka**
-- Versión productiva: **V0.6.2**
+- Versión productiva: **V0.6.3**
 - Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 - Rama estable: `main`
-- Commit de **aplicación realmente desplegado**: `d0ada8a136fd031be203b8302dda43d5507adcf2`
-- Commit: `Merge PR #19: V0.6.2 rediseño ejecutivo y correcciones UX`
+- Commit de **aplicación realmente desplegado**: `d6a6441313b7ba9389b40383ff6d6717f4646c71`
+- Commit: `Merge PR #20: V0.6.3 precisión de cobertura, jornada y PDF ejecutivo`
 - URL productiva: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- Cloudflare Current Version ID V0.6.2: `84c647cc-a990-49e7-8560-efe79b75a302`
-- Cloudflare Version ID V0.6.1 anterior: `84bf2469-2d57-491c-8b24-f4becc02a36a`
+- Cloudflare Current Version ID V0.6.3: `156aae3f-0443-4995-b36e-4dfd840382fd`
+- Cloudflare Version ID V0.6.2 anterior: `84c647cc-a990-49e7-8560-efe79b75a302`
+- Cloudflare Version ID V0.6.1 histórico: `84bf2469-2d57-491c-8b24-f4becc02a36a`
 - Cloudflare Version ID V0.6.0 histórico: `e317d9c0-458e-4d96-887a-a7f6e60926b9`
 - Referencia de rollback histórica adicional: `c68281bc-2a59-4903-89c3-c1e944a5bb1e`
-- Deploy V0.6.2: **manual desde Windows con `npm run deploy` / Wrangler 4.125.0**.
-- Build V0.6.2 validado localmente: `npm run build` SUCCESS.
-- Build V0.6.2 validado por GitHub Actions: `Build validation` SUCCESS.
-- PR V0.6.2: `#19`.
-- `package.json`: `0.6.2`.
-- caché PWA: `gvd-shell-v062`.
+- Deploy V0.6.3: **manual desde Windows con `npm run deploy` / Wrangler 4.125.0**.
+- Build V0.6.3 validado localmente: `npm run build` SUCCESS.
+- Build V0.6.3 validado por GitHub Actions: `Build validation` SUCCESS.
+- PR V0.6.3: `#20`.
+- `package.json`: `0.6.3`.
+- caché PWA: `gvd-shell-v063`.
 
 ### Importante sobre `main`
 
@@ -40,60 +41,108 @@ Después del commit de aplicación desplegado, `main` puede avanzar por commits 
 - Región observada: `ca-central-1`
 - Backend central multiusuario: PostgreSQL + Auth + RLS + Storage + PostGIS + Edge Functions.
 - No depender de `localStorage` para persistencia operacional compartida.
-- V0.6.2 fue principalmente frontend/reportería; **no introdujo DDL nuevo**.
+- V0.6.2 y V0.6.3 fueron principalmente frontend/reportería; **no introdujeron DDL nuevo**.
 
 ---
 
-# 1. PRÓXIMA ITERACIÓN PROPUESTA
+# 1. V0.6.3 — QUÉ QUEDÓ PRODUCTIVO
 
-## V0.6.3 — métricas operativas reales + reglas pendientes + control administrativo
+V0.6.3 fue validada visualmente por el usuario en localhost antes del merge/deploy.
 
-### Bloque A — Métricas de jornada/ruta de Vendedores
+## Versión visible
 
-Construir la jornada mediante los eventos reales que ya existen:
+La versión de la app ahora se muestra en:
 
-```text
-Inicio de ruta
-→ llegada/inicio visita 1
-→ salida/fin visita 1
-→ llegada/inicio visita 2
-→ salida/fin visita 2
-→ ...
-→ fin de ruta
-```
+- pantalla de login;
+- parte inferior del menú lateral;
+- pie de los PDF ejecutivos.
 
-Fuentes existentes verificadas:
+Esto permite identificar con qué versión se está operando o se generó un reporte.
 
-- `route_sessions.started_at`
-- `route_sessions.start_latitude / start_longitude`
-- `route_sessions.ended_at`
-- `route_sessions.end_latitude / end_longitude`
-- `visits.started_at`
-- `visits.start_latitude / start_longitude`
-- `visits.ended_at`
-- `visits.end_latitude / end_longitude`
-- precisión GPS de inicio/fin de ruta y visitas.
+## Cobertura real vs Resolución de ruta
 
-KPIs recomendados:
+Se corrigió la interpretación de métricas:
 
-- Jornada de ruta = fin ruta - inicio ruta.
-- Tiempo de atención = suma de duración de visitas.
-- Primer desplazamiento = inicio primera visita - inicio ruta.
-- Tiempo entre clientes = inicio visita N+1 - fin visita N.
-- Último tramo = fin ruta - fin última visita.
-- Eventualidades = tiempo separado.
-- Traslado/espera estimado = ventana de ruta - atención - eventualidades, mientras no exista tracking continuo.
-- Promedio de atención por visita.
-- Visitas por hora de jornada.
-- % de jornada en atención.
-- % de jornada en traslado/espera.
-- % de jornada en eventualidades.
+- **Cobertura real** = `Visitados / Planificados`.
+- **Resolución de ruta** = `Paradas resueltas / Planificados`.
 
-**No llamar “tiempo conduciendo” al intervalo entre visitas sin tracking continuo.** Puede incluir tráfico, estacionamiento, espera, pausa u otros tiempos.
+Ejemplo validado con Eduar:
 
-### Bloque B — Distancia estimada por puntos GPS
+- Planificados: 22.
+- Visitados: 1.
+- Cobertura real: 4.5 %.
+- Paradas resueltas: 5.
+- Resolución: 22.7 %.
 
-Calcular una distancia estimada usando puntos capturados:
+No volver a rotular `route_compliance_pct` como Cobertura estricta de visitas; ese campo representa resolución de paradas según la vista ejecutiva actual.
+
+## Jornada y tiempos
+
+V0.6.3 hace explícitos:
+
+- Jornada de ruta.
+- Atención a clientes.
+- Promedio por visita.
+- Traslado / espera estimado.
+- Eventualidades.
+- Tiempo operativo.
+
+Regla semántica:
+
+- `Jornada de ruta` = ventana de sesión de ruta.
+- `Atención a clientes` = suma de duración de visitas.
+- `Promedio/visita` = atención total / visitas registradas.
+- `Traslado/espera estimado` = tiempo de la ventana de ruta no explicado por atención y eventualidades según lógica ejecutiva actual.
+
+**No llamar “tiempo conduciendo” al traslado/espera estimado.** Puede incluir tráfico, estacionamiento, espera, pausas u otros tiempos sin tracking continuo.
+
+### Rutas activas
+
+Si una ruta sigue `ACTIVA`, la jornada acumulada continúa creciendo hasta el momento actual porque la vista usa `COALESCE(ended_at, now())`.
+
+Ejemplo validado: Eduar mostró una jornada superior a 12 horas porque su ruta de prueba seguía activa. Esto no era un error del PDF.
+
+Mejora futura recomendada: etiquetar visualmente `Jornada acumulada · ruta activa` frente a `Jornada finalizada` para evitar confusión.
+
+## PDF Ejecutivo V0.6.3
+
+El PDF dejó de depender de una barra aislada con un porcentaje sin contexto.
+
+Ahora incluye:
+
+- logo Karaka;
+- versión del sistema;
+- KPI generales;
+- vendedores y gestores separados;
+- fichas ejecutivas interpretables;
+- cobertura real y resolución claramente identificadas;
+- jornada;
+- atención;
+- promedio por visita;
+- traslado/espera;
+- compras y ventas;
+- tablas por función;
+- pie corporativo y paginación.
+
+El PDF de Inicio también usa métricas explícitas por función y versión en el pie.
+
+---
+
+# 2. PRÓXIMA ITERACIÓN PROPUESTA — V0.6.4
+
+No modificar producción directamente. Crear rama feature nueva desde `main` estable V0.6.3.
+
+## Bloque A — Distancia estimada por puntos GPS
+
+Fuentes ya disponibles:
+
+- `route_sessions.start_latitude / start_longitude`;
+- `route_sessions.end_latitude / end_longitude`;
+- `visits.start_latitude / start_longitude`;
+- `visits.end_latitude / end_longitude`;
+- precisión GPS correspondiente.
+
+Calcular una distancia estimada por tramos:
 
 ```text
 Inicio ruta → visita 1
@@ -110,25 +159,11 @@ Mostrar como:
 - Último cliente → fin;
 - promedio km por visita.
 
-**No llamarlo kilometraje exacto del vehículo.** La distancia directa entre puntos no necesariamente coincide con el recorrido por calles. Si más adelante se integra un motor de rutas, distinguir `distancia geodésica estimada` de `distancia vial estimada`.
+**No llamarlo kilometraje exacto del vehículo.** La distancia entre puntos GPS no necesariamente coincide con recorrido vial real. Si se integra motor de rutas, distinguir `distancia geodésica estimada` de `distancia vial estimada`.
 
-### Bloque C — Cobertura real vs resolución de ruta
+## Bloque B — Cobertura cartera
 
-Hallazgo confirmado V0.6.2:
-
-- el campo actual `route_compliance_pct` de `executive_daily_employee_summary` se calcula como `resolved_clients / planned_clients`;
-- `resolved_clients` incluye estados resueltos, no solo visitas;
-- por eso no debe rotularse como `Cobertura` cuando se quiere expresar `visitados / planificados`.
-
-Definiciones recomendadas:
-
-- **Cobertura real** = Visitados / Planificados.
-- **Resolución de ruta** = paradas resueltas / Planificados.
-- mantener ambas métricas visibles y claramente etiquetadas.
-
-### Bloque D — Cobertura cartera
-
-Separar dos dimensiones que hoy están mezcladas:
+Separar dos dimensiones:
 
 **Actividad**
 - `GESTIONADO`
@@ -141,11 +176,13 @@ Separar dos dimensiones que hoy están mezcladas:
 
 No redefinir `CUMPLIDO` como “tuvo una gestión”; debe seguir representando cumplimiento de meta cuando exista una meta.
 
-### Bloque E — Cierre parcial controlado de rutas
+Hallazgo confirmado: existen gestiones reales, pero clientes con frecuencia/meta 0 permanecen `SIN_META`; por eso filtrar `CUMPLIDO` puede devolver 0 aunque sí haya actividad.
+
+## Bloque C — Cierre parcial controlado de rutas
 
 Requisito:
 
-Si un Vendedor gestionó 4 de 8 clientes, debe poder cerrar la jornada conservando la verdad operacional:
+Si un Vendedor gestionó 4 de 8 clientes, debe poder cerrar jornada conservando la verdad operacional:
 
 ```text
 Planificados: 8
@@ -168,7 +205,13 @@ Motivos sugeridos:
 
 Nunca transformar pendientes en visitados para permitir cierre.
 
-### Bloque F — Sesiones administrativas
+Mantener bloqueo si existe:
+
+- visita abierta;
+- eventualidad activa;
+- otra condición crítica que haga inconsistente el cierre.
+
+## Bloque D — Sesiones administrativas
 
 Crear trazabilidad para Administrador:
 
@@ -181,7 +224,7 @@ Crear trazabilidad para Administrador:
 - logout;
 - timeout;
 - historial de sesiones;
-- opcional: módulo funcional actual/último, si se diseña con necesidad operativa clara.
+- opcional: módulo funcional actual/último, si existe necesidad operativa clara.
 
 Diseño backend recomendado:
 
@@ -194,9 +237,24 @@ Diseño backend recomendado:
 
 No inferir “en línea” solamente porque exista un token Auth vigente.
 
+## Bloque E — Refinamiento de jornada
+
+Mantener definiciones únicas en Inicio, Rutas, Reportes y PDF:
+
+- Jornada de ruta.
+- Atención a clientes.
+- Promedio por visita.
+- Traslado/espera estimado.
+- Eventualidades.
+- % de jornada en atención.
+- % de jornada en traslado/espera.
+- Visitas por hora de jornada.
+
+Para ruta activa, mostrar claramente `acumulada` y no presentar la jornada como finalizada.
+
 ---
 
-# 2. PROTOCOLO DE CONTINUIDAD PARA UN NUEVO CHAT
+# 3. PROTOCOLO DE CONTINUIDAD PARA UN NUEVO CHAT
 
 Si este chat termina o se debe continuar en otro, iniciar con una instrucción similar a:
 
@@ -227,7 +285,7 @@ No actualizar después de cada clic o microcambio.
 
 ---
 
-# 3. ARQUITECTURA OFICIAL
+# 4. ARQUITECTURA OFICIAL
 
 Frontend:
 
@@ -260,7 +318,7 @@ La arquitectura React/TypeScript/Supabase es la base oficial. Prototipos monolí
 
 ---
 
-# 4. MÓDULOS Y RUTAS
+# 5. MÓDULOS Y RUTAS
 
 | Ruta | Módulo |
 |---|---|
@@ -287,6 +345,8 @@ Archivos especialmente sensibles:
 - `src/lib/access.ts`
 - `src/lib/supabase.ts`
 - `src/lib/export.ts`
+- `src/lib/version.ts`
+- `src/components/AppShell.tsx`
 - `src/pages/Dashboard.tsx`
 - `src/pages/Routes.tsx`
 - `src/pages/Visits.tsx`
@@ -296,6 +356,7 @@ Archivos especialmente sensibles:
 - `src/pages/Reports.tsx`
 - `src/pages/Admin.tsx`
 - `src/styles/v062.css`
+- `src/styles/v063.css`
 - `wrangler.jsonc`
 - `package.json`
 - `supabase/migrations/*`
@@ -303,7 +364,7 @@ Archivos especialmente sensibles:
 
 ---
 
-# 5. PERFILES, ACCESO Y RLS
+# 6. PERFILES, ACCESO Y RLS
 
 Perfiles frontend:
 
@@ -337,7 +398,7 @@ Riesgo permanente: frontend y RLS no deben asumirse equivalentes sin auditoría.
 
 ---
 
-# 6. MODELO DE DATOS OPERACIONAL
+# 7. MODELO DE DATOS OPERACIONAL
 
 Relación conceptual:
 
@@ -392,7 +453,7 @@ Vistas relevantes:
 
 Las vistas ejecutivas verificadas usan `security_invoker=true`; revalidar antes de cambios de seguridad.
 
-## Lógica ejecutiva actual relevante
+## Lógica ejecutiva relevante
 
 `executive_daily_employee_summary` calcula actualmente:
 
@@ -403,11 +464,14 @@ Las vistas ejecutivas verificadas usan `security_invoker=true`; revalidar antes 
 - `operational_seconds`: limitado a la ventana identificada de actividad;
 - `route_compliance_pct = resolved_clients / planned_clients`.
 
-Por esto `transit_wait_estimated_seconds` es **traslado/espera estimado**, no conducción pura, y `route_compliance_pct` es **resolución**, no cobertura estricta de visitas.
+Por esto:
+
+- `transit_wait_estimated_seconds` es **traslado/espera estimado**, no conducción pura;
+- `route_compliance_pct` es **resolución**, no cobertura estricta de visitas.
 
 ---
 
-# 7. REGLAS DE NEGOCIO QUE NO DEBEN PERDERSE
+# 8. REGLAS DE NEGOCIO QUE NO DEBEN PERDERSE
 
 1. Supabase es persistencia central multiusuario.
 2. Preservar literalmente `V-CARTERA` y `G-CARTERA` de importaciones maestras.
@@ -423,13 +487,15 @@ Por esto `transit_wait_estimated_seconds` es **traslado/espera estimado**, no co
 12. Una ruta planificada para fecha futura/pasada no puede iniciarse fuera de su fecha programada.
 13. Una cita futura no debe poder registrarse como llegada física antes de su fecha mediante el flujo normal.
 14. No cerrar una ruta con visita abierta o eventualidad activa.
-15. V0.6.2 mantiene la regla actual: pendientes deben justificarse antes del cierre normal; cierre parcial controlado sigue pendiente.
+15. V0.6.3 mantiene la regla actual: pendientes deben justificarse antes del cierre normal; cierre parcial controlado sigue pendiente.
 16. Filtro `CADENA / REGULAR` en Rutas es visual y no debe falsear el cierre operacional.
 17. No llamar “kilómetros recorridos exactos” a una suma de distancias entre puntos GPS.
+18. Cobertura real y Resolución de ruta son métricas diferentes y deben mantenerse separadas.
+19. Una ruta activa muestra jornada acumulada hasta `now()`; una ruta finalizada usa `ended_at`.
 
 ---
 
-# 8. HISTORIAL DE FASES / RELEASES
+# 9. HISTORIAL DE FASES / RELEASES
 
 ## Fase A — Arquitectura/base multiusuario
 
@@ -560,33 +626,47 @@ Commit productivo: `d0ada8a136fd031be203b8302dda43d5507adcf2`.
 
 Cloudflare Version ID: `84c647cc-a990-49e7-8560-efe79b75a302`.
 
-Validado por usuario y build/CI.
+Incluyó:
+
+- fix Leaflet/modales;
+- login neutro;
+- Inicio separado por Vendedores/Gestores;
+- rankings por función;
+- gráficos operación de calle vs CRM/Showroom;
+- logo Karaka;
+- Reporte Ejecutivo separado por funciones;
+- PDF Inicio/Reporte corporativos;
+- KPI/medidores profesionales.
+
+## Fase I — V0.6.3 Precisión de métricas y PDF
+
+Commit productivo: `d6a6441313b7ba9389b40383ff6d6717f4646c71`.
+
+Cloudflare Version ID: `156aae3f-0443-4995-b36e-4dfd840382fd`.
+
+Validado por usuario y CI.
 
 Incluye:
 
-- fix Leaflet/modales mediante jerarquía de capas;
-- `No visitado` ya no queda cubierto por el mapa;
-- `Registrar eventualidad` ya no queda cubierto por el mapa;
-- login neutro: `Ingrese su usuario`;
-- Inicio separado por Vendedores y Gestores;
-- gráficos distintos para operación de calle y CRM/Showroom;
-- rankings separados por función;
-- bloque corporativo con logo Karaka;
-- Reporte Ejecutivo separado por Vendedores/Gestores;
-- KPI/medidores profesionales;
-- PDF Inicio corporativo con logo, KPI, gráficos y ranking por función;
-- PDF Reporte Ejecutivo corporativo con páginas separadas para Vendedores y Gestores;
-- caché PWA V062.
+- versión visible en login/sidebar/PDF;
+- cobertura real separada de resolución;
+- cantidad de paradas resueltas visible;
+- jornada de ruta;
+- atención clientes;
+- promedio por visita;
+- traslado/espera estimado claramente rotulado;
+- Dashboard/ranking con semántica correcta;
+- Reportes en pantalla con métricas explícitas;
+- PDF Ejecutivo con fichas interpretables por vendedor;
+- PDF con gestores separados;
+- versión en pie de PDF;
+- caché PWA V063.
 
-Hallazgo post-validación:
-
-- algunos lugares rotulan `route_compliance_pct` como `Cobertura`;
-- ejemplo: 1 visitado de 22 puede no coincidir con el porcentaje mostrado porque la métrica usa paradas resueltas;
-- corregir semántica en V0.6.3 separando Cobertura real y Resolución.
+No introdujo DDL ni cambió reglas de cierre de ruta.
 
 ---
 
-# 9. TIPO DE CLIENTE — CADENA / REGULAR
+# 10. TIPO DE CLIENTE — CADENA / REGULAR
 
 Campo oficial: `clients.client_type`.
 
@@ -615,7 +695,7 @@ Asignación confirmada:
 
 ---
 
-# 10. PRUEBA E2E / DESFASE DE FECHA HISTÓRICO
+# 11. PRUEBA E2E / DESFASE DE FECHA HISTÓRICO
 
 Escenario de regresión:
 
@@ -629,7 +709,7 @@ No reinterpretar ese dato histórico como actividad perdida; sirve como regresi�
 
 ---
 
-# 11. DEPLOYMENT / WINDOWS / GITHUB DESKTOP
+# 12. DEPLOYMENT / WINDOWS / GITHUB DESKTOP
 
 Flujo productivo confirmado:
 
@@ -671,7 +751,7 @@ El build avisa que el chunk principal supera 500 kB. No bloquea build/deploy. Co
 
 ---
 
-# 12. CUÁNDO LOS USUARIOS DEBEN CERRAR/ACTUALIZAR LA APP
+# 13. CUÁNDO LOS USUARIOS DEBEN CERRAR/ACTUALIZAR LA APP
 
 ### Frontend/visual
 
@@ -697,7 +777,7 @@ Antes de cada release indicar explícitamente:
 
 ---
 
-# 13. SUPABASE / MIGRACIONES — REGLA DE SEGURIDAD
+# 14. SUPABASE / MIGRACIONES — REGLA DE SEGURIDAD
 
 Nunca asumir que archivos `supabase/migrations` y `supabase_migrations.schema_migrations` tienen ledger idéntico.
 
@@ -713,7 +793,7 @@ No ejecutar replay masivo, `db push` ciego ni recreación destructiva de vistas/
 
 ---
 
-# 14. EDGE FUNCTIONS / STORAGE
+# 15. EDGE FUNCTIONS / STORAGE
 
 Edge Functions históricamente activas:
 
@@ -736,7 +816,7 @@ No modificar estas áreas como limpieza incidental.
 
 ---
 
-# 15. DATOS DE PRUEBA / REGRESIÓN
+# 16. DATOS DE PRUEBA / REGRESIÓN
 
 Se conservaron datos operacionales útiles:
 
@@ -750,7 +830,7 @@ No borrar únicamente para “limpiar” sin decidir si siguen siendo necesarios
 
 ---
 
-# 16. RIESGOS CONOCIDOS
+# 17. RIESGOS CONOCIDOS
 
 ## Alta prioridad técnica
 
@@ -770,16 +850,16 @@ No borrar únicamente para “limpiar” sin decidir si siguen siendo necesarios
 
 ## Funcional pendiente
 
-- Cobertura real vs Resolución;
+- distancia estimada por puntos GPS;
 - Cobertura cartera: actividad vs cumplimiento;
 - cierre parcial de rutas;
-- jornada/atención/traslado por tramos;
-- distancia estimada GPS;
-- sesiones administrativas.
+- sesiones administrativas;
+- refinamiento de jornada activa vs finalizada;
+- porcentajes de atención/traslado y visitas por hora.
 
 ---
 
-# 17. FUNCIONALIDADES TERMINADAS / CONFIRMADAS
+# 18. FUNCIONALIDADES TERMINADAS / CONFIRMADAS
 
 - arquitectura React/TypeScript/Supabase;
 - login por nick/Auth;
@@ -814,11 +894,14 @@ No borrar únicamente para “limpiar” sin decidir si siguen siendo necesarios
 - fix Leaflet/modales;
 - Inicio y Reportes separados por Vendedores/Gestores;
 - PDF ejecutivo corporativo;
-- **V0.6.2 productiva**.
+- versión visible;
+- Cobertura real vs Resolución;
+- Jornada/Atención/Promedio/Traslado explícitos;
+- **V0.6.3 productiva**.
 
 ---
 
-# 18. CHECKLIST ANTES DE CUALQUIER ITERACIÓN
+# 19. CHECKLIST ANTES DE CUALQUIER ITERACIÓN
 
 Antes de modificar:
 
@@ -847,21 +930,18 @@ Antes de merge/deploy:
 
 ---
 
-# 19. SIGUIENTE PASO RECOMENDADO
+# 20. SIGUIENTE PASO RECOMENDADO
 
-No modificar producción directamente.
+Crear una rama nueva desde `main` estable V0.6.3 para V0.6.4 y abordar por bloques controlados:
 
-Crear una rama nueva desde `main` estable V0.6.2 para V0.6.3 y abordar por bloques controlados:
+1. Distancia estimada por puntos GPS.
+2. Refinamiento de jornada activa/finalizada y KPIs porcentuales.
+3. Cobertura cartera: Gestionado vs Cumplimiento.
+4. Cierre parcial controlado de rutas.
+5. Sesiones administrativas.
 
-1. Cobertura real vs Resolución de ruta.
-2. Jornada de ruta / atención / traslado-espera por tramos.
-3. Distancia estimada por puntos GPS.
-4. Cobertura cartera: Gestionado vs Cumplimiento.
-5. Cierre parcial controlado de rutas.
-6. Sesiones administrativas.
-
-Los bloques 1–3 están relacionados y conviene diseñarlos juntos para que Inicio, Rutas, Reportes y PDF compartan la misma definición de métricas.
+Los bloques 1–2 deben reutilizar las mismas definiciones en Inicio, Rutas, Reportes y PDF. Los bloques 3–5 pueden requerir cambios de Supabase y deben auditarse antes de DDL.
 
 ---
 
-**Último estado documentado:** V0.6.2 productiva, 24/08/2026.
+**Último estado documentado:** V0.6.3 productiva, 24/08/2026.
