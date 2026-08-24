@@ -26,6 +26,7 @@ export function Visits() {
     Duracion: r.ended_at ? durationLabel(r.started_at, r.ended_at) : '',
     Recibido: r.received == null ? '' : r.received ? 'Sí' : 'No',
     Compra: r.purchase_result || '',
+    MontoCompra: r.purchase_amount || '',
     Resultado: r.result || '',
     Contacto: r.contact_name || '',
     ProximaAccion: r.next_action || '',
@@ -33,7 +34,7 @@ export function Visits() {
 
   return <div className="page-stack">
     <div className="page-head"><div><span className="eyebrow">GESTIÓN DE CALLE</span><h2>Visitas</h2><p>La llegada inicia la visita y la salida la finaliza. Solo puede existir una visita abierta por empleado.</p></div><div className="button-row"><button className="secondary" onClick={() => void exportXlsx('Gestion_Visitas', report)}>Excel</button><button className="secondary" onClick={() => exportPdf('Gestión de Visitas', report)}>PDF</button></div></div>
-    <div className="cards-list">{rows.map(r => <div className={`activity-card ${!r.ended_at ? 'open' : ''}`} key={r.id}><div className="activity-icon"><MapPinCheck/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Visita'}</b><span>{r.employees?.full_name} · llegada {new Date(r.started_at).toLocaleString('es-DO')}</span><small>{r.ended_at ? `${r.result || r.purchase_result || 'Finalizada'} · ${durationLabel(r.started_at, r.ended_at)}` : 'VISITA EN CURSO · falta registrar la salida'}</small></div>{!r.ended_at && r.employee_id === employee?.id && <button className="primary compact" onClick={() => setFinish(r)}><Check size={16}/> Finalizar / salir</button>}</div>)}</div>
+    <div className="cards-list">{rows.map(r => <div className={`activity-card ${!r.ended_at ? 'open' : ''}`} key={r.id}><div className="activity-icon"><MapPinCheck/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Visita'}</b><span>{r.employees?.full_name} · llegada {new Date(r.started_at).toLocaleString('es-DO')}</span><small>{r.ended_at ? `${r.result || r.purchase_result || 'Finalizada'} · ${durationLabel(r.started_at, r.ended_at)}${r.purchase_amount ? ` · RD$ ${Number(r.purchase_amount).toLocaleString('es-DO')}` : ''}` : 'VISITA EN CURSO · falta registrar la salida'}</small></div>{!r.ended_at && r.employee_id === employee?.id && <button className="primary compact" onClick={() => setFinish(r)}><Check size={16}/> Finalizar / salir</button>}</div>)}</div>
     {finish && <FinishVisit row={finish} onClose={() => setFinish(null)} onSaved={() => { setFinish(null); void load() }}/>} 
   </div>
 }
@@ -46,7 +47,8 @@ function durationLabel(start: string, end: string) {
 function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void; onSaved: () => void }) {
   const { employee } = useAuth()
   const [received, setReceived] = useState('si')
-  const [purchase, setPurchase] = useState('NO_COMPRO')
+  const [purchase, setPurchase] = useState('')
+  const [purchaseAmount, setPurchaseAmount] = useState('')
   const [result, setResult] = useState('RECIBIDO')
   const [contact, setContact] = useState(row.clients?.contact_name || '')
   const [reason, setReason] = useState('')
@@ -74,12 +76,13 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
 
   const save = async () => {
     if (!employee) return
+    if (!purchase) return alert('Selecciona explícitamente el resultado comercial: Compró, No compró o Pendiente.')
     setBusy(true)
     try {
       const p = await currentPosition()
       const endedAt = new Date().toISOString()
       const storedNextAction = showroomInterest === 'si' ? 'SHOWROOM' : nextAction === 'SIN_SEGUIMIENTO' ? null : nextAction
-      const { error } = await supabase.from('visits').update({ ended_at: endedAt, end_latitude: p.latitude, end_longitude: p.longitude, end_accuracy_m: p.accuracy, received: received === 'si', purchase_result: purchase, result, contact_name: contact || null, no_purchase_reason: reason || null, merchandise_comment: karaka || null, competitor_comment: competition || null, notes: notes || null, next_action: storedNextAction, follow_up_date: followUp || null }).eq('id', row.id)
+      const { error } = await supabase.from('visits').update({ ended_at: endedAt, end_latitude: p.latitude, end_longitude: p.longitude, end_accuracy_m: p.accuracy, received: received === 'si', purchase_result: purchase, purchase_amount: purchase === 'COMPRO' && purchaseAmount ? Number(purchaseAmount) : null, result, contact_name: contact || null, no_purchase_reason: purchase === 'NO_COMPRO' ? reason || null : null, merchandise_comment: karaka || null, competitor_comment: competition || null, notes: notes || null, next_action: storedNextAction, follow_up_date: followUp || null }).eq('id', row.id)
       if (error) throw error
       if (row.route_stop_id) {
         const { error: stopError } = await supabase.from('route_stops').update({ status: 'VISITADO', visit_id: row.id }).eq('id', row.route_stop_id)
@@ -110,10 +113,11 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
   return <div className="modal-wrap"><button className="modal-backdrop" onClick={onClose}/><div className="modal large"><div className="modal-head"><div><span className="eyebrow">SALIDA DEL CLIENTE</span><h3>{row.clients?.legal_name || 'Cliente'}</h3><p>Al guardar se registra hora y GPS de salida; luego podrás iniciar el siguiente cliente.</p></div><button className="icon-btn" onClick={onClose}><X/></button></div>
     <div className="form-grid">
       <label>¿Lo recibieron?<select value={received} onChange={e => setReceived(e.target.value)}><option value="si">Sí</option><option value="no">No</option></select></label>
-      <label>Quién lo atendió<input value={contact} onChange={e => setContact(e.target.value)} placeholder="Nombre / cargo"/></label>
-      <label>Resultado comercial<select value={purchase} onChange={e => setPurchase(e.target.value)}><option value="COMPRO">Compró</option><option value="NO_COMPRO">No compró</option><option value="PENDIENTE">Pendiente</option></select></label>
+      <label>Quién lo atendió en el cliente<input value={contact} onChange={e => setContact(e.target.value)} placeholder="Nombre / cargo del contacto"/></label>
+      <label>Resultado comercial<select value={purchase} onChange={e => setPurchase(e.target.value)}><option value="">Selecciona resultado...</option><option value="COMPRO">Compró</option><option value="NO_COMPRO">No compró</option><option value="PENDIENTE">Pendiente</option></select></label>
       <label>Resultado visita<select value={result} onChange={e => setResult(e.target.value)}><option value="RECIBIDO">Recibido</option><option value="NO_RECIBIDO">No recibido</option><option value="CERRADO">Cerrado</option><option value="NO_LOCALIZADO">No localizado</option><option value="REPROGRAMAR">Reprogramar</option></select></label>
-      <label className="span-2">Motivo no compra<input value={reason} onChange={e => setReason(e.target.value)}/></label>
+      {purchase === 'COMPRO' && <label className="span-2">Monto de compra (opcional)<input type="number" min="0" step="0.01" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="RD$"/><small>Si conoces el monto, quedará incluido en el reporte ejecutivo.</small></label>}
+      {purchase === 'NO_COMPRO' && <label className="span-2">Motivo no compra<input value={reason} onChange={e => setReason(e.target.value)}/></label>}
       <label className="span-2">Comentario mercancía Karaka<textarea value={karaka} onChange={e => setKaraka(e.target.value)}/></label>
       <label className="span-2">Comentario competencia<textarea value={competition} onChange={e => setCompetition(e.target.value)}/></label>
 
