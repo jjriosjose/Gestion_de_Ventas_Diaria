@@ -1,4 +1,4 @@
-const CACHE='gvd-shell-v063';
+const CACHE='gvd-shell-v064';
 const SHELL=['/manifest.webmanifest','/pwa-icon.svg','/pwa-maskable.svg','/logo-karaka.png'];
 
 self.addEventListener('install',event=>{

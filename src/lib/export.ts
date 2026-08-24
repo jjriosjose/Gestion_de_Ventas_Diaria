@@ -24,6 +24,7 @@ const coveragePct=(row:any)=>ratioPct(Number(row?.visited_clients||0),Number(row
 const resolutionPct=(row:any)=>ratioPct(Number(row?.resolved_clients||0),Number(row?.planned_clients||0))
 const formatSeconds=(value:unknown)=>{const total=Math.max(0,Math.round(Number(value||0)));const h=Math.floor(total/3600);const m=Math.round((total%3600)/60);return h?`${h} h ${m} min`:`${m} min`}
 const avgVisitSeconds=(row:any)=>Number(row?.visited_clients||0)>0?Number(row?.visit_seconds||0)/Number(row?.visited_clients||1):0
+const formatDistance=(value:unknown)=>`${(Number(value||0)/1000).toLocaleString('es-DO',{minimumFractionDigits:1,maximumFractionDigits:2})} km`
 
 async function loadLogo(){
   try{
@@ -80,27 +81,28 @@ function progress(doc:jsPDF,x:number,y:number,w:number,value:number,color:[numbe
 }
 
 function drawVendorOverview(doc:jsPDF,vendors:any[],top:number){
-  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(35,41,49);doc.text('Vendedores · lectura de jornada y cumplimiento',14,top)
-  doc.setFont('helvetica','normal');doc.setFontSize(6.4);doc.setTextColor(102,111,123);doc.text('Cobertura real = visitados ÷ planificados. Resolución = paradas resueltas ÷ planificadas.',14,top+4)
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(35,41,49);doc.text('Vendedores · jornada, cumplimiento y recorrido estimado',14,top)
+  doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(102,111,123);doc.text('Cobertura = visitados ÷ plan. Resolución = paradas resueltas ÷ plan. Distancia GPS = estimación geodésica, no odómetro.',14,top+4)
   let y=top+8
   const list=vendors.slice(0,3)
   if(!list.length){doc.setFontSize(7);doc.text('Sin vendedores con actividad o planificación registrada.',14,y+8);return y+16}
   for(const v of list){
-    const coverage=coveragePct(v),resolution=resolutionPct(v);const cardH=30
+    const coverage=coveragePct(v),resolution=resolutionPct(v);const cardH=32
     doc.setFillColor(249,250,252);doc.setDrawColor(226,230,235);doc.roundedRect(14,y,269,cardH,2.5,2.5,'FD')
-    doc.setFont('helvetica','bold');doc.setFontSize(8.3);doc.setTextColor(29,35,43);doc.text(shortName(v.full_name||'Vendedor'),18,y+7,{maxWidth:40})
-    doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(105,114,126);doc.text(`${v.visited_clients||0} de ${v.planned_clients||0} visitas · ${v.resolved_clients||0} paradas resueltas`,18,y+12,{maxWidth:42})
+    doc.setFont('helvetica','bold');doc.setFontSize(8.2);doc.setTextColor(29,35,43);doc.text(shortName(v.full_name||'Vendedor'),18,y+7,{maxWidth:38})
+    doc.setFont('helvetica','normal');doc.setFontSize(5.6);doc.setTextColor(105,114,126);doc.text(`${v.visited_clients||0}/${v.planned_clients||0} visitas · ${v.resolved_clients||0} resueltas`,18,y+12,{maxWidth:38})
 
-    metric(doc,'Cobertura real',`${coverage}%`,61,y+6,27);progress(doc,61,y+13,27,coverage,[31,122,91])
-    metric(doc,'Resolución ruta',`${resolution}%`,93,y+6,27);progress(doc,93,y+13,27,resolution,[185,28,44])
-    metric(doc,'Jornada de ruta',formatSeconds(v.route_window_seconds),125,y+6,30)
-    metric(doc,'Atención clientes',formatSeconds(v.visit_seconds),159,y+6,30)
-    metric(doc,'Promedio / visita',formatSeconds(avgVisitSeconds(v)),193,y+6,28)
-    metric(doc,'Traslado / espera*',formatSeconds(v.transit_wait_estimated_seconds),225,y+6,30)
-    metric(doc,'Ventas',pdfMoney(Number(v.sales_amount||0)),258,y+6,21)
+    metric(doc,'Cobertura',`${coverage}%`,58,y+6,24);progress(doc,58,y+13,24,coverage,[31,122,91])
+    metric(doc,'Resolución',`${resolution}%`,86,y+6,24);progress(doc,86,y+13,24,resolution,[185,28,44])
+    metric(doc,'Jornada',formatSeconds(v.route_window_seconds),114,y+6,27)
+    metric(doc,'Atención',formatSeconds(v.visit_seconds),145,y+6,25)
+    metric(doc,'Prom./visita',formatSeconds(avgVisitSeconds(v)),174,y+6,25)
+    metric(doc,'Traslado/espera*',formatSeconds(v.transit_wait_estimated_seconds),203,y+6,28)
+    metric(doc,'Distancia GPS*',formatDistance(v.estimated_distance_m),235,y+6,24)
+    metric(doc,'Ventas',pdfMoney(Number(v.sales_amount||0)),263,y+6,17)
 
-    doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(108,117,129)
-    doc.text(`Compras: ${v.purchase_clients||0} · Eventualidades: ${v.incidents||0} (${formatSeconds(v.incident_seconds)})`,61,y+24,{maxWidth:185})
+    doc.setFont('helvetica','normal');doc.setFontSize(5.4);doc.setTextColor(108,117,129)
+    doc.text(`Compras: ${v.purchase_clients||0} · Eventualidades: ${v.incidents||0} (${formatSeconds(v.incident_seconds)}) · GPS: ${v.gps_segments||0} tramos`,58,y+25,{maxWidth:205})
     y+=cardH+4
   }
   return y
@@ -122,13 +124,59 @@ function drawManagerOverview(doc:jsPDF,managers:any[],top:number){
 
 function executivePdf(title:string,rows:Record<string,unknown>[]){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
-  doc.setProperties({title,subject:'Reporte Ejecutivo Diario',author:'Gestion de Ventas Diaria - Almacenes Karaka'})
-  addExecutiveHeader(doc,title,'Resumen gerencial de actividad, tiempos, cumplimiento y resultados comerciales.')
-  const totals={colaboradores:rows.length,planificados:rows.reduce((a,r)=>a+num(r.Planificados),0),visitados:rows.reduce((a,r)=>a+num(r.Visitados),0),llamadas:rows.reduce((a,r)=>a+num(r.Llamadas),0),contactados:rows.reduce((a,r)=>a+num(r.Contactados),0),showroom:rows.reduce((a,r)=>a+num(r.Showroom),0),compras:rows.reduce((a,r)=>a+num(r.Compras),0),ventas:rows.reduce((a,r)=>a+num(r.Ventas),0)}
-  drawKpis(doc,[{label:'Colaboradores',value:String(totals.colaboradores)},{label:'Cobertura real',value:`${totals.visitados}/${totals.planificados}`,note:`${ratioPct(totals.visitados,totals.planificados)}%`},{label:'Llamadas',value:`${totals.llamadas} / ${totals.contactados}`},{label:'Showroom',value:String(totals.showroom)},{label:'Compras',value:String(totals.compras)},{label:'Ventas',value:pdfMoney(totals.ventas)}],34)
-  const primaryHead=[['Colaborador','Cargo','Primera / última gestión','H. operativas','Plan','Visitas','Llamadas','Showroom','Compras','Ventas','Event.']]
-  const primaryBody=rows.map(r=>[text(r.Empleado),text(r.Cargo||r.Tipo),`${text(r.PrimeraGestion)} - ${text(r.UltimaGestion)}`,text(r['Horas operativas']||r.HorasOperativas),text(r.Planificados),text(r.Visitados),text(r.Llamadas),text(r.Showroom),text(r.Compras),text(r.Ventas),text(r.Eventualidades)])
-  autoTable(doc,{head:primaryHead,body:primaryBody,startY:58,theme:'grid',margin:{left:14,right:14,bottom:14},styles:{font:'helvetica',fontSize:7.2,cellPadding:1.7,overflow:'linebreak',valign:'middle',textColor:[45,50,58],lineColor:[226,229,234],lineWidth:0.15},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold',halign:'center',fontSize:6.8},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.setProperties({title,subject:'Resumen personal diario',author:'Gestion de Ventas Diaria - Almacenes Karaka'})
+  addExecutiveHeader(doc,title,`Resumen personal · versión ${APP_VERSION} · jornada, cumplimiento, tiempos y recorrido estimado.`)
+  const totals={
+    colaboradores:rows.length,
+    planificados:rows.reduce((a,r)=>a+num(r.Planificados),0),
+    visitados:rows.reduce((a,r)=>a+num(r.Visitados),0),
+    resueltos:rows.reduce((a,r)=>a+num(r.Resueltos),0),
+    llamadas:rows.reduce((a,r)=>a+num(r.Llamadas),0),
+    compras:rows.reduce((a,r)=>a+num(r.Compras),0),
+    ventas:rows.reduce((a,r)=>a+num(r.Ventas),0),
+    distancia:rows.reduce((a,r)=>a+num(r['Distancia GPS estimada']),0),
+    tramos:rows.reduce((a,r)=>a+num(r['Tramos GPS']),0)
+  }
+  drawKpis(doc,[
+    {label:'Cobertura real',value:`${totals.visitados}/${totals.planificados}`,note:`${ratioPct(totals.visitados,totals.planificados)}% visitados vs plan`},
+    {label:'Resolución',value:`${totals.resueltos}/${totals.planificados}`,note:`${ratioPct(totals.resueltos,totals.planificados)}% paradas resueltas`},
+    {label:'Jornada',value:text(rows[0]?.['Jornada ruta']||rows[0]?.['Horas operativas']||'0 min'),note:'inicio → cierre registrado'},
+    {label:'Distancia GPS*',value:`${totals.distancia.toLocaleString('es-DO',{minimumFractionDigits:1,maximumFractionDigits:2})} km`,note:`${totals.tramos} tramos · no es odómetro`},
+    {label:'Compras',value:String(totals.compras)},
+    {label:'Ventas',value:pdfMoney(totals.ventas)}
+  ],34)
+
+  const head=[['Colaborador','Horario','Jornada','Plan','Visitas','Cobertura','Resueltos','Resolución','Atención','Prom./visita','Traslado/espera*','Dist. GPS*','Tramos','Ventas']]
+  const body=rows.map(r=>[
+    text(r.Empleado),
+    `${text(r.PrimeraGestion)}–${text(r.UltimaGestion)}`,
+    text(r['Jornada ruta']||r['Horas operativas']),
+    text(r.Planificados),
+    text(r.Visitados),
+    `${text(r['Cobertura real %'])}%`,
+    text(r.Resueltos),
+    `${text(r['Resolución ruta %'])}%`,
+    text(r['Atención clientes']),
+    text(r['Promedio por visita']),
+    text(r['Traslado/espera estimado']),
+    text(r['Distancia GPS estimada']),
+    text(r['Tramos GPS']),
+    text(r.Ventas)
+  ])
+  autoTable(doc,{head,body,startY:59,theme:'grid',margin:{left:8,right:8,bottom:25},styles:{font:'helvetica',fontSize:5.8,cellPadding:1.5,overflow:'linebreak',valign:'middle',textColor:[45,50,58],lineColor:[226,229,234],lineWidth:0.15},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold',halign:'center',fontSize:5.6},alternateRowStyles:{fillColor:[249,250,251]}})
+  const tableEnd=Number((doc as any).lastAutoTable?.finalY||90)
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(35,41,49);doc.text('Lectura de la jornada',14,tableEnd+10)
+  const r=rows[0]||{}
+  const notes=[
+    `Atención a clientes: ${text(r['Atención clientes']||'0 min')} · Promedio por visita: ${text(r['Promedio por visita']||'0 min')}.`,
+    `Traslado / espera estimado: ${text(r['Traslado/espera estimado']||'0 min')} · Eventualidades: ${text(r['Tiempo eventualidades']||'0 min')}.`,
+    `Distancia GPS estimada: ${text(r['Distancia GPS estimada']||'0 km')} en ${text(r['Tramos GPS']||0)} tramos disponibles.`
+  ]
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(87,96,108)
+  notes.forEach((line,i)=>doc.text(line,14,tableEnd+16+i*5,{maxWidth:269}))
+  doc.setFontSize(5.8);doc.setTextColor(105,114,126)
+  doc.text('Cobertura = visitas completadas ÷ planificados. Resolución = paradas con resultado o justificación ÷ planificadas.',14,184)
+  doc.text('* Traslado/espera es tiempo residual estimado; no representa conducción pura. Distancia GPS es geodésica entre puntos disponibles; no equivale a odómetro.',14,189)
   addExecutiveFooter(doc);doc.save(`${title}.pdf`)
 }
 
@@ -136,16 +184,17 @@ export async function exportDashboardPdf(date:string,global:any,employees:any[],
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const logo=await loadLogo();const vendors=employees.filter(e=>e.employee_type==='Vendedor');const managers=employees.filter(e=>e.employee_type==='Gestor')
   doc.setProperties({title:`Resumen Diario ${date}`,subject:'Dashboard ejecutivo diario',author:'Gestión de Ventas Diaria - Almacenes Karaka'})
   addCorporateHeader(doc,'Resumen Diario · Centro de Operaciones',`Fecha operativa ${date} · versión ${APP_VERSION} · corte ejecutivo por función.`,logo)
-  drawKpis(doc,[{label:'Clientes',value:String(stats.clients),note:`${stats.geo} con GPS`},{label:'Cobertura real',value:`${global?.visited_clients||0}/${global?.planned_clients||0}`,note:`${global?.route_execution_pct||0}% visitados vs plan`},{label:'Llamadas',value:String(global?.calls||0),note:`${global?.call_contact_rate_pct||0}% contacto`},{label:'Showroom',value:String(global?.showroom_attended||0)},{label:'Compras',value:String(global?.purchase_clients||0),note:'calle + showroom'},{label:'Ventas',value:pdfMoney(Number(global?.sales_amount||0)),note:'monto registrado'}],36)
+  drawKpis(doc,[{label:'Clientes',value:String(stats.clients),note:`${stats.geo} con GPS`},{label:'Cobertura real',value:`${global?.visited_clients||0}/${global?.planned_clients||0}`,note:`${global?.route_execution_pct||0}% visitados vs plan`},{label:'Distancia GPS*',value:formatDistance(global?.estimated_distance_m),note:`${global?.gps_segments||0} tramos estimados`},{label:'Llamadas',value:String(global?.calls||0),note:`${global?.call_contact_rate_pct||0}% contacto`},{label:'Compras',value:String(global?.purchase_clients||0),note:'calle + showroom'},{label:'Ventas',value:pdfMoney(Number(global?.sales_amount||0)),note:'monto registrado'}],36)
   const vendorEnd=drawVendorOverview(doc,vendors,66)
-  drawManagerOverview(doc,managers,Math.min(166,vendorEnd+2))
+  drawManagerOverview(doc,managers,Math.min(170,vendorEnd+2))
 
-  doc.addPage();addCorporateHeader(doc,'Detalle operativo por función',`Resumen Diario ${date} · métricas explícitas de jornada y cumplimiento.`,logo)
-  autoTable(doc,{head:[['Vendedor','Plan','Visitados','Cobertura real','Resueltos','Resolución','Jornada','Atención','Prom./visita','Traslado/espera*','Compras','Ventas']],body:vendors.map(v=>[v.full_name,v.planned_clients||0,v.visited_clients||0,`${coveragePct(v)}%`,v.resolved_clients||0,`${resolutionPct(v)}%`,formatSeconds(v.route_window_seconds),formatSeconds(v.visit_seconds),formatSeconds(avgVisitSeconds(v)),formatSeconds(v.transit_wait_estimated_seconds),v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0))]),startY:37,theme:'grid',margin:{left:14,right:14},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:6.5,cellPadding:1.8,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.addPage();addCorporateHeader(doc,'Detalle operativo por función',`Resumen Diario ${date} · jornada, cumplimiento y distancia GPS estimada.`,logo)
+  autoTable(doc,{head:[['Vendedor','Plan','Visitados','Cobertura','Resueltos','Resolución','Jornada','Atención','Prom./visita','Traslado/espera*','Dist. GPS*','Tramos','Compras','Ventas']],body:vendors.map(v=>[v.full_name,v.planned_clients||0,v.visited_clients||0,`${coveragePct(v)}%`,v.resolved_clients||0,`${resolutionPct(v)}%`,formatSeconds(v.route_window_seconds),formatSeconds(v.visit_seconds),formatSeconds(avgVisitSeconds(v)),formatSeconds(v.transit_wait_estimated_seconds),formatDistance(v.estimated_distance_m),v.gps_segments||0,v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0))]),startY:37,theme:'grid',margin:{left:9,right:9},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:5.8,cellPadding:1.5,lineColor:[226,229,234],lineWidth:.15,overflow:'linebreak'},alternateRowStyles:{fillColor:[249,250,251]}})
   const vendorTableEnd=Number((doc as any).lastAutoTable?.finalY||80)
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(37,43,51);doc.text('Gestores · CRM y Showroom',14,vendorTableEnd+10)
   autoTable(doc,{head:[['Gestor','Llamadas','Contactados','Contacto %','Showroom','T. showroom','Compras','Ventas']],body:managers.map(m=>[m.full_name,m.calls||0,m.calls_contacted||0,`${m.call_contact_rate_pct||0}%`,m.showroom_attended||0,formatSeconds(m.showroom_seconds),m.purchase_clients||0,pdfMoney(Number(m.sales_amount||0))]),startY:vendorTableEnd+14,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[31,58,95],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7.2,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
-  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(105,114,126);doc.text('* Traslado/espera es tiempo residual estimado de la jornada; no representa conducción pura.',14,191)
+  doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(105,114,126)
+  doc.text('* Traslado/espera es tiempo residual estimado; no representa conducción pura. Distancia GPS es geodésica entre puntos disponibles; no equivale a odómetro.',14,191)
   addExecutiveFooter(doc);doc.save(`Resumen_Diario_${date}.pdf`)
 }
 
@@ -153,15 +202,16 @@ export async function exportExecutiveReportPdf(date:string,rows:any[],summary:an
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const logo=await loadLogo();const vendors=rows.filter(r=>r.employee_type==='Vendedor');const managers=rows.filter(r=>r.employee_type==='Gestor');const others=rows.filter(r=>!['Vendedor','Gestor'].includes(r.employee_type))
   doc.setProperties({title:`Reporte Ejecutivo Diario ${date}`,subject:'Reporte gerencial diario por función',author:'Gestión de Ventas Diaria - Almacenes Karaka'})
   addCorporateHeader(doc,'Reporte Ejecutivo Diario',`Cierre operativo ${date} · Dirección · versión ${APP_VERSION} · métricas interpretables por función.`,logo)
-  drawKpis(doc,[{label:'Colaboradores activos',value:String(summary?.active_employees||0)},{label:'Cobertura real',value:`${summary?.visited_clients||0}/${summary?.planned_clients||0}`,note:`${summary?.route_execution_pct||0}% visitados vs plan`},{label:'Llamadas',value:String(summary?.calls||0),note:`${summary?.call_contact_rate_pct||0}% contacto`},{label:'Showroom',value:String(summary?.showroom_attended||0)},{label:'Compras',value:String(summary?.purchase_clients||0)},{label:'Ventas',value:pdfMoney(Number(summary?.sales_amount||0))}],36)
+  drawKpis(doc,[{label:'Colaboradores activos',value:String(summary?.active_employees||0)},{label:'Cobertura real',value:`${summary?.visited_clients||0}/${summary?.planned_clients||0}`,note:`${summary?.route_execution_pct||0}% visitados vs plan`},{label:'Distancia GPS*',value:formatDistance(summary?.estimated_distance_m),note:`${summary?.gps_segments||0} tramos estimados`},{label:'Llamadas',value:String(summary?.calls||0),note:`${summary?.call_contact_rate_pct||0}% contacto`},{label:'Compras',value:String(summary?.purchase_clients||0)},{label:'Ventas',value:pdfMoney(Number(summary?.sales_amount||0))}],36)
   const vendorEnd=drawVendorOverview(doc,vendors,66)
-  drawManagerOverview(doc,managers,Math.min(166,vendorEnd+2))
+  drawManagerOverview(doc,managers,Math.min(170,vendorEnd+2))
 
-  doc.addPage();addCorporateHeader(doc,'Vendedores · operación de calle',`Reporte Ejecutivo ${date} · jornada, cobertura real, resolución, atención, traslado y resultado comercial.`,logo)
-  autoTable(doc,{head:[['Vendedor','Horario','Jornada','Plan','Visitados','Cobertura real','Resueltos','Resolución','Atención','Prom./visita','Traslado/espera*','Compras','Ventas']],body:vendors.map(v=>[v.full_name,`${v.first_activity_at?new Date(v.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}–${v.last_activity_at?new Date(v.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}`,formatSeconds(v.route_window_seconds),v.planned_clients||0,v.visited_clients||0,`${coveragePct(v)}%`,v.resolved_clients||0,`${resolutionPct(v)}%`,formatSeconds(v.visit_seconds),formatSeconds(avgVisitSeconds(v)),formatSeconds(v.transit_wait_estimated_seconds),v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0))]),startY:38,theme:'grid',margin:{left:10,right:10,bottom:22},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:6.3,cellPadding:1.7,lineColor:[226,229,234],lineWidth:.15,overflow:'linebreak'},alternateRowStyles:{fillColor:[249,250,251]}})
-  doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(95,104,116)
-  doc.text('Cobertura real = visitas completadas ÷ planificados. Resolución = paradas con resultado/justificación ÷ planificadas.',14,187)
-  doc.text('* Traslado/espera es estimado: jornada de ruta menos atención a clientes y eventualidades. Si la ruta sigue activa, la jornada se calcula hasta la hora del corte.',14,192)
+  doc.addPage();addCorporateHeader(doc,'Vendedores · operación de calle',`Reporte Ejecutivo ${date} · jornada, cobertura, resolución, atención y distancia GPS estimada.`,logo)
+  autoTable(doc,{head:[['Vendedor','Horario','Jornada','Plan','Visit.','Cobertura','Resueltos','Resolución','Atención','Prom./visita','Traslado/espera*','Dist. GPS*','Tramos','Ventas']],body:vendors.map(v=>[v.full_name,`${v.first_activity_at?new Date(v.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}–${v.last_activity_at?new Date(v.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}`,formatSeconds(v.route_window_seconds),v.planned_clients||0,v.visited_clients||0,`${coveragePct(v)}%`,v.resolved_clients||0,`${resolutionPct(v)}%`,formatSeconds(v.visit_seconds),formatSeconds(avgVisitSeconds(v)),formatSeconds(v.transit_wait_estimated_seconds),formatDistance(v.estimated_distance_m),v.gps_segments||0,pdfMoney(Number(v.sales_amount||0))]),startY:38,theme:'grid',margin:{left:8,right:8,bottom:24},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:5.7,cellPadding:1.4,lineColor:[226,229,234],lineWidth:.15,overflow:'linebreak'},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(95,104,116)
+  doc.text('Cobertura = visitas completadas ÷ planificados. Resolución = paradas con resultado/justificación ÷ planificadas.',14,184)
+  doc.text('* Traslado/espera es residual estimado. Distancia GPS suma tramos geodésicos entre puntos operativos disponibles; no equivale a odómetro ni ruta vial exacta.',14,189)
+  doc.text('En rutas activas, jornada y traslado siguen acumulándose hasta que se registre el cierre de jornada.',14,194)
 
   doc.addPage();addCorporateHeader(doc,'Gestores · CRM y Showroom',`Reporte Ejecutivo ${date} · llamadas, contacto, showroom, compras y ventas.`,logo)
   autoTable(doc,{head:[['Gestor','Ventana gestión','T. operativo','Llamadas','Contactados','Contacto %','T. llamadas*','Showroom','T. showroom','Compras','Ventas']],body:managers.map(m=>[m.full_name,`${m.first_activity_at?new Date(m.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}–${m.last_activity_at?new Date(m.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}`,formatSeconds(m.operational_seconds),m.calls||0,m.calls_contacted||0,`${m.call_contact_rate_pct||0}%`,formatSeconds(m.call_estimated_seconds),m.showroom_attended||0,formatSeconds(m.showroom_seconds),m.purchase_clients||0,pdfMoney(Number(m.sales_amount||0))]),startY:38,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[31,58,95],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
