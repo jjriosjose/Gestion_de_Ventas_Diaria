@@ -1,7 +1,9 @@
 import ExcelJS from 'exceljs'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import packageInfo from '../../package.json'
 
+const APP_VERSION=packageInfo.version
 const saveBlob=(blob:Blob,name:string)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
 export async function exportXlsx(title:string, rows:Record<string,unknown>[]) {
@@ -17,7 +19,11 @@ const text=(value:unknown)=>String(value??'')
 const num=(value:unknown)=>{const parsed=Number(String(value??'').replace(/[^0-9.-]/g,''));return Number.isFinite(parsed)?parsed:0}
 const pdfMoney=(value:number)=>new Intl.NumberFormat('es-DO',{style:'currency',currency:'DOP',maximumFractionDigits:0}).format(value)
 const shortName=(value:string)=>{const p=value.trim().split(/\s+/);return p.length>2?`${p[0]} ${p[1]}`:value}
-const pct=(value:unknown)=>Math.max(0,Math.min(100,Number(value||0)))
+const ratioPct=(value:number,total:number)=>total?Math.round((value/total)*1000)/10:0
+const coveragePct=(row:any)=>ratioPct(Number(row?.visited_clients||0),Number(row?.planned_clients||0))
+const resolutionPct=(row:any)=>ratioPct(Number(row?.resolved_clients||0),Number(row?.planned_clients||0))
+const formatSeconds=(value:unknown)=>{const total=Math.max(0,Math.round(Number(value||0)));const h=Math.floor(total/3600);const m=Math.round((total%3600)/60);return h?`${h} h ${m} min`:`${m} min`}
+const avgVisitSeconds=(row:any)=>Number(row?.visited_clients||0)>0?Number(row?.visit_seconds||0)/Number(row?.visited_clients||1):0
 
 async function loadLogo(){
   try{
@@ -47,7 +53,7 @@ function addExecutiveFooter(doc:jsPDF){
     const width=doc.internal.pageSize.getWidth();const height=doc.internal.pageSize.getHeight()
     doc.setDrawColor(226,229,234);doc.line(14,height-10,width-14,height-10)
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(110,118,129)
-    doc.text('Almacenes Karaka · Gestión de Ventas Diaria · Uso interno',14,height-5)
+    doc.text(`Almacenes Karaka · Gestión de Ventas Diaria · v${APP_VERSION} · Uso interno`,14,height-5)
     doc.text(`Página ${page} de ${pages}`,width-14,height-5,{align:'right'})
   }
 }
@@ -64,83 +70,109 @@ function drawKpis(doc:jsPDF,items:Array<{label:string;value:string;note?:string}
   })
 }
 
-function drawBars(doc:jsPDF,title:string,rows:Array<{label:string;value:number;secondary?:number}>,x:number,y:number,w:number,h:number,secondaryLabel?:string){
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(37,43,51);doc.text(title,x,y)
-  const data=rows.slice(0,7);if(!data.length){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(120,128,139);doc.text('Sin actividad registrada.',x,y+9);return}
-  const max=Math.max(1,...data.map(r=>Math.max(r.value,r.secondary||0)));const top=y+6;const rowH=Math.min(12,(h-8)/data.length);const labelW=Math.min(38,w*.3);const barW=w-labelW-20
-  data.forEach((row,i)=>{
-    const yy=top+i*rowH
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(78,87,99);doc.text(shortName(row.label),x,yy+4,{maxWidth:labelW-2})
-    doc.setFillColor(238,241,245);doc.roundedRect(x+labelW,yy+1,barW,4,1,1,'F')
-    doc.setFillColor(185,28,44);doc.roundedRect(x+labelW,yy+1,barW*(row.value/max),4,1,1,'F')
-    if(row.secondary!=null){doc.setFillColor(31,122,91);doc.roundedRect(x+labelW,yy+6,barW*(row.secondary/max),2.5,1,1,'F')}
-    doc.setFont('helvetica','bold');doc.setFontSize(6.2);doc.setTextColor(48,55,64);doc.text(String(row.value),x+labelW+barW+2,yy+4)
-  })
-  if(secondaryLabel){doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(112,120,131);doc.text(`Rojo: principal · Verde: ${secondaryLabel}`,x,y+h)}
+function metric(doc:jsPDF,label:string,value:string,x:number,y:number,width=30){
+  doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(105,114,126);doc.text(label,x,y,{maxWidth:width})
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(31,37,45);doc.text(value,x,y+4,{maxWidth:width})
+}
+
+function progress(doc:jsPDF,x:number,y:number,w:number,value:number,color:[number,number,number]){
+  const p=Math.max(0,Math.min(100,value));doc.setFillColor(235,238,242);doc.roundedRect(x,y,w,2.2,1,1,'F');doc.setFillColor(...color);doc.roundedRect(x,y,w*(p/100),2.2,1,1,'F')
+}
+
+function drawVendorOverview(doc:jsPDF,vendors:any[],top:number){
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(35,41,49);doc.text('Vendedores · lectura de jornada y cumplimiento',14,top)
+  doc.setFont('helvetica','normal');doc.setFontSize(6.4);doc.setTextColor(102,111,123);doc.text('Cobertura real = visitados ÷ planificados. Resolución = paradas resueltas ÷ planificadas.',14,top+4)
+  let y=top+8
+  const list=vendors.slice(0,3)
+  if(!list.length){doc.setFontSize(7);doc.text('Sin vendedores con actividad o planificación registrada.',14,y+8);return y+16}
+  for(const v of list){
+    const coverage=coveragePct(v),resolution=resolutionPct(v);const cardH=30
+    doc.setFillColor(249,250,252);doc.setDrawColor(226,230,235);doc.roundedRect(14,y,269,cardH,2.5,2.5,'FD')
+    doc.setFont('helvetica','bold');doc.setFontSize(8.3);doc.setTextColor(29,35,43);doc.text(shortName(v.full_name||'Vendedor'),18,y+7,{maxWidth:40})
+    doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(105,114,126);doc.text(`${v.visited_clients||0} de ${v.planned_clients||0} visitas · ${v.resolved_clients||0} paradas resueltas`,18,y+12,{maxWidth:42})
+
+    metric(doc,'Cobertura real',`${coverage}%`,61,y+6,27);progress(doc,61,y+13,27,coverage,[31,122,91])
+    metric(doc,'Resolución ruta',`${resolution}%`,93,y+6,27);progress(doc,93,y+13,27,resolution,[185,28,44])
+    metric(doc,'Jornada de ruta',formatSeconds(v.route_window_seconds),125,y+6,30)
+    metric(doc,'Atención clientes',formatSeconds(v.visit_seconds),159,y+6,30)
+    metric(doc,'Promedio / visita',formatSeconds(avgVisitSeconds(v)),193,y+6,28)
+    metric(doc,'Traslado / espera*',formatSeconds(v.transit_wait_estimated_seconds),225,y+6,30)
+    metric(doc,'Ventas',pdfMoney(Number(v.sales_amount||0)),258,y+6,21)
+
+    doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(108,117,129)
+    doc.text(`Compras: ${v.purchase_clients||0} · Eventualidades: ${v.incidents||0} (${formatSeconds(v.incident_seconds)})`,61,y+24,{maxWidth:185})
+    y+=cardH+4
+  }
+  return y
+}
+
+function drawManagerOverview(doc:jsPDF,managers:any[],top:number){
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(35,41,49);doc.text('Gestores · CRM y Showroom',14,top)
+  let y=top+5
+  const list=managers.slice(0,3)
+  if(!list.length){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(105,114,126);doc.text('Sin gestores con actividad registrada.',14,y+8);return y+15}
+  for(const m of list){
+    doc.setFillColor(248,250,252);doc.setDrawColor(226,230,235);doc.roundedRect(14,y,269,18,2.5,2.5,'FD')
+    doc.setFont('helvetica','bold');doc.setFontSize(7.8);doc.setTextColor(29,35,43);doc.text(shortName(m.full_name||'Gestor'),18,y+7,{maxWidth:43})
+    metric(doc,'Llamadas',String(m.calls||0),65,y+5,22);metric(doc,'Contactados',String(m.calls_contacted||0),91,y+5,25);metric(doc,'Contacto',`${m.call_contact_rate_pct||0}%`,121,y+5,23);metric(doc,'Showroom',String(m.showroom_attended||0),149,y+5,23);metric(doc,'Tiempo showroom',formatSeconds(m.showroom_seconds),177,y+5,28);metric(doc,'Compras',String(m.purchase_clients||0),210,y+5,22);metric(doc,'Ventas',pdfMoney(Number(m.sales_amount||0)),237,y+5,40)
+    y+=22
+  }
+  return y
 }
 
 function executivePdf(title:string,rows:Record<string,unknown>[]){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
   doc.setProperties({title,subject:'Reporte Ejecutivo Diario',author:'Gestion de Ventas Diaria - Almacenes Karaka'})
   addExecutiveHeader(doc,title,'Resumen gerencial de actividad, tiempos, cumplimiento y resultados comerciales.')
-
   const totals={colaboradores:rows.length,planificados:rows.reduce((a,r)=>a+num(r.Planificados),0),visitados:rows.reduce((a,r)=>a+num(r.Visitados),0),llamadas:rows.reduce((a,r)=>a+num(r.Llamadas),0),contactados:rows.reduce((a,r)=>a+num(r.Contactados),0),showroom:rows.reduce((a,r)=>a+num(r.Showroom),0),compras:rows.reduce((a,r)=>a+num(r.Compras),0),ventas:rows.reduce((a,r)=>a+num(r.Ventas),0)}
-  drawKpis(doc,[{label:'Colaboradores',value:String(totals.colaboradores)},{label:'Visitas',value:`${totals.visitados}/${totals.planificados}`},{label:'Llamadas',value:`${totals.llamadas} / ${totals.contactados}`},{label:'Showroom',value:String(totals.showroom)},{label:'Compras',value:String(totals.compras)},{label:'Ventas',value:pdfMoney(totals.ventas)}],34)
-
-  const primaryHead=[['Colaborador','Cargo','Primera / última gestión','H. operativas','Plan','Visitas','Llamadas','Showroom','Compras','Ventas','Event.','Cumpl. ruta']]
-  const primaryBody=rows.map(r=>[text(r.Empleado),text(r.Cargo||r.Tipo),`${text(r.PrimeraGestion)} - ${text(r.UltimaGestion)}`,text(r.HorasOperativas),text(r.Planificados),text(r.Visitados),text(r.Llamadas),text(r.Showroom),text(r.Compras),text(r.Ventas),text(r.Eventualidades),`${text(r['Cumplimiento ruta %'])||'0'}%`])
+  drawKpis(doc,[{label:'Colaboradores',value:String(totals.colaboradores)},{label:'Cobertura real',value:`${totals.visitados}/${totals.planificados}`,note:`${ratioPct(totals.visitados,totals.planificados)}%`},{label:'Llamadas',value:`${totals.llamadas} / ${totals.contactados}`},{label:'Showroom',value:String(totals.showroom)},{label:'Compras',value:String(totals.compras)},{label:'Ventas',value:pdfMoney(totals.ventas)}],34)
+  const primaryHead=[['Colaborador','Cargo','Primera / última gestión','H. operativas','Plan','Visitas','Llamadas','Showroom','Compras','Ventas','Event.']]
+  const primaryBody=rows.map(r=>[text(r.Empleado),text(r.Cargo||r.Tipo),`${text(r.PrimeraGestion)} - ${text(r.UltimaGestion)}`,text(r['Horas operativas']||r.HorasOperativas),text(r.Planificados),text(r.Visitados),text(r.Llamadas),text(r.Showroom),text(r.Compras),text(r.Ventas),text(r.Eventualidades)])
   autoTable(doc,{head:primaryHead,body:primaryBody,startY:58,theme:'grid',margin:{left:14,right:14,bottom:14},styles:{font:'helvetica',fontSize:7.2,cellPadding:1.7,overflow:'linebreak',valign:'middle',textColor:[45,50,58],lineColor:[226,229,234],lineWidth:0.15},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold',halign:'center',fontSize:6.8},alternateRowStyles:{fillColor:[249,250,251]}})
-  doc.addPage();addExecutiveHeader(doc,'Detalle operativo y tiempos',title)
-  const detailHead=[['Colaborador','Ventana','T. llamadas*','T. clientes','T. showroom','Trayecto / espera*','T. eventualidades','Contactados','Utilización %','Contacto %','Captaciones']]
-  const detailBody=rows.map(r=>[text(r.Empleado),text(r.Ventana),text(r['Tiempo llamadas estimado']),text(r['Tiempo clientes']),text(r['Tiempo showroom']),text(r['Traslado/espera estimado']),text(r['Tiempo eventualidades']),text(r.Contactados),`${text(r['Utilizacion registrada %'])||'0'}%`,`${text(r['Contacto %'])||'0'}%`,text(r.Captaciones)])
-  autoTable(doc,{head:detailHead,body:detailBody,startY:36,theme:'grid',margin:{left:14,right:14,bottom:24},styles:{font:'helvetica',fontSize:7.5,cellPadding:2,overflow:'linebreak',valign:'middle',textColor:[45,50,58],lineColor:[226,229,234],lineWidth:0.15},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold',halign:'center',fontSize:7},alternateRowStyles:{fillColor:[249,250,251]}})
   addExecutiveFooter(doc);doc.save(`${title}.pdf`)
 }
 
 export async function exportDashboardPdf(date:string,global:any,employees:any[],stats:{clients:number;geo:number;verified:number}){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const logo=await loadLogo();const vendors=employees.filter(e=>e.employee_type==='Vendedor');const managers=employees.filter(e=>e.employee_type==='Gestor')
   doc.setProperties({title:`Resumen Diario ${date}`,subject:'Dashboard ejecutivo diario',author:'Gestión de Ventas Diaria - Almacenes Karaka'})
-  addCorporateHeader(doc,'Resumen Diario · Centro de Operaciones',`Fecha operativa ${date} · Vendedores y Gestores analizados por separado.`,logo)
-  drawKpis(doc,[{label:'Clientes',value:String(stats.clients),note:`${stats.geo} con GPS`},{label:'Planificados',value:String(global?.planned_clients||0),note:`${global?.route_execution_pct||0}% ejecución`},{label:'Visitados',value:String(global?.visited_clients||0),note:`${global?.received_clients||0} recibidos`},{label:'Llamadas',value:String(global?.calls||0),note:`${global?.call_contact_rate_pct||0}% contacto`},{label:'Compras',value:String(global?.purchase_clients||0),note:'calle + showroom'},{label:'Ventas',value:pdfMoney(Number(global?.sales_amount||0)),note:'monto registrado'}],36)
-  drawBars(doc,'Vendedores · visitas vs plan',vendors.map(v=>({label:v.full_name,value:Number(v.visited_clients||0),secondary:Number(v.planned_clients||0)})),14,67,128,76,'planificados')
-  drawBars(doc,'Gestores · llamadas vs contactos',managers.map(m=>({label:m.full_name,value:Number(m.calls||0),secondary:Number(m.calls_contacted||0)})),154,67,128,76,'contactados')
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(37,43,51);doc.text('Lectura ejecutiva',14,154)
-  doc.setFont('helvetica','normal');doc.setFontSize(7.4);doc.setTextColor(95,104,116)
-  const observations=[`Rutas: ${global?.routes_completed||0} cerradas de ${global?.routes_started||0} iniciadas.`,`Showroom: ${global?.showroom_attended||0} atenciones y ${global?.showroom_purchase_clients||0} compras.`,`Captaciones: ${global?.prospects_captured||0}. Clientes con GPS verificado: ${stats.verified}.`]
-  observations.forEach((line,i)=>doc.text(`• ${line}`,14,161+i*6))
+  addCorporateHeader(doc,'Resumen Diario · Centro de Operaciones',`Fecha operativa ${date} · versión ${APP_VERSION} · corte ejecutivo por función.`,logo)
+  drawKpis(doc,[{label:'Clientes',value:String(stats.clients),note:`${stats.geo} con GPS`},{label:'Cobertura real',value:`${global?.visited_clients||0}/${global?.planned_clients||0}`,note:`${global?.route_execution_pct||0}% visitados vs plan`},{label:'Llamadas',value:String(global?.calls||0),note:`${global?.call_contact_rate_pct||0}% contacto`},{label:'Showroom',value:String(global?.showroom_attended||0)},{label:'Compras',value:String(global?.purchase_clients||0),note:'calle + showroom'},{label:'Ventas',value:pdfMoney(Number(global?.sales_amount||0)),note:'monto registrado'}],36)
+  const vendorEnd=drawVendorOverview(doc,vendors,66)
+  drawManagerOverview(doc,managers,Math.min(166,vendorEnd+2))
 
-  doc.addPage();addCorporateHeader(doc,'Ranking operativo por función',`Resumen Diario ${date} · comparación separada por naturaleza del trabajo.`,logo)
-  autoTable(doc,{head:[['Vendedor','Plan','Visitados','Cobertura','Compras','Ventas','Utilización']],body:vendors.map(v=>[v.full_name,v.planned_clients||0,v.visited_clients||0,`${v.route_compliance_pct||0}%`,v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0)),`${v.registered_utilization_pct||0}%`]),startY:37,theme:'grid',margin:{left:14,right:14},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7.5,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
-  const vendorEnd=Number((doc as any).lastAutoTable?.finalY||80)
-  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(37,43,51);doc.text('Gestores · CRM y Showroom',14,vendorEnd+10)
-  autoTable(doc,{head:[['Gestor','Llamadas','Contactados','Contacto %','Showroom','Compras','Ventas']],body:managers.map(m=>[m.full_name,m.calls||0,m.calls_contacted||0,`${m.call_contact_rate_pct||0}%`,m.showroom_attended||0,m.purchase_clients||0,pdfMoney(Number(m.sales_amount||0))]),startY:vendorEnd+14,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[31,58,95],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7.5,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.addPage();addCorporateHeader(doc,'Detalle operativo por función',`Resumen Diario ${date} · métricas explícitas de jornada y cumplimiento.`,logo)
+  autoTable(doc,{head:[['Vendedor','Plan','Visitados','Cobertura real','Resueltos','Resolución','Jornada','Atención','Prom./visita','Traslado/espera*','Compras','Ventas']],body:vendors.map(v=>[v.full_name,v.planned_clients||0,v.visited_clients||0,`${coveragePct(v)}%`,v.resolved_clients||0,`${resolutionPct(v)}%`,formatSeconds(v.route_window_seconds),formatSeconds(v.visit_seconds),formatSeconds(avgVisitSeconds(v)),formatSeconds(v.transit_wait_estimated_seconds),v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0))]),startY:37,theme:'grid',margin:{left:14,right:14},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:6.5,cellPadding:1.8,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
+  const vendorTableEnd=Number((doc as any).lastAutoTable?.finalY||80)
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(37,43,51);doc.text('Gestores · CRM y Showroom',14,vendorTableEnd+10)
+  autoTable(doc,{head:[['Gestor','Llamadas','Contactados','Contacto %','Showroom','T. showroom','Compras','Ventas']],body:managers.map(m=>[m.full_name,m.calls||0,m.calls_contacted||0,`${m.call_contact_rate_pct||0}%`,m.showroom_attended||0,formatSeconds(m.showroom_seconds),m.purchase_clients||0,pdfMoney(Number(m.sales_amount||0))]),startY:vendorTableEnd+14,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[31,58,95],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7.2,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(105,114,126);doc.text('* Traslado/espera es tiempo residual estimado de la jornada; no representa conducción pura.',14,191)
   addExecutiveFooter(doc);doc.save(`Resumen_Diario_${date}.pdf`)
 }
 
 export async function exportExecutiveReportPdf(date:string,rows:any[],summary:any){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const logo=await loadLogo();const vendors=rows.filter(r=>r.employee_type==='Vendedor');const managers=rows.filter(r=>r.employee_type==='Gestor');const others=rows.filter(r=>!['Vendedor','Gestor'].includes(r.employee_type))
   doc.setProperties({title:`Reporte Ejecutivo Diario ${date}`,subject:'Reporte gerencial diario por función',author:'Gestión de Ventas Diaria - Almacenes Karaka'})
-  addCorporateHeader(doc,'Reporte Ejecutivo Diario',`Cierre operativo ${date} · Dirección · Vendedores y Gestores separados por función.`,logo)
-  drawKpis(doc,[{label:'Colaboradores',value:String(summary?.active_employees||rows.length)},{label:'Visitas',value:`${summary?.visited_clients||0}/${summary?.planned_clients||0}`,note:`${summary?.route_execution_pct||0}% ejecución`},{label:'Llamadas',value:String(summary?.calls||0),note:`${summary?.call_contact_rate_pct||0}% contacto`},{label:'Showroom',value:String(summary?.showroom_attended||0)},{label:'Compras',value:String(summary?.purchase_clients||0)},{label:'Ventas',value:pdfMoney(Number(summary?.sales_amount||0))}],36)
-  drawBars(doc,'Vendedores · cobertura de ruta',vendors.map(v=>({label:v.full_name,value:Number(v.route_compliance_pct||0)})),14,68,128,75)
-  drawBars(doc,'Gestores · gestiones telefónicas',managers.map(m=>({label:m.full_name,value:Number(m.calls||0),secondary:Number(m.calls_contacted||0)})),154,68,128,75,'contactados')
-  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(98,107,119);doc.text('El PDF separa responsabilidades para evitar comparar actividades de naturaleza distinta.',14,158)
+  addCorporateHeader(doc,'Reporte Ejecutivo Diario',`Cierre operativo ${date} · Dirección · versión ${APP_VERSION} · métricas interpretables por función.`,logo)
+  drawKpis(doc,[{label:'Colaboradores activos',value:String(summary?.active_employees||0)},{label:'Cobertura real',value:`${summary?.visited_clients||0}/${summary?.planned_clients||0}`,note:`${summary?.route_execution_pct||0}% visitados vs plan`},{label:'Llamadas',value:String(summary?.calls||0),note:`${summary?.call_contact_rate_pct||0}% contacto`},{label:'Showroom',value:String(summary?.showroom_attended||0)},{label:'Compras',value:String(summary?.purchase_clients||0)},{label:'Ventas',value:pdfMoney(Number(summary?.sales_amount||0))}],36)
+  const vendorEnd=drawVendorOverview(doc,vendors,66)
+  drawManagerOverview(doc,managers,Math.min(166,vendorEnd+2))
 
-  doc.addPage();addCorporateHeader(doc,'Vendedores · operación de calle',`Reporte Ejecutivo ${date} · cobertura, visitas, compras y ventas.`,logo)
-  autoTable(doc,{head:[['Vendedor','Ventana','Plan','Visitados','Recibidos','Cobertura','Compras','Ventas','T. clientes','Trayecto/espera*','Event.']],body:vendors.map(v=>[v.full_name,`${text(v.first_activity_at?new Date(v.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—')}–${text(v.last_activity_at?new Date(v.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—')}`,v.planned_clients||0,v.visited_clients||0,v.received_clients||0,`${v.route_compliance_pct||0}%`,v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0)),formatSeconds(v.visit_seconds),formatSeconds(v.transit_wait_estimated_seconds),v.incidents||0]),startY:38,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7.2,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.addPage();addCorporateHeader(doc,'Vendedores · operación de calle',`Reporte Ejecutivo ${date} · jornada, cobertura real, resolución, atención, traslado y resultado comercial.`,logo)
+  autoTable(doc,{head:[['Vendedor','Horario','Jornada','Plan','Visitados','Cobertura real','Resueltos','Resolución','Atención','Prom./visita','Traslado/espera*','Compras','Ventas']],body:vendors.map(v=>[v.full_name,`${v.first_activity_at?new Date(v.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}–${v.last_activity_at?new Date(v.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}`,formatSeconds(v.route_window_seconds),v.planned_clients||0,v.visited_clients||0,`${coveragePct(v)}%`,v.resolved_clients||0,`${resolutionPct(v)}%`,formatSeconds(v.visit_seconds),formatSeconds(avgVisitSeconds(v)),formatSeconds(v.transit_wait_estimated_seconds),v.purchase_clients||0,pdfMoney(Number(v.sales_amount||0))]),startY:38,theme:'grid',margin:{left:10,right:10,bottom:22},headStyles:{fillColor:[185,28,44],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:6.3,cellPadding:1.7,lineColor:[226,229,234],lineWidth:.15,overflow:'linebreak'},alternateRowStyles:{fillColor:[249,250,251]}})
+  doc.setFont('helvetica','normal');doc.setFontSize(6.2);doc.setTextColor(95,104,116)
+  doc.text('Cobertura real = visitas completadas ÷ planificados. Resolución = paradas con resultado/justificación ÷ planificadas.',14,187)
+  doc.text('* Traslado/espera es estimado: jornada de ruta menos atención a clientes y eventualidades. Si la ruta sigue activa, la jornada se calcula hasta la hora del corte.',14,192)
 
   doc.addPage();addCorporateHeader(doc,'Gestores · CRM y Showroom',`Reporte Ejecutivo ${date} · llamadas, contacto, showroom, compras y ventas.`,logo)
-  autoTable(doc,{head:[['Gestor','Ventana','Llamadas','Contactados','Contacto %','T. llamadas*','Showroom','T. showroom','Compras','Ventas','Utilización']],body:managers.map(m=>[m.full_name,`${m.first_activity_at?new Date(m.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}–${m.last_activity_at?new Date(m.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}`,m.calls||0,m.calls_contacted||0,`${m.call_contact_rate_pct||0}%`,formatSeconds(m.call_estimated_seconds),m.showroom_attended||0,formatSeconds(m.showroom_seconds),m.purchase_clients||0,pdfMoney(Number(m.sales_amount||0)),`${m.registered_utilization_pct||0}%`]),startY:38,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[31,58,95],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7.2,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
+  autoTable(doc,{head:[['Gestor','Ventana gestión','T. operativo','Llamadas','Contactados','Contacto %','T. llamadas*','Showroom','T. showroom','Compras','Ventas']],body:managers.map(m=>[m.full_name,`${m.first_activity_at?new Date(m.first_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}–${m.last_activity_at?new Date(m.last_activity_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'}):'—'}`,formatSeconds(m.operational_seconds),m.calls||0,m.calls_contacted||0,`${m.call_contact_rate_pct||0}%`,formatSeconds(m.call_estimated_seconds),m.showroom_attended||0,formatSeconds(m.showroom_seconds),m.purchase_clients||0,pdfMoney(Number(m.sales_amount||0))]),startY:38,theme:'grid',margin:{left:14,right:14,bottom:18},headStyles:{fillColor:[31,58,95],textColor:[255,255,255],fontStyle:'bold'},styles:{fontSize:7,cellPadding:2,lineColor:[226,229,234],lineWidth:.15},alternateRowStyles:{fillColor:[249,250,251]}})
 
   if(others.length){doc.addPage();addCorporateHeader(doc,'Otras funciones con actividad',`Reporte Ejecutivo ${date}`,logo);autoTable(doc,{head:[['Colaborador','Tipo','Actividad','Compras','Ventas','Tiempo operativo']],body:others.map(r=>[r.full_name,r.employee_type||r.job_title||'',Number(r.visited_clients||0)+Number(r.calls||0)+Number(r.showroom_attended||0),r.purchase_clients||0,pdfMoney(Number(r.sales_amount||0)),formatSeconds(r.operational_seconds)]),startY:38,theme:'grid',headStyles:{fillColor:[92,101,113],textColor:[255,255,255]},styles:{fontSize:7.5}})}
   addExecutiveFooter(doc);doc.save(`Reporte_Ejecutivo_${date}.pdf`)
 }
 
-function formatSeconds(value:unknown){const total=Math.max(0,Math.round(Number(value||0)));const h=Math.floor(total/3600);const m=Math.round((total%3600)/60);return h?`${h} h ${m} min`:`${m} min`}
-
 export function exportPdf(title:string, rows:Record<string,unknown>[]) {
   const cols=rows.length?Object.keys(rows[0]):['Sin datos']
-  if(cols.includes('Empleado')&&cols.includes('HorasOperativas')&&cols.includes('Ventas')&&cols.length>15){executivePdf(title,rows);return}
+  if(cols.includes('Empleado')&&cols.includes('Ventas')&&cols.length>15){executivePdf(title,rows);return}
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});doc.setProperties({title,author:'Gestion de Ventas Diaria - Almacenes Karaka'})
   addExecutiveHeader(doc,title,'Detalle exportado desde Gestión de Ventas Diaria.')
   const body=rows.map(r=>cols.map(c=>String(r[c]??'')))
