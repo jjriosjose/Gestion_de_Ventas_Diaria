@@ -2,7 +2,7 @@
 
 Fecha de corte: 2026-08-26.
 
-Este documento registra el primer bloque implementado de V0.6.5 sin cambiar la condición de **V0.6.4 como baseline productivo desplegado en Cloudflare** hasta que exista un nuevo deploy confirmado.
+Este documento registra el primer bloque implementado de V0.6.5. La versión visible de la aplicación continúa identificándose como **0.6.4** en `package.json`, pero el bloque técnico **V0.6.5-A** ya fue integrado a `main`, aplicado en Supabase y desplegado en Cloudflare.
 
 ## Estado de GitHub
 
@@ -10,8 +10,10 @@ Este documento registra el primer bloque implementado de V0.6.5 sin cambiar la c
 - Optimización de Mapa / División territorial integrada mediante PR #24.
 - Commit de merge/squash del bloque geográfico: `7787607bbbaea4bebef27505a686193b15cbf4b9`.
 - Corrección de reinicio de rutas cerradas integrada mediante PR #25.
-- Commit actual de `main` después del fix: `bfe89f7493867e114cb381f68265fb1b91f5c250`.
+- Commit de aplicación después del fix: `bfe89f7493867e114cb381f68265fb1b91f5c250`.
+- Documentación posterior puede hacer avanzar `main` sin cambiar el código desplegado.
 - `Build validation` de TypeScript + Vite: SUCCESS.
+- Build local previo al deploy: SUCCESS.
 - `package.json` continúa en `0.6.4`; esto NO representa todavía una liberación completa V0.6.5.
 
 ## V0.6.5-A — Mapa y División territorial
@@ -102,14 +104,27 @@ Al momento de aplicar la restricción no existían rutas con más de una sesión
 
 ## Producción / Cloudflare
 
-IMPORTANTE:
+Deploy manual confirmado el 2026-08-26 desde Windows con Wrangler 4.125.0.
 
-- Los cambios anteriores ya están en `main` y las migraciones ya están aplicadas en Supabase.
-- El despliegue de Cloudflare continúa siendo **manual** según `PROJECT_HANDOFF.md` (`npm run deploy` / Wrangler).
-- No asumir que el Worker productivo cambió solo porque `main` avanzó.
-- Hasta confirmar un nuevo deploy, la referencia productiva de Cloudflare continúa siendo V0.6.4 y su versión documentada en `PROJECT_HANDOFF.md`.
-- Por tanto, la UI pública puede seguir mostrando el comportamiento anterior hasta ejecutar el deploy manual del nuevo `main`.
-- Incluso antes de ese deploy, la protección de Supabase contra reabrir una ruta cerrada ya está activa.
+- Worker: `gestion-de-ventas-diaria`.
+- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
+- Cloudflare Current Version ID: `6d684564-2421-4c22-89de-15f501e049d1`.
+- Resultado de upload/deploy: SUCCESS.
+- Build ejecutado como parte de `npm run deploy`: SUCCESS.
+- El deploy contiene el código de aplicación de V0.6.5-A ya integrado en `main`.
+- Supabase ya contiene ambas migraciones de V0.6.5-A.
+- La etiqueta visible de versión continúa en `0.6.4` hasta liberar V0.6.5 completa; no usar esa etiqueta como indicador de si V0.6.5-A está o no desplegada.
+
+## Validación post-deploy pendiente
+
+Antes de iniciar el siguiente bloque funcional validar manualmente en producción:
+
+1. carga normal de la aplicación;
+2. Mapa -> División territorial oficial;
+3. respuesta Región -> Provincia -> Municipio -> Distrito Municipal;
+4. carga y cambio de límites oficiales sin bloqueos evidentes;
+5. ruta `FINALIZADA` sin botón `Iniciar ruta / salida`;
+6. ausencia de errores funcionales en navegación básica.
 
 ## Próximo bloque funcional
 
