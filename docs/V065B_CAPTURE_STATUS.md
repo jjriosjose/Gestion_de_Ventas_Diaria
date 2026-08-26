@@ -10,12 +10,14 @@ Este documento registra el bloque de corrección de Captación ejecutado despué
 - Commit de aplicación: `1ec870e084565baba984f2129bc09b91a9bc2478`.
 - PR #27 integrado: centralización del punto de entrada de Captación.
 - Commit de aplicación final del bloque: `52dfc88c83c1e921e75359eb60d7937368df9047`.
+- PR #28 integrado: V0.6.5-B.1, estabilización del viewport territorial y simplificación del acceso a Captación desde Planificación.
+- Commit `main` V0.6.5-B.1: `e1b2a0f0403a2184eda84ddb47bbff1a75e1ee73`.
 - Build TypeScript + Vite de rama: SUCCESS.
 - Build TypeScript + Vite de `main`: SUCCESS.
-- Build local antes de deploy: SUCCESS (`✓ built in 12.37s`).
+- Build local previo al deploy V0.6.5-B.1: SUCCESS (`✓ built in 12.49s`).
 - Supabase actualizado.
 - Cloudflare desplegado correctamente.
-- Cloudflare Version ID: `fc685ac7-0ac2-466d-9dab-bce717af2672`.
+- Cloudflare Version ID actual: `024c4b90-d0c5-4513-9304-cee54d7c82da`.
 
 ## Problema que se corrigió
 
@@ -148,24 +150,46 @@ Excel/PDF de Captación incluyen contexto adicional como modo, Región/Provincia
 - orden por cercanía;
 - creación de `route_plans` tipo VISITAS + `route_stops`.
 
-No crea nuevas tareas CAPTACION. El botón/acceso Captación navega al módulo Captación.
+No crea nuevas tareas CAPTACION. Se conserva un único acceso desde el selector `Ruta de visitas | Captación`, eliminando el botón superior duplicado `Ir a Captación`.
+
+## V0.6.5-B.1 — pulido de mapa y navegación
+
+Tras la validación funcional del 2026-08-26 se cerraron dos detalles adicionales:
+
+- El mapa territorial inicia encuadrado en República Dominicana.
+- Se evita que el viewport inicial se aleje hasta Centroamérica/Sudamérica.
+- Al limpiar una división oficial, el mapa vuelve al encuadre nacional.
+- El zoom automático por Región/Provincia/Municipio/Distrito oficial se conserva.
+- No se alteraron coordenadas, clientes ni lógica territorial; el cambio es exclusivamente de viewport.
+- Planificación deja un solo acceso a Captación para reducir ambigüedad de UX.
 
 ## Producción / Cloudflare
 
-Deploy V0.6.5-B confirmado el 2026-08-26:
+Deploy V0.6.5-B inicial confirmado el 2026-08-26:
+
+- Cloudflare Version ID: `fc685ac7-0ac2-466d-9dab-bce717af2672`.
+
+Deploy V0.6.5-B.1 confirmado el 2026-08-26:
 
 - Worker: `gestion-de-ventas-diaria`.
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
-- Cloudflare Version ID: `fc685ac7-0ac2-466d-9dab-bce717af2672`.
+- Cloudflare Version ID: `024c4b90-d0c5-4513-9304-cee54d7c82da`.
 - Assets nuevos/modificados subidos: 5.
 - Deploy Wrangler: SUCCESS.
 
-Validación funcional pendiente posterior al deploy:
+## Validación funcional
 
-1. Captación libre sin tarea activa.
-2. Territorio GPS correcto en historial.
-3. Tarea activa asociada obligatoriamente.
-4. Incremento del objetivo solo para captaciones vinculadas.
-5. Advertencia fuera de zona.
-6. Planificación sin creador CAPTACION duplicado.
-7. Ruta de VISITAS sigue funcionando.
+Confirmado:
+
+1. Captación libre se muestra explícitamente cuando no existe tarea activa.
+2. El prospecto de prueba ya muestra territorio resuelto por GPS y no `Sin zona`.
+3. Planificación ya no crea CAPTACION por el flujo antiguo.
+4. Planificación conserva rutas de VISITAS.
+5. Mapa territorial optimizado y límites oficiales cargan con mejor rendimiento.
+6. V0.6.5-B.1 corrige el encuadre inicial del mapa.
+
+Pendiente de prueba end-to-end controlada:
+
+1. Tarea activa asociada obligatoriamente.
+2. Incremento del objetivo solo para captaciones vinculadas.
+3. Advertencia dentro/fuera de zona según GPS real.
