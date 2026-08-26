@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, FilterX, Map as MapIcon, Search, Shuffle, Target } from 'lucide-react'
+import { CalendarPlus, FilterX, Map as MapIcon, Search, Shuffle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -204,7 +204,7 @@ export function Planning() {
   }
 
   return <div className="page-stack">
-    <div className="page-head"><div><span className="eyebrow">PLANIFICACIÓN TERRITORIAL</span><h2>{canManagePlanning?'Crear jornada':'Consultar planificación'}</h2><p>Planifica rutas de visitas por cartera, división territorial, zonas guardadas y cercanía visual.</p></div><div className="button-row"><button className="secondary" onClick={()=>navigate('/captacion')}><Target size={17}/> Ir a Captación</button></div></div>
+    <div className="page-head"><div><span className="eyebrow">PLANIFICACIÓN TERRITORIAL</span><h2>{canManagePlanning?'Crear jornada':'Consultar planificación'}</h2><p>Planifica rutas de visitas por cartera, división territorial, zonas guardadas y cercanía visual.</p></div></div>
     <div className="planner-v2">
       <aside className="panel planner-sidebar">
         <h3>{canManagePlanning?'Configuración':'Modo consulta'}</h3>
