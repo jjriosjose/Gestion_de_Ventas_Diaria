@@ -30,6 +30,9 @@ export type GeoAssessment = {
 }
 
 const PAGE_SIZE = 1000
+const CACHE_TTL_MS = 60_000
+let assessmentCache: { loadedAt: number; value: Map<string, GeoAssessment> } | null = null
+let assessmentPromise: Promise<Map<string, GeoAssessment>> | null = null
 
 const mismatchStatuses = new Set<GeoAssessmentStatus>([
   'PENDIENTE_VISITA',
@@ -39,24 +42,44 @@ const mismatchStatuses = new Set<GeoAssessmentStatus>([
   'INCONSISTENCIA_GRAVE',
 ])
 
-export async function loadGeoAssessmentMap(): Promise<Map<string, GeoAssessment>> {
-  const rows: GeoAssessment[] = []
+export async function loadGeoAssessmentMap(forceRefresh = false): Promise<Map<string, GeoAssessment>> {
+  const now = Date.now()
+  if (!forceRefresh && assessmentCache && now - assessmentCache.loadedAt < CACHE_TTL_MS) return assessmentCache.value
+  if (!forceRefresh && assessmentPromise) return assessmentPromise
 
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from('client_geo_assessments')
-      .select('client_id,assessment_status,detected_region,detected_province,detected_municipality,detected_locality')
-      .order('client_id')
-      .range(from, from + PAGE_SIZE - 1)
+  const request = (async () => {
+    const rows: GeoAssessment[] = []
 
-    if (error) throw new Error(`No fue posible cargar la coherencia territorial: ${error.message}`)
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from('client_geo_assessments')
+        .select('client_id,assessment_status,detected_region,detected_province,detected_municipality,detected_locality')
+        .order('client_id')
+        .range(from, from + PAGE_SIZE - 1)
 
-    const page = (data || []) as GeoAssessment[]
-    rows.push(...page)
-    if (page.length < PAGE_SIZE) break
+      if (error) throw new Error(`No fue posible cargar la coherencia territorial: ${error.message}`)
+
+      const page = (data || []) as GeoAssessment[]
+      rows.push(...page)
+      if (page.length < PAGE_SIZE) break
+    }
+
+    const value = new Map(rows.map((row) => [row.client_id, row]))
+    assessmentCache = { loadedAt: Date.now(), value }
+    return value
+  })()
+
+  assessmentPromise = request
+  try {
+    return await request
+  } finally {
+    if (assessmentPromise === request) assessmentPromise = null
   }
+}
 
-  return new Map(rows.map((row) => [row.client_id, row]))
+export function clearGeoAssessmentMemoryCache() {
+  assessmentCache = null
+  assessmentPromise = null
 }
 
 export function isGeoMismatch(status?: GeoAssessmentStatus | null) {
