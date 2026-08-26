@@ -227,7 +227,6 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
 
     const currentZones = zonesRef.current
     const officialZone = currentZones.find((zone) => zone.id.startsWith('official-') && zone.geometry)
-    let officialFeature: L.GeoJSON | null = null
 
     currentZones.forEach((zone) => {
       if (!zone.geometry) return
@@ -235,14 +234,15 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
         const feature = L.geoJSON(zone.geometry as any, { style: { color: '#7c3aed', weight: 2, fillColor: '#7c3aed', fillOpacity: 0.08, dashArray: '6 5' } })
         feature.bindTooltip(`<b>${escapeHtml(zone.name)}</b><br><span>${escapeHtml(zone.territory_type || 'Zona')}</span>`)
         feature.addTo(layer)
-        if (officialZone?.id === zone.id) officialFeature = feature
       } catch { /* Una geometría inválida no impide cargar el mapa. */ }
     })
 
-    if (officialZone && officialFeature && lastOfficialZoneIdRef.current !== officialZone.id) {
-      const bounds = officialFeature.getBounds()
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [32, 32], maxZoom: 13 })
-      lastOfficialZoneIdRef.current = officialZone.id
+    if (officialZone && lastOfficialZoneIdRef.current !== officialZone.id) {
+      try {
+        const bounds = L.geoJSON(officialZone.geometry as any).getBounds()
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [32, 32], maxZoom: 13 })
+        lastOfficialZoneIdRef.current = officialZone.id
+      } catch { /* Un límite inválido no debe bloquear el mapa. */ }
     } else if (!officialZone) lastOfficialZoneIdRef.current = null
   }, [showZones, zoneRenderKey])
 
