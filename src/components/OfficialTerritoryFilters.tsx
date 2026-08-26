@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { OfficialArea, OfficialSelection } from '../lib/officialTerritory'
 
 type Props = {
@@ -9,10 +10,10 @@ type Props = {
 }
 
 export function OfficialTerritoryFilters({ areas, value, onChange, disabled = false, compact = false }: Props) {
-  const regions = areas.filter((area) => area.area_level === 'REGION')
-  const provinces = areas.filter((area) => area.area_level === 'PROVINCIA' && (!value.regionId || area.parent_id === value.regionId))
-  const municipalities = areas.filter((area) => area.area_level === 'MUNICIPIO' && (!value.provinceId || area.parent_id === value.provinceId))
-  const districts = areas.filter((area) => area.area_level === 'DISTRITO_MUNICIPAL' && (!value.municipalityId || area.parent_id === value.municipalityId))
+  const regions = useMemo(() => areas.filter((area) => area.area_level === 'REGION'), [areas])
+  const provinces = useMemo(() => areas.filter((area) => area.area_level === 'PROVINCIA' && (!value.regionId || area.parent_id === value.regionId)), [areas, value.regionId])
+  const municipalities = useMemo(() => areas.filter((area) => area.area_level === 'MUNICIPIO' && (!value.provinceId || area.parent_id === value.provinceId)), [areas, value.provinceId])
+  const districts = useMemo(() => areas.filter((area) => area.area_level === 'DISTRITO_MUNICIPAL' && (!value.municipalityId || area.parent_id === value.municipalityId)), [areas, value.municipalityId])
 
   return <>
     <select className={compact ? 'compact-select' : ''} value={value.regionId} disabled={disabled} onChange={(event) => onChange({ regionId: event.target.value, provinceId: '', municipalityId: '', districtId: '' })}>
