@@ -66,8 +66,8 @@ export async function loadOfficialAreaGeometry(id: string, forceRefresh = false)
       .eq('id', id)
       .maybeSingle()
 
-    if (!simplified.error) {
-      const area = simplified.data as OfficialArea | null
+    if (!simplified.error && simplified.data?.geometry) {
+      const area = simplified.data as OfficialArea
       geometryCache.set(id, area)
       return area
     }

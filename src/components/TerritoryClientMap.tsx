@@ -36,7 +36,8 @@ const MAP_STYLE_KEY = 'karaka-map-style'
 const basemapModes: BasemapMode[] = ['STREETS', 'LIGHT', 'DARK', 'CONTRAST']
 const isGeocoded = (client: Client) => client.latitude != null && client.longitude != null
 const EMPTY_GEO_ASSESSMENTS = new Map<string, GeoAssessment>()
-const DOMINICAN_REPUBLIC_BOUNDS = L.latLngBounds([17.35, -72.10], [20.05, -68.05])
+const DOMINICAN_REPUBLIC_CENTER: [number, number] = [18.7357, -70.1627]
+const DOMINICAN_REPUBLIC_HOME_ZOOM = 8.5
 const DOMINICAN_REPUBLIC_CONTEXT_BOUNDS = L.latLngBounds([16.85, -72.85], [20.55, -67.45])
 
 const initialBasemap = (): BasemapMode => {
@@ -45,16 +46,29 @@ const initialBasemap = (): BasemapMode => {
   return saved && basemapModes.includes(saved) ? saved : 'STREETS'
 }
 
+function normalizeGeoJson(value: unknown): any | null {
+  if (!value) return null
+  if (typeof value === 'string') {
+    try { return JSON.parse(value) } catch { return null }
+  }
+  if (typeof value === 'object') return value
+  return null
+}
+
+function resetHomeView(map: L.Map) {
+  map.setView(DOMINICAN_REPUBLIC_CENTER, DOMINICAN_REPUBLIC_HOME_ZOOM, { animate: false })
+}
+
 export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSMENTS, selectedIds = [], selectable = false, areaTools = false, zones = [], showZones = true, focusPoint = null, height = 520, onToggleClient, onAreaSelect }: Props) {
   const host = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const clientLayerRef = useRef<L.LayerGroup | null>(null)
   const zoneLayerRef = useRef<L.LayerGroup | null>(null)
+  const activeOfficialLayerRef = useRef<L.LayerGroup | null>(null)
   const draftLayerRef = useRef<L.LayerGroup | null>(null)
   const officialBoundaryLayerRef = useRef<L.TileLayer.WMS | null>(null)
-  const lastOfficialZoneIdRef = useRef<string | null>(null)
-  const zonesRef = useRef<MapZone[]>(zones)
-  const [zoom, setZoom] = useState(8)
+  const lastActiveOfficialIdRef = useRef<string | null>(null)
+  const [zoom, setZoom] = useState(DOMINICAN_REPUBLIC_HOME_ZOOM)
   const [mode, setMode] = useState<DrawMode>('NONE')
   const [basemap, setBasemap] = useState<BasemapMode>(initialBasemap)
   const [showOfficialBoundaries, setShowOfficialBoundaries] = useState(false)
@@ -65,8 +79,9 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
   const [radiusKm, setRadiusKm] = useState(5)
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
   const geocoded = useMemo(() => clients.filter(isGeocoded), [clients])
-  const zoneRenderKey = useMemo(() => zones.map((zone) => `${zone.id}:${zone.geometry ? '1' : '0'}`).join('|'), [zones])
-  zonesRef.current = zones
+  const activeOfficialZone = useMemo(() => zones.find((zone) => zone.id.startsWith('official-') && zone.geometry) || null, [zones])
+  const savedZones = useMemo(() => zones.filter((zone) => !zone.id.startsWith('official-')), [zones])
+  const savedZonesKey = useMemo(() => savedZones.map((zone) => `${zone.id}:${zone.geometry ? '1' : '0'}`).join('|'), [savedZones])
 
   useEffect(() => {
     if (!areaTools) {
@@ -84,8 +99,10 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
       minZoom: 7,
       maxBounds: DOMINICAN_REPUBLIC_CONTEXT_BOUNDS,
       maxBoundsViscosity: 0.65,
-    })
-    map.fitBounds(DOMINICAN_REPUBLIC_BOUNDS, { padding: [24, 24], maxZoom: 8 })
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
+    }).setView(DOMINICAN_REPUBLIC_CENTER, DOMINICAN_REPUBLIC_HOME_ZOOM)
+
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 20,
@@ -95,31 +112,36 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
       detectRetina: false,
       attribution: '© OpenStreetMap contributors',
     }).addTo(map)
+
     map.createPane('official-boundaries')
     const officialPane = map.getPane('official-boundaries')
     if (officialPane) {
       officialPane.style.zIndex = '240'
       officialPane.style.pointerEvents = 'none'
     }
+
     mapRef.current = map
     clientLayerRef.current = L.layerGroup().addTo(map)
     zoneLayerRef.current = L.layerGroup().addTo(map)
+    activeOfficialLayerRef.current = L.layerGroup().addTo(map)
     draftLayerRef.current = L.layerGroup().addTo(map)
     setZoom(map.getZoom())
+
     const syncZoom = () => setZoom(map.getZoom())
     map.on('zoomend', syncZoom)
+
     const frame = window.requestAnimationFrame(() => {
       map.invalidateSize({ animate: false })
-      if (!focusPoint && !zonesRef.current.some((zone) => zone.id.startsWith('official-') && zone.geometry)) {
-        map.fitBounds(DOMINICAN_REPUBLIC_BOUNDS, { padding: [24, 24], maxZoom: 8 })
-      }
+      resetHomeView(map)
     })
+
     return () => {
       window.cancelAnimationFrame(frame)
       map.off('zoomend', syncZoom)
       map.remove()
       mapRef.current = null
       officialBoundaryLayerRef.current = null
+      activeOfficialLayerRef.current = null
     }
   }, [])
 
@@ -162,7 +184,9 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
     }
   }, [showOfficialBoundaries])
 
-  useEffect(() => { if (focusPoint && mapRef.current) mapRef.current.flyTo(focusPoint, 15) }, [focusPoint])
+  useEffect(() => {
+    if (focusPoint && mapRef.current) mapRef.current.flyTo(focusPoint, 15)
+  }, [focusPoint])
 
   useEffect(() => {
     const map = mapRef.current
@@ -225,35 +249,70 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
   }, [geocoded, geoAssessments, mode, onToggleClient, selectable, selectedSet, zoom])
 
   useEffect(() => {
-    const map = mapRef.current
     const layer = zoneLayerRef.current
-    if (!map || !layer) return
+    if (!layer) return
     layer.clearLayers()
     if (!showZones) return
 
-    const currentZones = zonesRef.current
-    const officialZone = currentZones.find((zone) => zone.id.startsWith('official-') && zone.geometry)
-
-    currentZones.forEach((zone) => {
-      if (!zone.geometry) return
+    savedZones.forEach((zone) => {
+      const geometry = normalizeGeoJson(zone.geometry)
+      if (!geometry) return
       try {
-        const feature = L.geoJSON(zone.geometry as any, { style: { color: '#7c3aed', weight: 2, fillColor: '#7c3aed', fillOpacity: 0.08, dashArray: '6 5' } })
+        const feature = L.geoJSON(geometry as any, { style: { color: '#7c3aed', weight: 2, fillColor: '#7c3aed', fillOpacity: 0.08, dashArray: '6 5' } })
         feature.bindTooltip(`<b>${escapeHtml(zone.name)}</b><br><span>${escapeHtml(zone.territory_type || 'Zona')}</span>`)
         feature.addTo(layer)
-      } catch { /* Una geometría inválida no impide cargar el mapa. */ }
+      } catch (error) {
+        console.warn('No fue posible dibujar una zona guardada', zone.id, error)
+      }
     })
+  }, [showZones, savedZonesKey, savedZones])
 
-    if (officialZone && lastOfficialZoneIdRef.current !== officialZone.id) {
-      try {
-        const bounds = L.geoJSON(officialZone.geometry as any).getBounds()
-        if (bounds.isValid()) map.fitBounds(bounds, { padding: [32, 32], maxZoom: 13 })
-        lastOfficialZoneIdRef.current = officialZone.id
-      } catch { /* Un límite inválido no debe bloquear el mapa. */ }
-    } else if (!officialZone && lastOfficialZoneIdRef.current) {
-      lastOfficialZoneIdRef.current = null
-      map.fitBounds(DOMINICAN_REPUBLIC_BOUNDS, { padding: [24, 24], maxZoom: 8 })
+  useEffect(() => {
+    const map = mapRef.current
+    const layer = activeOfficialLayerRef.current
+    if (!map || !layer) return
+    layer.clearLayers()
+
+    const activeId = activeOfficialZone?.id || null
+    const geometry = normalizeGeoJson(activeOfficialZone?.geometry)
+
+    if (!activeOfficialZone || !geometry) {
+      if (lastActiveOfficialIdRef.current) {
+        lastActiveOfficialIdRef.current = null
+        const frame = window.requestAnimationFrame(() => {
+          map.invalidateSize({ animate: false })
+          resetHomeView(map)
+        })
+        return () => window.cancelAnimationFrame(frame)
+      }
+      return
     }
-  }, [showZones, zoneRenderKey])
+
+    try {
+      const feature = L.geoJSON(geometry as any, {
+        style: {
+          color: '#c71f2d',
+          weight: 3,
+          fillColor: '#c71f2d',
+          fillOpacity: 0.12,
+          opacity: 0.95,
+        },
+      })
+      feature.bindTooltip(`<b>${escapeHtml(activeOfficialZone.name)}</b><br><span>${escapeHtml(activeOfficialZone.territory_type || 'División territorial oficial')}</span>`, { sticky: true })
+      feature.addTo(layer)
+      feature.bringToFront()
+
+      const frame = window.requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false })
+        const bounds = feature.getBounds()
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [38, 38], maxZoom: 13, animate: true })
+      })
+      lastActiveOfficialIdRef.current = activeId
+      return () => window.cancelAnimationFrame(frame)
+    } catch (error) {
+      console.error('No fue posible dibujar la división territorial oficial', activeOfficialZone.id, error)
+    }
+  }, [activeOfficialZone?.id, activeOfficialZone?.geometry])
 
   useEffect(() => {
     const map = mapRef.current
