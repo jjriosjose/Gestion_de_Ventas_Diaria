@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, FilterX, Map as MapIcon, Search, Shuffle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { currentPosition } from '../lib/geo'
@@ -27,7 +26,6 @@ type TerritoryMode = 'MASTER' | 'OFFICIAL'
 const PLANNING_CLIENT_COLUMNS = 'id,company_code,codempr,client_type,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,sector_id,phone1,mobile,latitude,longitude,geo_status,last_invoice_date'
 
 export function Planning() {
-  const navigate = useNavigate()
   const { employee } = useAuth()
   const canManagePlanning = hasPermission(employee, 'planning.manage')
   const canOverridePortfolio = canManagePlanning
@@ -208,8 +206,7 @@ export function Planning() {
     <div className="planner-v2">
       <aside className="panel planner-sidebar">
         <h3>{canManagePlanning?'Configuración':'Modo consulta'}</h3>
-        <div className="segmented"><button className="active">Ruta de visitas</button><button onClick={()=>navigate('/captacion')}>Captación</button></div>
-        <div className="route-manager-note"><b>Captación centralizada:</b> las tareas de prospección se asignan y ejecutan desde el módulo Captación.</div>
+        <div className="route-manager-note"><b>Planificación de visitas:</b> esta pantalla crea únicamente rutas de visita. Las tareas de prospección se gestionan desde el módulo Captación.</div>
         <label>Vendedor<select value={vendor} onChange={e=>setVendor(e.target.value)}><option value="">Seleccionar...</option>{vendors.map(i=><option value={i.id} key={i.id}>{i.full_name}</option>)}</select></label>
         <label>Fecha<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
         {canManagePlanning?<> {canOverridePortfolio&&vendor&&<label className="checkbox"><input type="checkbox" checked={includeOutsidePortfolio} onChange={e=>setIncludeOutsidePortfolio(e.target.checked)}/> Incluir clientes fuera de esta cartera</label>}<div className="selected-summary-grid"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Con GPS</span><strong>{selectedGpsCount}</strong></div><div className="selected-summary-card"><span>Sin GPS</span><strong>{selected.length-selectedGpsCount}</strong></div></div></>:<div className="empty-state"><b>Vista global habilitada</b></div>}
