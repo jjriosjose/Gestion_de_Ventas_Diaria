@@ -60,14 +60,26 @@ export async function loadOfficialAreaGeometry(id: string, forceRefresh = false)
   if (!forceRefresh && geometryPromises.has(id)) return geometryPromises.get(id)!
 
   const request = (async () => {
-    const { data, error } = await supabase
+    const simplified = await supabase
+      .from('administrative_areas_map')
+      .select('id,area_level,code,name,parent_id,geometry')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!simplified.error) {
+      const area = simplified.data as OfficialArea | null
+      geometryCache.set(id, area)
+      return area
+    }
+
+    const fallback = await supabase
       .from('administrative_areas')
       .select('id,area_level,code,name,parent_id,geometry')
       .eq('id', id)
       .eq('active', true)
       .maybeSingle()
-    if (error) throw new Error(`No fue posible cargar el polígono oficial: ${error.message}`)
-    const area = data as OfficialArea | null
+    if (fallback.error) throw new Error(`No fue posible cargar el polígono oficial: ${fallback.error.message}`)
+    const area = fallback.data as OfficialArea | null
     geometryCache.set(id, area)
     return area
   })()
