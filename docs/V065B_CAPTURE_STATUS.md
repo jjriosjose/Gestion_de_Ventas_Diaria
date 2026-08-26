@@ -12,8 +12,10 @@ Este documento registra el bloque de corrección de Captación ejecutado despué
 - Commit de aplicación final del bloque: `52dfc88c83c1e921e75359eb60d7937368df9047`.
 - Build TypeScript + Vite de rama: SUCCESS.
 - Build TypeScript + Vite de `main`: SUCCESS.
+- Build local antes de deploy: SUCCESS (`✓ built in 12.37s`).
 - Supabase actualizado.
-- Cloudflare: deploy manual pendiente al momento de crear este documento.
+- Cloudflare desplegado correctamente.
+- Cloudflare Version ID: `fc685ac7-0ac2-466d-9dab-bce717af2672`.
 
 ## Problema que se corrigió
 
@@ -150,13 +152,15 @@ No crea nuevas tareas CAPTACION. El botón/acceso Captación navega al módulo C
 
 ## Producción / Cloudflare
 
-Al crear este documento, el último deploy confirmado sigue siendo V0.6.5-A:
+Deploy V0.6.5-B confirmado el 2026-08-26:
 
-- Cloudflare Version ID: `6d684564-2421-4c22-89de-15f501e049d1`.
+- Worker: `gestion-de-ventas-diaria`.
+- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
+- Cloudflare Version ID: `fc685ac7-0ac2-466d-9dab-bce717af2672`.
+- Assets nuevos/modificados subidos: 5.
+- Deploy Wrangler: SUCCESS.
 
-Los cambios V0.6.5-B están en `main` y Supabase, pero requieren `Fetch/Pull` local y `npm run deploy` para quedar visibles en Cloudflare.
-
-Después del deploy se debe registrar el nuevo Version ID y validar:
+Validación funcional pendiente posterior al deploy:
 
 1. Captación libre sin tarea activa.
 2. Territorio GPS correcto en historial.
