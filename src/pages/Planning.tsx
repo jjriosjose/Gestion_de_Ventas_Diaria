@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, FilterX, Map as MapIcon, Search, Shuffle } from 'lucide-react'
+import { CalendarPlus, ChevronDown, ChevronUp, FilterX, LocateFixed, Map as MapIcon, Search, Shuffle, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { currentPosition } from '../lib/geo'
@@ -22,6 +22,7 @@ type GpsFilter = 'ALL' | 'WITH' | 'WITHOUT'
 type GeoFilter = 'ALL' | 'VERIFICADA' | 'SIN_VERIFICAR' | 'POSIBLE_ERROR'
 type AvailabilityFilter = 'AVAILABLE' | 'ALL' | 'PLANNED'
 type TerritoryMode = 'MASTER' | 'OFFICIAL'
+type PlanningListView = 'SELECTED' | 'AVAILABLE'
 
 const PLANNING_CLIENT_COLUMNS = 'id,company_code,codempr,client_type,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,sector_id,phone1,mobile,latitude,longitude,geo_status,last_invoice_date'
 
@@ -58,6 +59,9 @@ export function Planning() {
   const [territorialQuality,setTerritorialQuality]=useState<GeoQualityFilter>('ALL')
   const [availability,setAvailability]=useState<AvailabilityFilter>('AVAILABLE')
   const [territoryFilter,setTerritoryFilter]=useState('')
+  const [selectionPanelOpen,setSelectionPanelOpen]=useState(true)
+  const [selectionView,setSelectionView]=useState<PlanningListView>('AVAILABLE')
+  const [focusPoint,setFocusPoint]=useState<[number,number]|null>(null)
   const [busy,setBusy]=useState(false)
 
   const selectedVendor=vendors.find(item=>item.id===vendor)
@@ -82,7 +86,11 @@ export function Planning() {
     if(!canManagePlanning&&employee?.employee_type==='Vendedor'&&!vendor)setVendor(employee.id)
   },[canManagePlanning,employee?.employee_type,employee?.id,vendor])
 
-  useEffect(()=>{setSelected([])},[vendor,includeOutsidePortfolio,date,clientType])
+  useEffect(()=>{
+    setSelected([])
+    setSelectionView('AVAILABLE')
+    setFocusPoint(null)
+  },[vendor,includeOutsidePortfolio,date])
 
   useEffect(()=>{
     if(!vendor){setClients([]);return}
@@ -158,29 +166,50 @@ export function Planning() {
 
   const clientById=useMemo(()=>new Map(clients.map(c=>[c.id,c])),[clients])
   const selectedClients=useMemo(()=>selected.map(id=>clientById.get(id)).filter((c):c is Client=>Boolean(c)),[selected,clientById])
+  const filteredIdSet=useMemo(()=>new Set(filteredClients.map(c=>c.id)),[filteredClients])
   const filteredGpsCount=useMemo(()=>filteredClients.filter(c=>c.latitude!=null&&c.longitude!=null).length,[filteredClients])
   const filteredMismatchCount=useMemo(()=>filteredClients.filter(c=>isGeoMismatch(geoAssessments.get(c.id)?.assessment_status)).length,[filteredClients,geoAssessments])
   const selectedGpsCount=useMemo(()=>selectedClients.filter(c=>c.latitude!=null&&c.longitude!=null).length,[selectedClients])
+  const selectedInFilterCount=useMemo(()=>selected.filter(id=>filteredIdSet.has(id)).length,[selected,filteredIdSet])
+  const selectedOutsideFilterCount=selected.length-selectedInFilterCount
+  const planningListClients=selectionView==='SELECTED'?selectedClients:filteredClients
   const officialZone:MapZone|null=officialArea?.geometry?{id:`official-${officialArea.id}`,name:officialArea.name,territory_type:`DIVISIÓN OFICIAL · ${officialArea.area_level}`,geometry:officialArea.geometry}:null
   const mapZones:MapZone[]=[...(territoryFilter?territories.filter(t=>t.id===territoryFilter):[]),...(officialZone?[officialZone]:[])]
 
+  const openSelectedView=()=>{
+    setSelectionPanelOpen(true)
+    setSelectionView('SELECTED')
+  }
   const toggleClient=(id:string)=>{
     if(!canManagePlanning)return
+    const adding=!selected.includes(id)
     setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id])
+    if(adding)openSelectedView()
   }
   const addAreaSelection=(ids:string[])=>{
     if(!canManagePlanning)return
     const visible=new Set(filteredClients.map(c=>c.id))
-    setSelected(current=>Array.from(new Set([...current,...ids.filter(id=>visible.has(id))])))
+    const eligible=ids.filter(id=>visible.has(id))
+    if(!eligible.length)return
+    setSelected(current=>Array.from(new Set([...current,...eligible])))
+    openSelectedView()
   }
   const clearFilters=()=>{
     setQ('');setClientType('');setRegion('');setProvince('');setMunicipality('');setOfficialSelection(EMPTY_OFFICIAL_SELECTION);setManager('');setCompany('');setGpsFilter('ALL');setGeoFilter('ALL');setTerritorialQuality('ALL');setAvailability('AVAILABLE');setTerritoryFilter('')
+  }
+  const removeOutsideCurrentFilter=()=>{
+    setSelected(current=>current.filter(id=>filteredIdSet.has(id)))
+  }
+  const focusClient=(client:Client)=>{
+    if(client.latitude==null||client.longitude==null)return
+    setFocusPoint([client.latitude,client.longitude])
   }
   const orderSelected=async()=>{
     if(!canManagePlanning||selected.length<2)return
     let start:{latitude:number;longitude:number}|null=null
     try{const p=await currentPosition();start={latitude:p.latitude,longitude:p.longitude}}catch{}
     setSelected(orderByNearest(selectedClients,start).map(c=>c.id))
+    openSelectedView()
   }
 
   const create=async()=>{
@@ -196,6 +225,7 @@ export function Planning() {
       const{error:stopError}=await supabase.from('route_stops').insert(selected.map((id,index)=>({route_plan_id:plan.id,client_id:id,stop_order:index+1,priority:'MEDIA',status:'PENDIENTE'})))
       if(stopError){await supabase.from('route_plans').delete().eq('id',plan.id);throw stopError}
       setSelected([])
+      setSelectionView('AVAILABLE')
       alert('Planificación creada correctamente. Puedes verla desde Rutas.')
     }catch(error){alert(error instanceof Error?error.message:'No se pudo crear la planificación')}
     finally{setBusy(false)}
@@ -219,11 +249,26 @@ export function Planning() {
           <div className="planner-filter-actions"><div className="meta"><span>{filteredClients.length.toLocaleString()} clientes filtrados</span><span>{filteredGpsCount.toLocaleString()} con GPS</span><span>{filteredMismatchCount.toLocaleString()} con diferencia territorial</span>{loadingClients&&<span>Cargando cartera…</span>}</div><button className="secondary compact" onClick={clearFilters}><FilterX size={15}/> Limpiar filtros</button></div>
         </section>
 
-        <section className="panel"><div className="panel-head"><div><b>Selección de clientes</b><span>Selecciona en lista, mapa, polígono o radio. Las zonas guardadas sirven como filtro; la asignación de Captación vive únicamente en Captación.</span></div><div className="button-row"><button className="secondary compact" disabled={selected.length<2} onClick={()=>void orderSelected()}><Shuffle size={15}/> Ordenar por cercanía</button><button className="secondary compact" disabled={!selected.length} onClick={()=>setSelected([])}>Limpiar selección</button></div></div>
-          <TerritoryClientMap clients={filteredClients} geoAssessments={geoAssessments} selectedIds={selected} selectable={canManagePlanning} areaTools={canManagePlanning} zones={mapZones} showZones={true} height={540} onToggleClient={toggleClient} onAreaSelect={(ids)=>addAreaSelection(ids)}/>
+        <section className="panel"><div className="panel-head"><div><b>Selección de clientes</b><span>Selecciona en lista, mapa, polígono o radio. El perímetro siempre respeta los filtros activos y agrega únicamente clientes elegibles.</span></div><div className="button-row"><button className="secondary compact" disabled={selected.length<2} onClick={()=>void orderSelected()}><Shuffle size={15}/> Ordenar por cercanía</button><button className="secondary compact" disabled={!selected.length} onClick={()=>setSelected([])}>Limpiar selección</button></div></div>
+          <TerritoryClientMap clients={filteredClients} geoAssessments={geoAssessments} selectedIds={selected} selectable={canManagePlanning} areaTools={canManagePlanning} zones={mapZones} showZones={true} focusPoint={focusPoint} height={540} onToggleClient={toggleClient} onAreaSelect={(ids)=>addAreaSelection(ids)}/>
         </section>
 
-        <section className="panel"><div className="panel-head"><div><b>Clientes visibles</b><span>{filteredClients.length>250?`Mostrando los primeros 250 de ${filteredClients.length.toLocaleString()}. Usa filtros o el mapa para acotar.`:`${filteredClients.length.toLocaleString()} cliente(s) visibles.`}</span></div></div><div className="cards-list">{filteredClients.slice(0,250).map(client=>{const checked=selected.includes(client.id);const assessment=geoAssessments.get(client.id);return <button key={client.id} className={`activity-card ${checked?'selected':''}`} onClick={()=>toggleClient(client.id)} disabled={!canManagePlanning}><div className="activity-icon"><MapIcon size={17}/></div><div className="activity-main"><b>{client.legal_name}</b><span>{client.codempr} · {client.client_type||'SIN TIPO'} · {client.municipality||client.province||'Sin municipio'}</span><small>{client.manager_employee_id?`Gestor asignado · `:''}{geoQualityLabel(assessment?.assessment_status)}</small></div><span className="badge">{checked?'SELECCIONADO':plannedIds.has(client.id)?'PLANIFICADO':'DISPONIBLE'}</span></button>})}</div></section>
+        <section className="panel planning-selection-panel">
+          <div className="planning-selection-header">
+            <div><span className="eyebrow">SELECCIÓN DE PLANIFICACIÓN</span><b>Preparación de la ruta</b><span>{selected.length?`${selected.length.toLocaleString()} cliente(s) seleccionados para la jornada.`:`Revisa los candidatos filtrados o selecciona clientes desde el mapa.`}</span></div>
+            <button className="secondary compact" onClick={()=>setSelectionPanelOpen(value=>!value)}>{selectionPanelOpen?<><ChevronUp size={15}/> Ocultar</>:<><ChevronDown size={15}/> Mostrar</>}</button>
+          </div>
+          {selectionPanelOpen&&<div className="planning-selection-body">
+            <div className="planning-selection-toolbar">
+              <div className="segmented compact-segmented planning-selection-tabs"><button className={selectionView==='SELECTED'?'active':''} onClick={()=>setSelectionView('SELECTED')}>Seleccionados · {selected.length}</button><button className={selectionView==='AVAILABLE'?'active':''} onClick={()=>setSelectionView('AVAILABLE')}>Disponibles · {filteredClients.length}</button></div>
+              <div className="button-row"><button className="secondary compact" disabled={selected.length<2} onClick={()=>void orderSelected()}><Shuffle size={15}/> Ordenar</button>{selectedOutsideFilterCount>0&&<button className="secondary compact" onClick={removeOutsideCurrentFilter}><FilterX size={15}/> Quitar fuera de filtro ({selectedOutsideFilterCount})</button>}<button className="secondary compact" disabled={!selected.length} onClick={()=>setSelected([])}><X size={15}/> Limpiar</button>{canManagePlanning&&<button className="primary compact" disabled={busy||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={15}/>{busy?'Creando...':`Crear planificación · ${selected.length}`}</button>}</div>
+            </div>
+            <div className="selected-summary-grid planning-selection-summary"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Dentro del filtro actual</span><strong>{selectedInFilterCount}</strong></div><div className="selected-summary-card"><span>Fuera del filtro actual</span><strong>{selectedOutsideFilterCount}</strong></div></div>
+            {selectedOutsideFilterCount>0&&<div className="planning-selection-warning"><b>{selectedOutsideFilterCount} seleccionado(s) no coinciden con los filtros actuales.</b><span>Se mantienen en la ruta para evitar pérdidas silenciosas. Puedes retirarlos con “Quitar fuera de filtro”.</span></div>}
+            <div className="planning-selection-list-meta"><span>{selectionView==='SELECTED'?`${selected.length.toLocaleString()} seleccionado(s) · ${selectedGpsCount.toLocaleString()} con GPS`:`${filteredClients.length.toLocaleString()} candidato(s) según filtros · ${filteredGpsCount.toLocaleString()} con GPS`}</span>{planningListClients.length>250&&<small>Mostrando los primeros 250. Acota con filtros para trabajar un conjunto menor.</small>}</div>
+            <div className="planning-selection-list">{planningListClients.length===0?<div className="empty-state"><b>{selectionView==='SELECTED'?'Aún no hay clientes seleccionados.':'No hay clientes que coincidan con los filtros actuales.'}</b><span>{selectionView==='SELECTED'?'Selecciona desde el mapa, radio, polígono o la pestaña Disponibles.':'Modifica los filtros para ampliar la búsqueda.'}</span></div>:planningListClients.slice(0,250).map(client=>{const checked=selected.includes(client.id);const assessment=geoAssessments.get(client.id);const hasGps=client.latitude!=null&&client.longitude!=null;return <div key={client.id} className={`planning-client-row ${checked?'selected':''}`}><div className="activity-icon"><MapIcon size={17}/></div><div className="activity-main"><b>{client.legal_name}</b><span>{client.codempr} · {client.client_type||'SIN TIPO'} · {client.municipality||client.province||'Sin municipio'}</span><small>{client.manager_employee_id?`Gestor asignado · `:''}{geoQualityLabel(assessment?.assessment_status)}{!filteredIdSet.has(client.id)?' · Fuera del filtro actual':''}</small></div><div className="planning-client-status"><span className="badge">{plannedIds.has(client.id)?'PLANIFICADO':checked?'SELECCIONADO':'DISPONIBLE'}</span></div><div className="planning-client-actions">{hasGps&&<button className="secondary compact" onClick={()=>focusClient(client)}><LocateFixed size={14}/> Ubicar</button>}{canManagePlanning&&<button className={checked?'secondary compact':'primary compact'} onClick={()=>toggleClient(client.id)}>{checked?<><X size={14}/> Quitar</>:<>Seleccionar</>}</button>}</div></div>})}</div>
+          </div>}
+        </section>
       </main>
     </div>
   </div>
