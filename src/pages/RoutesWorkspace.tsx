@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { hasPermission } from '../lib/access'
 import '../styles/journeys-reporting.css'
+import '../styles/stale-journey-guard.css'
 
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Santo_Domingo'})
 const dateLabel=(value:string)=>new Date(`${value}T12:00:00`).toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'})
