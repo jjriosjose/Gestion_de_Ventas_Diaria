@@ -9,409 +9,500 @@
 
 # 0. ESTADO ACTUAL — LEER PRIMERO
 
-## Producción actual
+## Estado dividido posterior al merge de beta.9
 
-- Aplicación: **Gestión de Ventas Diaria — Almacenes Karaka**.
+Fecha operativa del checkpoint: **27/08/2026 (RD)**.
+
+### GitHub
+
 - Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`.
 - Rama estable: `main`.
-- Versión desplegada y validada: **V0.6.5-beta.8**.
-- `package.json`: `0.6.5-beta.8`.
-- Commit de aplicación desplegado: `ee39f568bcab1d878d8795ce2b91f1b36ead2538`.
-- URL productiva: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
-- Cloudflare Current Version ID confirmado para beta.8: `149a6ff7-2bfb-46ff-9968-d88c6f61d182`.
-- Deploy productivo: manual desde Windows mediante `npm run deploy` / Wrangler.
-- Build local beta.8: **SUCCESS**.
-- Build de GitHub Actions previo al merge: **SUCCESS**.
+- Versión en `package.json`: **0.6.5-beta.9**.
+- PR #38: **MERGED**.
+- Merge commit beta.9: **`143bc3b185573a85405feec83b4ece903543893f`**.
+- Build TypeScript + Vite del head previo al merge: **SUCCESS**.
+- Documento de implementación: `docs/V065C_IMPLEMENTATION_STATUS.md`.
+- Diseño funcional/técnico: `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
 
-### Regla de continuidad
+### Supabase
 
-Un commit documental posterior al commit de aplicación no significa que Cloudflare ejecute ese commit. Antes de asumir la versión productiva, comprobar:
+El backend V065C de beta.9 **YA ESTÁ APLICADO EN PRODUCCIÓN**.
 
-1. `package.json` en `main`.
-2. commit de aplicación más reciente.
-3. último deploy confirmado por Wrangler/Cloudflare.
-4. comportamiento real en la URL productiva.
+Migraciones remotas aplicadas y verificadas:
 
----
+1. `v065c_journey_lifecycle_and_reporting`
+2. `v065c_expired_journey_admin_resolution`
+3. `v065c_route_territory_snapshot`
+4. `v065c_official_territory_reporting_view`
+5. `v065c_scoped_executive_views`
 
-# 1. BACKEND / INFRAESTRUCTURA
+Importante: los timestamps del ledger remoto Supabase pueden diferir de los prefijos de los archivos SQL del repositorio. **No hacer replay manual para intentar igualarlos.**
 
-## Supabase
+### Cloudflare
 
-- Backend central multiusuario: PostgreSQL + Auth + RLS + Storage + PostGIS + Edge Functions.
-- No usar `localStorage` como fuente de persistencia operacional compartida.
-- Las rutas, visitas, cierres, captaciones, asignaciones y cambios operativos deben persistir centralmente.
-- Proyecto Supabase usado por la app: `ccvzosnhxitfeochnflr`.
-- Las migraciones del repositorio son el historial técnico, pero **no hacer replay ciego** suponiendo que el ledger remoto y los archivos son 1:1.
+**AÚN NO SE HA DESPLEGADO beta.9.**
 
-Entidades operativas relevantes para el bloque actual:
+La interfaz productiva continúa sirviendo la última versión confirmada:
 
-- `route_plans`: planificación de rutas/jornadas.
-- `route_stops`: paradas planificadas y su orden.
-- `route_sessions`: ejecución real de la jornada.
-- `visits`: visitas planificadas y adicionales.
-- `operational_incidents`: eventualidades de jornada.
-- vistas `executive_*`: fuentes ejecutivas de Inicio/Reportes/KPI.
+- **V0.6.5-beta.8**.
+- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
+- último Cloudflare Version ID confirmado de beta.8: `149a6ff7-2bfb-46ff-9968-d88c6f61d182`.
 
-## Cloudflare
+Por tanto, el estado real actual es:
 
-- Producción servida por Cloudflare Workers.
-- URL actual: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
-- Flujo probado: `npm run build` -> `npm run deploy`.
-- No hacer deploy hasta que la rama correspondiente compile y haya sido revisada.
+```text
+GitHub main      = V0.6.5-beta.9
+Supabase backend = V0.6.5-beta.9 / V065C aplicado
+Cloudflare UI    = V0.6.5-beta.8 hasta próximo deploy
+```
+
+No asumir que producción visual ya tiene Jornadas/Reportes V2 hasta completar el deploy.
 
 ---
 
-# 2. ESTADO FUNCIONAL VALIDADO HASTA V0.6.5-beta.8
+# 1. BASELINE FUNCIONAL PREVIO CONSERVADO
 
-## 2.1 Login
+Beta.9 se construyó sobre V0.6.5-beta.8 sin reemplazar las funcionalidades estabilizadas.
 
-La pantalla de ingreso fue rediseñada con presentación comercial premium:
+## Login
 
-- propuesta visual aprobada por el usuario;
-- panel de valor del producto;
-- accesos de usuario/contraseña;
+- presentación comercial premium;
+- autenticación existente preservada;
 - recuperación administrada;
 - responsive;
 - versión visible.
 
-La autenticación existente se mantuvo funcional después del rediseño.
+## Mapa territorial
 
-## 2.2 Mapa territorial
+- Región / Provincia / Municipio / Distrito oficial funcionan individualmente y en cascada;
+- selección inferior reconstruye jerarquía superior;
+- geometrías oficiales enfocan y resaltan correctamente;
+- `Maestro comercial` y `División territorial oficial` permanecen separados;
+- listado inferior de clientes responde a filtros;
+- panel `Análisis territorial` por Región / Provincia / Municipio / Distrito.
 
-El módulo Mapa fue estabilizado y validado en producción.
+## Planificación
 
-### División territorial oficial
+- crea rutas de visita;
+- Captación permanece en su propio módulo;
+- filtros comerciales y territoriales;
+- selección lista/mapa/polígono/radio;
+- `Disponibles` y `Seleccionados` separados;
+- cambiar filtros no borra selección silenciosamente;
+- orden por cercanía;
+- `route_stops` conserva orden final.
 
-- Región, Provincia, Municipio y Distrito Municipal funcionan de forma individual y en cascada.
-- Se puede seleccionar Provincia sin elegir Región previamente.
-- Se puede seleccionar Municipio sin elegir Provincia previamente.
-- El sistema reconstruye automáticamente la jerarquía territorial superior.
-- El mapa enfoca y resalta correctamente la geometría filtrada.
-- Funciona tanto en Mapa, Planificación y Captación donde se reutiliza la cartografía oficial.
+Prueba beta.8 previamente validada: 16 clientes seleccionados -> 16 guardados -> visibles en Rutas.
 
-### Filtros y visualización
+## Captación
 
-- `Maestro comercial` y `División territorial oficial` se mantienen conceptualmente separados.
-- Los límites oficiales se dibujan sobre Leaflet/OpenStreetMap.
-- Al filtrar territorio se resalta la zona correspondiente.
-- Se corrigieron regresiones anteriores donde Planificación/Captación no enfocaban o resaltaban correctamente.
-
-### Listado de clientes
-
-Mapa incluye un listado desplegable inferior que responde a los filtros activos.
-
-El listado permite revisar los clientes filtrados y ubicar un cliente en mapa sin perder el contexto territorial.
-
-### Análisis territorial
-
-Mapa incluye panel **Análisis territorial** basado en la **División territorial oficial**.
-
-Permite distribución por:
-
-- Región.
-- Provincia.
-- Municipio.
-- Distrito.
-
-Muestra cantidades y porcentajes sobre el conjunto filtrado. El análisis respeta los filtros actuales del mapa y permite volver a `Todo RD`.
-
-## 2.3 Planificación
-
-Planificación crea únicamente rutas de visita. La asignación de Captación vive en el módulo Captación y no debe duplicarse en Planificación.
-
-### Selección territorial y comercial
-
-- filtros por Vendedor, tipo, territorio, gestor, empresa, GPS, coherencia y otros criterios;
-- selección mediante lista, mapa, polígono o radio;
-- el perímetro siempre opera sobre los clientes elegibles por los filtros activos;
-- las zonas guardadas sirven como criterio/filtro, no sustituyen la selección de ruta.
-
-### V0.6.5-beta.8 — Preparación profesional de la ruta
-
-Se validó en producción el nuevo panel inferior **Preparación de la ruta**.
-
-Dos conjuntos separados:
-
-- **Disponibles**: clientes candidatos según filtros.
-- **Seleccionados**: clientes que realmente integrarán `route_stops`.
-
-Comportamiento validado:
-
-- selección por radio/polígono actualiza `selected`;
-- el panel cambia a seleccionados;
-- muestra cantidad seleccionada, dentro del filtro actual y fuera del filtro actual;
-- cambiar filtros no elimina silenciosamente la selección existente;
-- permite `Ubicar`, `Quitar`, añadir disponibles, limpiar y ordenar por cercanía;
-- `Crear planificación` reutiliza la misma función de creación y guarda exactamente la selección final;
-- el orden seleccionado se conserva como `stop_order`.
-
-Prueba real beta.8 validada:
-
-- 16 clientes seleccionados;
-- 16 con GPS;
-- 0 fuera de filtro;
-- ruta creada correctamente;
-- los 16 clientes aparecen posteriormente en Rutas para el Vendedor asignado.
-
-## 2.4 Rutas
-
-Rutas ya incluye:
-
-- plan vs ejecución;
-- mapa y secuencia;
-- cobertura real;
-- visitados / en visita / pendientes / no realizados / reprogramados / resueltos;
-- inicio de ruta;
-- cierre de jornada;
-- cierre parcial con motivo;
-- eventualidades;
-- GPS de inicio/cierre cuando está disponible;
-- exportación Excel/PDF;
-- visibilidad por rol.
-
-### Regla ya existente
-
-Una ruta planificada solo puede iniciarse en su `route_date`. `start()` valida que `selected.route_date === today()`.
-
-### Limitación descubierta y pendiente de corregir
-
-Una `route_session` ya iniciada y que quedó sin `ended_at` continúa siendo técnicamente `ACTIVA` en días posteriores. El Vendedor no puede iniciar otra ruta porque existe una sesión abierta, pero la UX actual puede obligarlo a buscar fechas anteriores para entender qué jornada quedó abierta.
-
-**Esta limitación es el siguiente bloque prioritario y NO debe mantenerse como comportamiento final.**
-
-## 2.5 Captación
-
-Captación quedó centralizada en su propio módulo.
-
-- Admin/Supervisor asigna tareas territoriales de captación.
-- El Vendedor ve sus tareas.
-- Las tareas usan División territorial oficial.
-- Captación libre existe para Vendedor cuando no tiene una tarea activa aplicable.
-- Al registrar un prospecto se captura GPS y contexto territorial.
-- Se corrigió el caso de prospectos guardados `sin zona` mediante resolución contextual.
-
-## 2.6 Inicio / Dashboard
-
-Inicio sigue siendo el **centro de operaciones de hoy**, no un reporte histórico.
-
-Métricas existentes incluyen, según rol:
-
-- Clientes.
-- Planificados.
-- Visitados.
-- Distancia GPS estimada.
-- Clientes que compraron / monto vendido cuando exista información.
-- Llamadas.
-- Citas.
-- Captaciones.
-- Rutas cerradas.
-- ranking de Vendedores y Gestores.
-
-Mantener Inicio orientado a **hoy**; no convertirlo en histórico mensual.
-
-## 2.7 Reportes
-
-Reportes ya posee vista ejecutiva diaria, detalle y cronología basada en fuentes `executive_*`.
-
-Limitación actual: el diseño está orientado principalmente a una sola fecha (`day = date`).
-
-La próxima evolución debe admitir filtros por período y agregación matemática correcta, sin promediar porcentajes diarios de manera ingenua.
+- asignación administrativa territorial;
+- captación libre cuando corresponde;
+- prospectos con GPS/contexto territorial;
+- corrección de casos `sin zona`.
 
 ---
 
-# 3. REGLAS DE NEGOCIO CONSOLIDADAS
+# 2. V0.6.5-beta.9 — NUEVO MÓDULO JORNADAS
 
-## 3.1 Cobertura vs cierre operativo
+Ruta: `/jornadas`.
 
-- **Cobertura real** = `visitados / planificados`.
-- **Resueltos** = paradas con resultado final operativo.
-- **Cierre operativo / Resolución** = `resueltos / planificados`.
+## Vendedor — Mis jornadas
 
-Nunca interpretar resolución 100% como cobertura 100%.
+El Vendedor puede consultar:
 
-## 3.2 Jornada y tiempos
-
-- Jornada = inicio de `route_session` hasta cierre efectivo.
-- Atención = suma del tiempo de visitas.
-- Eventualidades = tiempo de incidencias.
-- Traslado/espera estimado = tiempo residual no explicado por atención/eventualidad.
-- Distancia GPS estimada = distancia geodésica entre eventos GPS disponibles; no es odómetro ni ruta vial exacta.
-
-## 3.3 Una jornada pertenece a un solo día operativo — NUEVA DECISIÓN IRREVERSIBLE
-
-**Decisión confirmada por el usuario el 27/08/2026:**
-
-> Si una ruta/jornada no se culminó en su fecha correspondiente, NO se puede continuar ejecutando en días posteriores.
-
-Regla objetivo:
-
-- Una jornada puede registrar ejecución solamente cuando `session_date === fecha local operativa actual`.
-- A partir del día siguiente queda **VENCIDA / PENDIENTE DE CIERRE**.
-- En una jornada vencida no se permitirán nuevas visitas, reprogramaciones operativas, eventualidades nuevas ni continuación del recorrido.
-- Debe conservarse historial íntegro de lo realizado ese día.
-- El Vendedor debe poder **revisar y cerrar**, pero nunca `Continuar jornada` de fecha anterior.
-- Administración/Supervisión debe poder detectar y gestionar jornadas vencidas.
-- Nunca cerrar automáticamente una jornada de forma silenciosa sin dejar trazabilidad.
-- Las métricas no deben seguir acumulando horas indefinidamente después de cambiar el día operativo.
-
-Esta regla debe quedar protegida **en frontend y backend**, no solo en la interfaz.
-
----
-
-# 4. SIGUIENTE BLOQUE PRIORITARIO — JORNADAS + REPORTERÍA MULTIPERÍODO
-
-Documento funcional detallado: `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
-
-Objetivo: transformar el seguimiento actual de rutas en un sistema profesional de control de jornadas sin duplicar Rutas ni Reportes.
-
-## 4.1 Nuevo módulo: Jornadas
-
-### Vendedor — Mis jornadas
-
-Debe mostrar:
-
-- Jornada de hoy activa, si existe.
-- Planificaciones de hoy/futuras según permisos.
-- **Pendientes de cierre** de días anteriores.
-- Finalizadas.
-
-Una jornada vencida:
-
-- se identifica de forma visible;
-- muestra cobertura y pendientes;
-- permite revisar/cerrar;
-- **no permite continuar ejecución**.
-
-### Admin/Supervisor — Control de jornadas
-
-Debe funcionar como centro operacional macro:
-
-- planificadas;
-- iniciadas;
-- activas hoy;
+- jornada de hoy;
+- programadas;
 - finalizadas;
-- finalizadas parciales;
-- vencidas pendientes de cierre;
-- cobertura agregada;
+- pendientes de cierre de días anteriores;
+- cobertura;
 - cierre operativo;
+- tiempos;
+- distancia GPS estimada;
+- eventualidades;
+- detalle de paradas.
+
+Una jornada vencida nunca presenta `Continuar`.
+
+## Admin/Supervisor — Control de jornadas
+
+Incluye:
+
+- filtro de período;
+- vendedor;
+- estado;
+- tipo de cliente;
+- Región oficial;
+- Provincia oficial;
+- Municipio oficial;
+- KPI de jornadas;
+- planificados;
+- visitados;
+- cobertura;
+- resolución/cierre operativo;
 - horas de jornada;
 - atención;
 - traslado/espera;
-- distancia GPS;
+- distancia GPS estimada;
 - eventualidades;
-- ventas/compras cuando corresponda.
+- detalle individual;
+- Excel/PDF.
 
-Debe incluir tabla detallada y apertura de una jornada individual.
+---
 
-## 4.2 Alertas y acceso
+# 3. REGLA TEMPORAL IRREVERSIBLE
 
-Una jornada vencida no debe descubrirse solamente al intentar iniciar otra ruta.
-
-Añadir visibilidad mediante:
-
-- módulo Jornadas;
-- banner contextual en Rutas;
-- resumen/alerta en Inicio cuando aplique;
-- campana operativa si la arquitectura actual lo permite sin duplicar lógica.
-
-## 4.3 Reportes administrativos multidimensionales
-
-Reportes debe evolucionar a filtros desplegables combinables.
-
-Filtros objetivo:
-
-- Período: Día / Semana / Mes / Rango personalizado.
-- Año.
-- Mes.
-- Desde / Hasta.
-- Tipo de colaborador: Vendedor / Gestor / Todos cuando sea válido.
-- Colaborador específico.
-- Estado de jornada.
-- Tipo de cliente.
-- Región oficial.
-- Provincia.
-- Municipio.
-- Otros criterios solo si agregan valor real y existen datos confiables.
-
-### Regla matemática
-
-No promediar porcentajes diarios directamente.
-
-Ejemplo:
-
-- Día 1: 1/2 = 50%.
-- Día 2: 90/100 = 90%.
-- Cobertura real del período = `91 / 102 = 89.2%`, no 70%.
-
-Los KPI de período deben calcularse con numeradores/denominadores agregados reales.
-
-## 4.4 Separación conceptual de módulos
+Una jornada pertenece a **un solo día operativo**.
 
 ```text
-PLANIFICACIÓN
-  crea el plan
-       ↓
-RUTAS
-  ejecuta la jornada del día
-       ↓
-JORNADAS
-  controla el ciclo de vida operacional
-       ↓
-REPORTES
-  analiza historia y desempeño
+session_date == fecha operativa actual America/Santo_Domingo
 ```
 
-Inicio sigue respondiendo: **¿Qué está ocurriendo hoy?**
+es requisito para continuar ejecución.
+
+Si una `route_session` sigue abierta y `session_date < hoy`:
+
+```text
+PENDIENTE_CIERRE
+```
+
+No se permite en días posteriores:
+
+- nueva visita;
+- continuar una visita como actividad del nuevo día;
+- nueva eventualidad operacional;
+- continuar secuencia;
+- cambiar paradas para seguir ejecutando;
+- visita adicional asociada a esa jornada.
+
+Sí se permite:
+
+- revisar historial;
+- analizar;
+- exportar;
+- cierre trazable.
+
+La protección existe en **frontend y backend**.
 
 ---
 
-# 5. CRITERIOS DE CALIDAD PARA EL DESARROLLO SIGUIENTE
+# 4. CIERRE Y REGULARIZACIÓN DE JORNADAS VENCIDAS
 
-1. No romper beta.8 ni los mapas ya estabilizados.
-2. No duplicar fórmulas entre Inicio, Jornadas y Reportes.
-3. Preferir vistas/RPC en Supabase para agregaciones complejas y consistentes.
-4. Mantener RLS y scoping por rol.
-5. Proteger reglas críticas también en backend.
-6. No falsear cobertura al cerrar jornadas.
-7. No permitir ejecución de jornadas vencidas.
-8. No hacer deploy automático sin build/validación.
-9. Evitar crear tablas nuevas si el modelo actual ya permite resolver el problema con seguridad; crear migración solo cuando sea necesario.
-10. Diseñar responsive para escritorio, tablet y móvil.
+## Jornada vencida sin actividad abierta
+
+El Vendedor puede revisar/cerrar su propia jornada vencida.
+
+Las paradas pendientes pasan a resultado administrativo adecuado sin aumentar cobertura.
+
+## Jornada vencida con visita/eventualidad abierta
+
+No se permite al Vendedor resolverla como si la actividad continuara hoy.
+
+Admin/Supervisor dispone de regularización administrativa:
+
+- actividad abierta se corta técnicamente al límite del día operativo;
+- parada incompleta queda `NO_VISITADO`;
+- nunca se convierte falsamente en `VISITADO`;
+- se registra `JORNADA_VENCIDA`;
+- se conservan notas/revisión administrativa;
+- eventualidad abierta queda marcada para revisión cuando corresponde.
 
 ---
 
-# 6. PROTOCOLO PARA UN NUEVO CHAT
+# 5. MÉTRICAS DE JORNADA
 
-Mensaje recomendado:
+Definiciones consolidadas:
 
-> **“Continúa el proyecto Gestión de Ventas Diaria. Revisa primero `PROJECT_HANDOFF.md` del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`, luego `docs/REQUIREMENTS_STATUS.md`, `docs/V065_FUNCTIONAL_DESIGN.md` y `docs/V065C_JORNADAS_REPORTES_DESIGN.md`. Verifica después el estado real de GitHub `main`, Supabase y Cloudflare. No asumas que algo existe solo porque aparece en documentación. Explica el estado real antes de modificar código.”**
+## Cobertura real
 
-Orden obligatorio para reconstruir continuidad:
+```text
+visitados / planificados
+```
+
+## Cierre operativo / resolución
+
+```text
+resueltos / planificados
+```
+
+Una ruta puede tener:
+
+```text
+Cobertura baja + Resolución 100%
+```
+
+si las paradas restantes fueron resueltas como no visitadas/reprogramadas/canceladas. Esto es correcto y debe conservarse.
+
+## Tiempo
+
+- Jornada = ventana de `route_session`.
+- Atención = suma de visitas.
+- Eventualidades = suma de incidencias.
+- Traslado/espera = residual validado.
+
+Una sesión abierta histórica se limita al final de su día operativo en las nuevas métricas. No seguirá acumulando 24/48/72 horas.
+
+## Distancia
+
+`Distancia GPS estimada` se calcula entre eventos GPS disponibles. No representa odómetro ni ruta vial exacta.
+
+---
+
+# 6. TERRITORIO OFICIAL HISTÓRICO
+
+Beta.9 añade snapshot territorial a `route_stops`:
+
+- `official_region_at_plan`
+- `official_province_at_plan`
+- `official_municipality_at_plan`
+
+Objetivo: una corrección futura de GPS/maestro no debe reescribir silenciosamente el territorio histórico de una jornada ya planificada.
+
+Backfill validado después de migración:
+
+```text
+72/72 paradas con cliente -> Región oficial
+72/72 paradas con cliente -> Provincia oficial
+72/72 paradas con cliente -> Municipio oficial
+```
+
+Vista principal para Jornadas con territorio histórico:
+
+- `executive_route_journeys_v2`.
+
+Se verificaron rutas reales clasificadas correctamente en territorios como Ozama y Valdesia.
+
+---
+
+# 7. SEGURIDAD DE LAS NUEVAS VISTAS
+
+`executive_route_journeys_v2` impone scoping también en Supabase:
+
+```text
+Administrador / Supervisor -> todas las jornadas
+Otros perfiles              -> solo employee_id propio
+```
+
+Pruebas realizadas simulando rol `authenticated`:
+
+- Vendedor: obtuvo únicamente sus propias jornadas.
+- Administrador: obtuvo el conjunto global existente.
+
+También existen wrappers scoped para evolución segura de reportería:
+
+- `executive_daily_employee_summary_scoped`
+- `executive_daily_route_metrics_scoped`
+
+Mantener frontend + backend como defensa en profundidad.
+
+---
+
+# 8. RUTAS / VISITAS / ALERTAS
+
+## Rutas
+
+Ahora existe integración para:
+
+- detectar jornada abierta independientemente de la fecha seleccionada;
+- mostrar `Jornada activa hoy`;
+- mostrar `Jornada pendiente de cierre del DD/MM/YYYY`;
+- acción `Revisar y cerrar`;
+- ocultar ejecución vencida.
+
+## Visitas
+
+Si existe visita abierta ligada a jornada vencida:
+
+- muestra advertencia;
+- no debe cerrarse como actividad del nuevo día;
+- dirige a Jornadas.
+
+## Campana
+
+`PENDIENTE_CIERRE` se integra como alerta operacional.
+
+---
+
+# 9. INICIO
+
+Inicio sigue siendo el centro de **hoy**, no un histórico.
+
+Beta.9 añade solo resumen accionable de Jornadas:
+
+- activas hoy;
+- finalizadas hoy;
+- pendientes de cierre;
+- cobertura de hoy;
+- acceso a Jornadas.
+
+No duplicar Reportes en Inicio.
+
+---
+
+# 10. REPORTES V2 — MULTIPERÍODO
+
+Ruta: `/reportes`.
+
+Filtros implementados:
+
+- Día.
+- Semana.
+- Mes.
+- Rango personalizado.
+- Tipo de colaborador.
+- Colaborador.
+- Estado de jornada.
+- Tipo de cliente de ruta.
+- Región oficial.
+- Provincia oficial.
+- Municipio oficial.
+
+El período de desempeño no se extiende automáticamente a fechas futuras.
+
+## Regla matemática
+
+Nunca promediar porcentajes diarios.
+
+```text
+Cobertura período = SUM(visitados) / SUM(planificados)
+Resolución período = SUM(resueltos) / SUM(planificados)
+```
+
+Ejemplo conceptual:
+
+```text
+Día 1 = 1/2 = 50%
+Día 2 = 90/100 = 90%
+Período = 91/102 = 89.2%
+```
+
+No 70%.
+
+## Filtros territoriales
+
+Territorio oficial se aplica a las métricas de ruta/jornada.
+
+Llamadas, showroom y ventas generales no poseen actualmente atribución territorial oficial equivalente. Cuando hay filtro de ruta activo, la UI informa esta semántica y limita esas métricas a días/colaboradores coincidentes sin fingir una precisión territorial inexistente.
+
+---
+
+# 11. VALIDACIONES REALES DE BETA.9
+
+## Build
+
+- TypeScript + Vite: **SUCCESS** en head final previo al merge.
+
+## Backend
+
+- cinco migraciones V065C: **SUCCESS**.
+- ledger remoto verificado.
+
+## Territorio
+
+- snapshot oficial: **72/72 completo**.
+
+## Scoping
+
+- Vendedor -> solo sus jornadas: **VALIDADO**.
+- Administrador -> global: **VALIDADO**.
+
+## Matemática agregada
+
+Consulta real 24–27/08 mostró agregación mediante sumas de numeradores/denominadores; no promedio simple de porcentajes.
+
+---
+
+# 12. ESTADO DE DEPLOY — PRÓXIMO PASO OBLIGATORIO
+
+**No desarrollar otro bloque funcional antes de validar beta.9 en producción**, salvo corrección necesaria para el deploy.
+
+En el equipo local del usuario:
+
+```bash
+git fetch
+git pull
+npm run build
+npm run deploy
+```
+
+O flujo equivalente desde GitHub Desktop + terminal ya usado previamente.
+
+Después del deploy registrar:
+
+1. commit realmente desplegado;
+2. Cloudflare Version ID;
+3. hora/fecha;
+4. build local exitoso;
+5. validación Admin;
+6. validación Vendedor.
+
+Pruebas productivas mínimas:
+
+### Admin
+
+- Inicio carga.
+- Jornadas abre.
+- filtros por Mes/Vendedor/Estado funcionan.
+- filtros Región/Provincia/Municipio oficiales funcionan.
+- Reportes abre.
+- Reportes Mes + colaborador funciona.
+- Exportaciones no rompen.
+
+### Vendedor
+
+- solo ve sus jornadas.
+- Rutas carga.
+- jornada de hoy ejecutable si corresponde.
+- jornada anterior no continuable.
+- pendiente de cierre visible.
+- Reportes solo muestran su alcance esperado.
+
+### Regresión
+
+- Mapa territorial.
+- Planificación.
+- Captación.
+- Clientes.
+- Login.
+
+---
+
+# 13. DOCUMENTOS DE CONTINUIDAD
+
+Leer en este orden al iniciar otro chat:
 
 1. `PROJECT_HANDOFF.md`.
-2. `docs/REQUIREMENTS_STATUS.md`.
-3. `docs/V065_FUNCTIONAL_DESIGN.md`.
-4. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
-5. GitHub `main` y `package.json`.
-6. últimas migraciones Supabase y estado remoto cuando sea necesario.
-7. versión/deploy real en Cloudflare.
-8. recién entonces modificar código.
+2. `docs/V065C_IMPLEMENTATION_STATUS.md`.
+3. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
+4. `docs/REQUIREMENTS_STATUS.md`.
+5. `docs/V065_FUNCTIONAL_DESIGN.md`.
+6. `package.json` en `main`.
+7. commits recientes de GitHub.
+8. ledger real Supabase.
+9. deploy real Cloudflare.
+
+Mensaje recomendado para otro chat:
+
+> **“Continúa Gestión de Ventas Diaria. Lee primero `PROJECT_HANDOFF.md` y `docs/V065C_IMPLEMENTATION_STATUS.md` del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Después verifica GitHub main, ledger Supabase y versión real de Cloudflare. No asumas que Cloudflare ya tiene beta.9: confirma primero el deploy. No modifiques nada hasta explicar el estado real.”**
 
 ---
 
-# 7. CHECKPOINT DE ESTA ACTUALIZACIÓN DOCUMENTAL
+# 14. FUENTE DE VERDAD
 
-Fecha de decisión: **27/08/2026**.
+Ante cualquier discrepancia:
 
-Baseline productivo antes del nuevo desarrollo:
+1. GitHub `main` define el código vigente.
+2. Supabase remoto define esquema/datos/políticas reales.
+3. Cloudflare define la UI realmente desplegada.
+4. Documentación explica decisiones.
+5. Conversaciones previas son contexto, no fuente definitiva.
 
-- **V0.6.5-beta.8**.
-- commit desplegado `ee39f568bcab1d878d8795ce2b91f1b36ead2538`.
-- Cloudflare Version ID `149a6ff7-2bfb-46ff-9968-d88c6f61d182`.
-- Mapas territoriales validados.
-- Captación validada.
-- Planificación beta.8 validada end-to-end hasta aparición de los 16 clientes en Rutas.
-- Próximo trabajo: **Jornadas + bloqueo temporal fuerte + Reportes multiperíodo**.
+Checkpoint actual:
 
-Este documento reemplaza como checkpoint activo el antiguo estado V0.6.4. Para historia detallada anterior consultar Git/GitHub y documentos de versiones previas.
+```text
+GitHub main      V0.6.5-beta.9
+Merge commit     143bc3b185573a85405feec83b4ece903543893f
+Supabase V065C   aplicado y validado
+Cloudflare       todavía V0.6.5-beta.8
+Próximo paso     pull + build + deploy beta.9 + validación productiva
+```
