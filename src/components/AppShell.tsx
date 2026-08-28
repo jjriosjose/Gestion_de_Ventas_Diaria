@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,CalendarDays,CalendarRange,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,
-  ListChecks,LogOut,Map as MapIcon,MapPinned,Menu,PanelLeftClose,PanelLeftOpen,PhoneCall,Route,Settings,ShieldCheck,
+  ListChecks,LogOut,Map as MapIcon,MapPinned,Menu,PanelLeftClose,PanelLeftOpen,PhoneCall,Radar,Route,Settings,ShieldCheck,
   SlidersHorizontal,UserRoundCog,Users,X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -18,7 +18,7 @@ const APP_VERSION=packageInfo.version
 const groups: NavGroup[] = [
   { label: 'Operación', items: [
     ['/', 'Inicio', Gauge, 'dashboard.view'], ['/clientes', 'Clientes', Users, 'clients.view'], ['/mapa', 'Mapa', MapPinned, 'map.view'],
-    ['/planificacion', 'Planificación', ClipboardList, 'planning.view'], ['/rutas', 'Rutas', Route, 'routes.view'], ['/jornadas', 'Jornadas', CalendarRange, 'journeys.view'], ['/captacion', 'Captación', Captions, 'capture.view'],
+    ['/planificacion', 'Planificación', ClipboardList, 'planning.view'], ['/rutas', 'Rutas', Route, 'routes.view'], ['/jornadas', 'Jornadas', CalendarRange, 'journeys.view'], ['/tracking', 'Tracking', Radar, 'tracking.view'], ['/captacion', 'Captación', Captions, 'capture.view'],
   ] },
   { label: 'Gestión', items: [
     ['/cobertura', 'Cobertura cartera', ListChecks, 'coverage.view'], ['/visitas', 'Visitas', ContactRound, 'visits.view'],
