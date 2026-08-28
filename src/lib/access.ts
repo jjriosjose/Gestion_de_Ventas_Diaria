@@ -3,6 +3,7 @@ import type { AccessProfile, Employee } from '../types'
 export type PermissionKey =
   | 'dashboard.view' | 'clients.view' | 'clients.edit' | 'map.view'
   | 'planning.view' | 'planning.manage' | 'routes.view' | 'routes.execute'
+  | 'journeys.view' | 'journeys.manage'
   | 'capture.view' | 'capture.create' | 'coverage.view' | 'visits.view' | 'visits.execute'
   | 'calls.view' | 'calls.manage' | 'agenda.view' | 'agenda.manage'
   | 'reception.view' | 'reception.manage' | 'reports.view' | 'data_quality.view'
@@ -14,8 +15,9 @@ export const PERMISSION_GROUPS: Array<{ label: string; items: Array<{ key: Permi
   { label: 'Operación', items: [
     { key: 'dashboard.view', label: 'Inicio' }, { key: 'clients.view', label: 'Clientes' }, { key: 'clients.edit', label: 'Editar clientes' },
     { key: 'map.view', label: 'Mapa' }, { key: 'planning.view', label: 'Ver planificación' }, { key: 'planning.manage', label: 'Crear planificación' },
-    { key: 'routes.view', label: 'Ver rutas' }, { key: 'routes.execute', label: 'Ejecutar rutas' }, { key: 'capture.view', label: 'Ver captación' },
-    { key: 'capture.create', label: 'Crear prospectos' },
+    { key: 'routes.view', label: 'Ver rutas' }, { key: 'routes.execute', label: 'Ejecutar rutas' },
+    { key: 'journeys.view', label: 'Ver jornadas' }, { key: 'journeys.manage', label: 'Gestionar jornadas' },
+    { key: 'capture.view', label: 'Ver captación' }, { key: 'capture.create', label: 'Crear prospectos' },
   ] },
   { label: 'Gestión', items: [
     { key: 'coverage.view', label: 'Cobertura de cartera' }, { key: 'visits.view', label: 'Ver visitas' }, { key: 'visits.execute', label: 'Registrar visitas' },
@@ -38,7 +40,7 @@ const enabled = (...keys: PermissionKey[]) => new Set<PermissionKey>(keys)
 const PROFILE_DEFAULTS: Record<AccessProfile, Set<PermissionKey>> = {
   Administrador: new Set(ALL_KEYS),
   Supervisor: enabled(
-    'dashboard.view','clients.view','clients.edit','map.view','planning.view','planning.manage','routes.view','routes.execute',
+    'dashboard.view','clients.view','clients.edit','map.view','planning.view','planning.manage','routes.view','routes.execute','journeys.view','journeys.manage',
     'capture.view','capture.create','coverage.view','visits.view','visits.execute','calls.view','calls.manage','agenda.view','agenda.manage',
     'reception.view','reception.manage','reports.view','data_quality.view','admin.import','admin.portfolio','settings.view'
   ),
@@ -47,7 +49,7 @@ const PROFILE_DEFAULTS: Record<AccessProfile, Set<PermissionKey>> = {
     'calls.view','calls.manage','agenda.view','agenda.manage','reports.view','settings.view'
   ),
   Vendedor: enabled(
-    'dashboard.view','clients.view','map.view','planning.view','routes.view','routes.execute','capture.view','capture.create','coverage.view','visits.view','visits.execute',
+    'dashboard.view','clients.view','map.view','planning.view','routes.view','routes.execute','journeys.view','capture.view','capture.create','coverage.view','visits.view','visits.execute',
     'calls.view','calls.manage','agenda.view','reports.view','settings.view'
   ),
   Recepcion: enabled('dashboard.view','clients.view','agenda.view','agenda.manage','reception.view','reception.manage','reports.view','settings.view'),
