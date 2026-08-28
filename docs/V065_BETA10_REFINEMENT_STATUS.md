@@ -9,7 +9,15 @@ Fecha: 27/08/2026 (RD).
 - Merge commit: `74c214e9dd94275a052f3d1c55827753feeb4c33`.
 - GitHub Actions TypeScript + Vite: SUCCESS antes del merge.
 - No contiene migraciones ni cambios de Supabase.
-- Cloudflare continúa en beta.9 hasta que el usuario realice el deploy controlado de beta.10.
+
+## Deploy productivo
+
+V0.6.5-beta.10 fue desplegada correctamente en Cloudflare Workers.
+
+- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
+- Cloudflare Current Version ID: `8d6271ac-79e1-4794-b347-7023919040be`
+- Wrangler confirmó 7 assets nuevos/modificados subidos correctamente.
+- No se ejecutó SQL ni migración para este despliegue.
 
 ## Validación que motivó este refinamiento
 
@@ -75,15 +83,20 @@ El detalle diario también identifica el canal correspondiente.
 
 El grid de KPI de Reportes pasó a distribución `auto-fit` con ancho mínimo, permitiendo acomodar las nuevas tarjetas sin forzar una plantilla rígida de cuatro columnas.
 
-## Próximo paso
+## Estado actual
 
-En el equipo local:
+```text
+GitHub main      = V0.6.5-beta.10
+Supabase backend = V065C de beta.9, sin cambios para beta.10
+Cloudflare UI    = V0.6.5-beta.10 desplegada
+```
 
-1. GitHub Desktop: Fetch origin / Pull origin.
-2. Verificar `main` y `No local changes`.
-3. Ejecutar `npm run build`.
-4. Si termina SUCCESS, ejecutar `npm run deploy`.
-5. Registrar Cloudflare Version ID.
-6. Validar Inicio y Reportes en producción.
+## Validación posterior al deploy
 
-No ejecutar SQL ni migraciones para beta.10.
+Pendiente validar visualmente en producción:
+
+1. Inicio: indicador `Planificadas` dentro de la franja de Jornadas.
+2. Jornadas: rutas históricas nunca iniciadas se muestran como `No ejecutada`.
+3. Reportes: tarjetas `Horas gestión calle` y `Horas gestión showroom / CRM`.
+4. Reportes: filtros continúan afectando correctamente ambas tarjetas.
+5. Versión visible `0.6.5-beta.10`.
