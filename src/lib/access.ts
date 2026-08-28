@@ -16,7 +16,7 @@ export const PERMISSION_GROUPS: Array<{ label: string; items: Array<{ key: Permi
     { key: 'dashboard.view', label: 'Inicio' }, { key: 'clients.view', label: 'Clientes' }, { key: 'clients.edit', label: 'Editar clientes' },
     { key: 'map.view', label: 'Mapa' }, { key: 'planning.view', label: 'Ver planificación' }, { key: 'planning.manage', label: 'Crear planificación' },
     { key: 'routes.view', label: 'Ver rutas' }, { key: 'routes.execute', label: 'Ejecutar rutas' },
-    { key: 'journeys.view', label: 'Ver jornadas' }, { key: 'journeys.manage', label: 'Gestionar jornadas' },
+    { key: 'journeys.view', label: 'Ver control operativo' }, { key: 'journeys.manage', label: 'Gestionar jornadas' },
     { key: 'capture.view', label: 'Ver captación' }, { key: 'capture.create', label: 'Crear prospectos' },
   ] },
   { label: 'Gestión', items: [
@@ -34,7 +34,6 @@ export const PERMISSION_GROUPS: Array<{ label: string; items: Array<{ key: Permi
 ]
 
 const ALL_KEYS = PERMISSION_GROUPS.flatMap((group) => group.items.map((item) => item.key))
-
 const enabled = (...keys: PermissionKey[]) => new Set<PermissionKey>(keys)
 
 const PROFILE_DEFAULTS: Record<AccessProfile, Set<PermissionKey>> = {
@@ -45,7 +44,7 @@ const PROFILE_DEFAULTS: Record<AccessProfile, Set<PermissionKey>> = {
     'reception.view','reception.manage','reports.view','data_quality.view','admin.import','admin.portfolio','settings.view'
   ),
   Gestor: enabled(
-    'dashboard.view','clients.view','map.view','planning.view','routes.view','capture.view','capture.create','coverage.view','visits.view','visits.execute',
+    'dashboard.view','clients.view','map.view','planning.view','routes.view','journeys.view','capture.view','capture.create','coverage.view','visits.view','visits.execute',
     'calls.view','calls.manage','agenda.view','agenda.manage','reports.view','settings.view'
   ),
   Vendedor: enabled(
@@ -67,28 +66,22 @@ export function profileForEmployee(employee?: Employee | null): AccessProfile {
   return 'SoloLectura'
 }
 
-export function inheritedPermission(profile: AccessProfile, permission: PermissionKey) {
-  return PROFILE_DEFAULTS[profile].has(permission)
-}
-
+export function inheritedPermission(profile: AccessProfile, permission: PermissionKey) { return PROFILE_DEFAULTS[profile].has(permission) }
 export function hasPermission(employee: Employee | null | undefined, permission: PermissionKey) {
   if (!employee?.active && employee?.active !== undefined) return false
   const overrides = employee?.permission_overrides || {}
   if (Object.prototype.hasOwnProperty.call(overrides, permission)) return overrides[permission] === true
   return inheritedPermission(profileForEmployee(employee), permission)
 }
-
 export function effectivePermissionMap(profile: AccessProfile, overrides: Record<string, boolean> = {}) {
   return Object.fromEntries(ALL_KEYS.map((key) => [key, Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] === true : inheritedPermission(profile, key)])) as Record<PermissionKey, boolean>
 }
-
 export function normalizePermissionOverride(profile: AccessProfile, overrides: Record<string, boolean>, permission: PermissionKey, value: boolean) {
   const next = { ...overrides }
   if (value === inheritedPermission(profile, permission)) delete next[permission]
   else next[permission] = value
   return next
 }
-
 export function profileIdentity(profile: AccessProfile, previous?: Employee | null) {
   if (profile === 'Administrador') return { app_role: 'Administrador' as const, employee_type: previous && ['Gerencia','Direccion'].includes(previous.employee_type) ? previous.employee_type : 'Gerencia' as const }
   if (profile === 'Supervisor') return { app_role: 'Supervisor' as const, employee_type: previous && ['Gerencia','Direccion'].includes(previous.employee_type) ? previous.employee_type : 'Direccion' as const }
@@ -97,7 +90,4 @@ export function profileIdentity(profile: AccessProfile, previous?: Employee | nu
   if (profile === 'Recepcion') return { app_role: 'Recepcionista' as const, employee_type: 'Recepcion' as const }
   return { app_role: 'SoloLectura' as const, employee_type: 'Otro' as const }
 }
-
-export function hasAnyAdminPermission(employee?: Employee | null) {
-  return hasPermission(employee, 'admin.import') || hasPermission(employee, 'admin.portfolio') || hasPermission(employee, 'admin.users.manage')
-}
+export function hasAnyAdminPermission(employee?: Employee | null) { return hasPermission(employee, 'admin.import') || hasPermission(employee, 'admin.portfolio') || hasPermission(employee, 'admin.users.manage') }
