@@ -7,8 +7,8 @@ Fecha: **28/08/2026 (RD)**.
 - Rama: `feature/v065-beta12-live-tracking`
 - PR: `#43 — V0.6.5-beta.12 · Live Operations Tracking`
 - Producción Cloudflare continúa en **0.6.5-beta.11** hasta merge + deploy manual.
-- Supabase beta.12 ya recibió las vistas ejecutivas aditivas.
-- Primera validación TypeScript + Vite del PR: SUCCESS.
+- Supabase beta.12 ya recibió las vistas ejecutivas aditivas y el guard de permiso backend.
+- Validaciones TypeScript + Vite durante desarrollo: SUCCESS; falta exigir CI sobre el head documental final antes del merge.
 
 ## Módulo nuevo
 
@@ -22,7 +22,7 @@ Defaults:
 - Supervisor: permitido;
 - Vendedor/Gestor/Recepción/SoloLectura: no por defecto.
 
-La autorización visual no sustituye backend scoping.
+La autorización visual y la autorización backend usan la misma intención. `tracking.view` puede concederse o revocarse mediante `permission_overrides`.
 
 ## Modelo de Tracking
 
@@ -38,7 +38,15 @@ Fuentes GPS reales actuales:
 
 La UI siempre muestra `último registro` y frescura. Nunca presenta una coordenada antigua como ubicación actual confirmada.
 
-## Vistas Supabase
+## Vistas Supabase finales
+
+Los nombres públicos estables son:
+
+- `executive_tracking_events_v1`
+- `executive_tracking_stops_v1`
+- `executive_tracking_snapshot_v1`
+
+Wrappers temporales `v2` usados durante el endurecimiento fueron eliminados antes de producción.
 
 ### `executive_tracking_events_v1`
 
@@ -91,21 +99,33 @@ Estados inferidos:
 6. PLANIFICADA
 7. NO_EJECUTADA
 
-## Seguridad validada
+## Seguridad backend final
 
-Simulación autenticada:
+Helper:
 
-- Administrador Jorge Rios -> 6 snapshots / 2 Vendedores en histórico existente.
-- Vendedor Cesar Caba -> 4 snapshots / 1 único employee_id, exclusivamente Cesar Caba.
+`private.current_user_can_view_tracking()`
 
-Las vistas usan:
+Regla:
+
+1. si `permission_overrides` contiene `tracking.view`, respeta explícitamente `true/false`;
+2. si no existe override, Administrador/Supervisor tienen permiso por defecto;
+3. otros perfiles no tienen Tracking por defecto.
+
+Las vistas además conservan scoping defensivo:
 
 ```text
-private.is_admin()
-OR employee_id = private.current_employee_id()
+Administrador / Supervisor con permiso -> conjunto global
+Usuario no ejecutivo con permiso       -> solo employee_id propio
+Usuario sin tracking.view               -> 0 filas
 ```
 
-`private.is_admin()` reconoce Administrador/Supervisor.
+Validaciones autenticadas:
+
+- Jorge Rios / Administrador: `can_tracking = true`, 6 snapshots históricos visibles.
+- Cesar Caba / Vendedor sin override: `can_tracking = false`, 0 filas.
+- Prueba reversible con `tracking.view=true` para Cesar: 4 snapshots, 1 único employee_id, exclusivamente `Cesar Caba`; transacción revertida después de la prueba.
+
+Esto impide que ocultar el menú sea la única defensa.
 
 ## Validación de datos
 
@@ -139,9 +159,23 @@ Incluye:
 - auto-refresh 30 s en fecha actual;
 - KPI operativos;
 - mapa + panel lateral;
-- selección de Vendedor;
+- una tarjeta por jornada/plan;
 - playback;
 - timeline.
+
+La vista general deduplica el marcador principal por Vendedor: se muestra una única última posición representativa por persona.
+
+### Protección de múltiples jornadas
+
+Un Vendedor puede poseer más de un `route_plan` en una misma fecha.
+
+Beta.12 no mezcla esos recorridos:
+
+- overview = una última posición por Vendedor;
+- tarjeta = una jornada/plan;
+- `Ubicar` = selecciona el `route_plan_id` exacto;
+- `Recorrido` = filtra eventos y paradas por ese `route_plan_id`;
+- playback y timeline jamás combinan dos planes distintos del mismo Vendedor.
 
 ### `src/components/LiveTrackingMap.tsx`
 
@@ -152,7 +186,8 @@ Leaflet con:
 - eventos GPS;
 - polilínea estimada;
 - marcador de playback;
-- tooltips con advertencia de naturaleza del dato.
+- tooltips con advertencia de naturaleza del dato;
+- selección por `route_plan_id`.
 
 ### `src/styles/tracking.css`
 
@@ -160,7 +195,7 @@ Responsive desktop/tablet/móvil y reduced-motion.
 
 ## Playback
 
-Solo se habilita con eventos GPS reales.
+Solo se habilita con eventos GPS reales de la jornada seleccionada.
 
 Controles:
 
@@ -188,17 +223,19 @@ Estas capacidades requieren diseño separado por privacidad, batería, permisos,
 ## Pendiente antes de producción
 
 - [x] migraciones beta.12 aplicadas;
-- [x] scoping backend validado;
-- [x] build TypeScript + Vite inicial SUCCESS;
-- [ ] Generate territorial GeoJSON final SUCCESS;
-- [ ] CI final sobre último commit documental;
-- [ ] revisar PR #43;
-- [ ] merge a `main`;
-- [ ] usuario Fetch/Pull;
-- [ ] build local;
-- [ ] deploy Cloudflare;
-- [ ] registrar Current Version ID;
-- [ ] validar visualmente Administrador;
-- [ ] validar fecha histórica con playback;
-- [ ] validar filtros y vista conjunta;
+- [x] permiso backend y scoping validados;
+- [x] guard de cierres históricos validado;
+- [x] aislamiento de playback por `route_plan_id` implementado;
+- [x] build TypeScript + Vite del código SUCCESS;
+- [ ] Build validation final sobre este head.
+- [ ] Generate territorial GeoJSON final SUCCESS.
+- [ ] revisar PR #43 completo.
+- [ ] merge a `main`.
+- [ ] usuario Fetch/Pull.
+- [ ] build local.
+- [ ] deploy Cloudflare.
+- [ ] registrar Current Version ID.
+- [ ] validar visualmente Administrador.
+- [ ] validar fecha histórica con playback.
+- [ ] validar filtros y vista conjunta.
 - [ ] decidir fase futura de GPS periódico solo con aprobación explícita.
