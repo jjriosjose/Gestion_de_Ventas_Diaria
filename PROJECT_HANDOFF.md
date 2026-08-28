@@ -11,29 +11,27 @@
 
 Fecha operativa del checkpoint: **27/08/2026 (RD)**.
 
-## GitHub
+## GitHub / Producción
 
 - Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`.
 - Rama estable: `main`.
-- Versión: **0.6.5-beta.10**.
-- PR #38 `V0.6.5-beta.9 · Jornadas, cierre diario y reportes multiperíodo`: **MERGED**.
-- PR #39 `V0.6.5-beta.10 · Horas por gestión y refinamientos de Jornadas`: **MERGED**.
-- Merge commit funcional beta.10: `74c214e9dd94275a052f3d1c55827753feeb4c33`.
-- GitHub Actions TypeScript + Vite de beta.10: **SUCCESS**.
-- Build local previo a deploy: **SUCCESS**.
+- Versión productiva actual: **0.6.5-beta.10**.
+- PR #38 beta.9: MERGED.
+- PR #39 beta.10: MERGED.
+- Merge funcional beta.10: `74c214e9dd94275a052f3d1c55827753feeb4c33`.
+- GitHub Actions TypeScript + Vite beta.10: SUCCESS.
+- Build local previo a deploy: SUCCESS.
 
-Documentos de apoyo:
+## Cloudflare
 
-1. `docs/V065_BETA10_REFINEMENT_STATUS.md`
-2. `docs/V065C_IMPLEMENTATION_STATUS.md`
-3. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`
-4. `docs/V065C_DEPLOYMENT_BETA9.md`
-5. `docs/REQUIREMENTS_STATUS.md`
-6. `docs/V065_FUNCTIONAL_DESIGN.md`
+- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
+- Cloudflare Current Version ID beta.10: `8d6271ac-79e1-4794-b347-7023919040be`.
+- Wrangler: `4.125.0` en el deploy validado.
+- Advertencia de chunks >500 KB: no bloqueante; deuda de optimización.
 
 ## Supabase
 
-Backend V065C de beta.9 **APLICADO EN PRODUCCIÓN** y reutilizado por beta.10 sin nuevas migraciones.
+Backend V065C de beta.9 sigue aplicado y es la base de beta.10.
 
 Migraciones remotas verificadas:
 
@@ -43,75 +41,52 @@ Migraciones remotas verificadas:
 4. `v065c_official_territory_reporting_view`
 5. `v065c_scoped_executive_views`
 
-No hacer replay manual para igualar timestamps del ledger remoto con nombres de archivos locales.
-
-## Cloudflare
-
-**V0.6.5-beta.10 DESPLEGADA EN PRODUCCIÓN.**
-
-- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- Cloudflare Current Version ID: `8d6271ac-79e1-4794-b347-7023919040be`
-- Wrangler usado en la línea de despliegue: `4.125.0`.
-- 7 assets nuevos/modificados fueron subidos correctamente en el deploy beta.10.
-- La advertencia de chunks >500 KB es no bloqueante; queda como deuda de optimización.
+No hacer replay manual ciego de migraciones.
 
 Estado real:
 
 ```text
 GitHub main      = V0.6.5-beta.10
-Supabase backend = V0.6.5-beta.9 / V065C aplicado (sin cambios beta.10)
+Supabase backend = V065C aplicado
 Cloudflare UI    = V0.6.5-beta.10 desplegada
+Siguiente bloque = V0.6.5-beta.11 Operational Intelligence & UX Polish
 ```
+
+Documentos prioritarios:
+
+1. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
+2. `docs/V065_BETA10_REFINEMENT_STATUS.md`
+3. `docs/V065C_IMPLEMENTATION_STATUS.md`
+4. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`
+5. `docs/V065C_DEPLOYMENT_BETA9.md`
+6. `docs/REQUIREMENTS_STATUS.md`
+7. `docs/V065_FUNCTIONAL_DESIGN.md`
 
 ---
 
-# 1. VALIDACIÓN PRODUCTIVA
+# 1. VALIDACIÓN PRODUCTIVA ACTUAL
 
-## Beta.9 — Administrador VALIDADO VISUALMENTE
+## Administrador `jrios`
 
-Capturas productivas del usuario Administrador confirmaron:
+VALIDADO visualmente en beta.10:
 
-- versión visible `0.6.5-beta.9`;
-- menú `Jornadas` disponible;
-- Inicio carga correctamente;
-- franja superior de Jornadas en Inicio;
-- módulo `Control de jornadas` carga;
-- filtros de Período, Mes, Vendedor, Estado, Tipo cliente, Región oficial, Provincia oficial y Municipio oficial;
-- KPI de Jornadas, Cobertura real, Cierre operativo, Pendientes de cierre, Finalizadas, Horas de jornada, Distancia GPS y Eventualidades;
-- tabla de jornadas con detalle por Vendedor/Fecha;
-- Reportes V2 multiperíodo carga;
-- filtros por colaborador/estado/territorio visibles;
-- gráficos de Plan vs ejecución y Cobertura diaria;
-- tabla de desempeño por colaborador;
-- detalle diario;
-- exportaciones Excel/PDF visibles.
+- versión `0.6.5-beta.10` visible;
+- Inicio operativo;
+- Jornadas con filtros y KPI;
+- estado histórico `No ejecutada` visible;
+- Reportes multiperíodo;
+- tarjetas `Tiempo operativo total`, `Horas gestión calle`, `Horas gestión showroom / CRM`;
+- filtros, gráficos, desempeño por colaborador y detalle diario;
+- Excel/PDF disponibles.
 
-Datos productivos de prueba observados en agosto 2026 mantienen correctamente la diferencia entre cobertura y cierre operativo.
+## Vendedor Cesar Caba
 
-## Beta.9 — Vendedor Cesar Caba VALIDADO VISUALMENTE
+VALIDADO visualmente:
 
-Capturas productivas autenticadas como Cesar Caba confirmaron:
-
-- menú `Jornadas` visible;
-- `Mis jornadas` muestra exclusivamente sus propias jornadas;
-- no aparecen jornadas de Eduar Ceballos ni otros vendedores;
-- Rutas muestra su planificación asignada;
-- scoping visual coincide con el scoping backend previamente probado;
-- la versión visible era `0.6.5-beta.9`.
-
-La regla temporal sigue siendo backend-driven: una jornada de un día anterior no puede continuar aunque se intente evadir la interfaz.
-
-## Beta.10 — PENDIENTE VALIDACIÓN VISUAL FINAL
-
-Beta.10 ya está desplegada. Validar solamente los refinamientos:
-
-- versión visible `0.6.5-beta.10`;
-- Inicio muestra `Planificadas` además de Activas/Finalizadas/Pendientes;
-- una planificación histórica nunca iniciada aparece como `No ejecutada`;
-- Reportes muestra `Horas gestión calle`;
-- Reportes muestra `Horas gestión showroom / CRM`;
-- `Tiempo operativo total` continúa como referencia general;
-- filtros por tipo/colaborador continúan afectando correctamente las nuevas tarjetas.
+- `Mis jornadas` muestra solo sus jornadas;
+- no aparecen jornadas de otros Vendedores;
+- Rutas muestra únicamente su planificación asignada;
+- scoping visual coincide con scoping backend.
 
 ---
 
@@ -123,36 +98,33 @@ Una jornada pertenece exclusivamente a su fecha operativa.
 session_date == fecha operativa actual America/Santo_Domingo
 ```
 
-es requisito para continuar ejecución.
-
 Si una `route_session` permanece abierta con `session_date < hoy`:
 
 ```text
 PENDIENTE_CIERRE
 ```
 
-No se permite en días posteriores:
+No puede continuar ejecución al día siguiente.
 
-- iniciar otra visita dentro de esa sesión;
-- finalizar una visita como actividad del nuevo día;
-- registrar eventualidad nueva;
-- continuar secuencia;
-- cambiar paradas para seguir ejecutando;
-- agregar visita adicional asociada a esa jornada.
+Backend y frontend protegen:
 
-Sí se permite revisión, análisis, exportación y cierre trazable.
+- visitas;
+- eventualidades;
+- paradas;
+- continuidad de ruta;
+- visitas adicionales asociadas.
 
-La protección existe en frontend y backend.
+Admin/Supervisor conserva regularización administrativa trazable sin aumentar cobertura.
 
 ---
 
-# 3. JORNADAS
+# 3. JORNADAS / CONTROL OPERATIVO ACTUAL
 
 Ruta: `/jornadas`.
 
-## Vendedor — Mis jornadas
+## Vendedor
 
-Muestra exclusivamente su alcance:
+`Mis jornadas` incluye:
 
 - jornada del día;
 - programadas;
@@ -162,64 +134,37 @@ Muestra exclusivamente su alcance:
 - cobertura;
 - cierre operativo;
 - tiempos;
-- distancia GPS estimada;
+- distancia GPS;
 - eventualidades;
 - detalle de paradas.
 
-Una jornada vencida jamás ofrece `Continuar`.
+Una jornada vencida nunca ofrece `Continuar`.
 
-El código técnico histórico `NO_INICIADA` se presenta en UI como **`No ejecutada`** cuando su fecha ya pasó, para evitar sugerir que todavía puede iniciarse.
+## Admin/Supervisor
 
-## Admin/Supervisor — Control de jornadas
-
-Incluye:
+Control actual incluye:
 
 - Día / Semana / Mes / Rango;
 - Vendedor;
 - Estado;
 - Tipo cliente;
 - Región / Provincia / Municipio oficial;
-- jornadas planificadas/iniciadas/finalizadas;
-- pendientes de cierre;
-- planificados/visitados/resueltos;
-- cobertura/cierre operativo;
-- horas de jornada/atención/traslado;
-- distancia GPS estimada;
-- eventualidades;
-- detalle individual;
+- KPI de jornadas/cobertura/cierre/horas/distancia/eventualidades;
+- tabla;
+- detalle;
 - Excel/PDF.
 
 ---
 
-# 4. CIERRE Y REGULARIZACIÓN
+# 4. MÉTRICAS VIGENTES Y BUG CONOCIDO
 
-## Jornada vencida sin actividad abierta
-
-Puede cerrarse de forma trazable sin incrementar cobertura.
-
-## Jornada vencida con visita/eventualidad abierta
-
-El Vendedor no puede continuarla al día siguiente.
-
-Admin/Supervisor puede usar regularización administrativa:
-
-- corta técnicamente la actividad al límite del día operativo;
-- parada incompleta queda `NO_VISITADO`;
-- no aumenta cobertura;
-- registra `JORNADA_VENCIDA`;
-- conserva notas y revisión administrativa.
-
----
-
-# 5. MÉTRICAS
-
-## Cobertura real
+## Cobertura
 
 ```text
 visitados / planificados
 ```
 
-## Cierre operativo / resolución
+## Cierre operativo
 
 ```text
 resueltos / planificados
@@ -227,33 +172,49 @@ resueltos / planificados
 
 No son equivalentes.
 
-## Tiempo
+## Fuentes correctas de Calle
 
-- Jornada = ventana de `route_session`.
-- Atención = visitas.
-- Eventualidades = incidencias.
-- Traslado/espera = residual validado.
-- Tiempo operativo total = tiempo operativo acumulado de los colaboradores incluidos en el filtro ejecutivo.
-- Horas gestión calle = `operational_seconds` de colaboradores tipo Vendedor.
-- Horas gestión showroom / CRM = `operational_seconds` de colaboradores tipo Gestor; incluye la gestión registrada en llamadas/showroom según las vistas ejecutivas vigentes.
+`executive_route_journeys_v2` ya expone:
 
-Sesiones históricas abiertas se limitan al fin del día operativo y no acumulan 24/48/72 horas indefinidamente.
+- `route_window_seconds` = ventana total de jornada en calle;
+- `visit_seconds` = atención real a clientes;
+- `incident_seconds` = eventualidades;
+- `transit_wait_estimated_seconds` = traslado/espera residual;
+- `estimated_distance_m` = distancia GPS estimada.
 
-## Distancia
+## BUG P0 detectado en beta.10
 
-`Distancia GPS estimada` se calcula con eventos GPS disponibles; no equivale a odómetro ni ruta vial exacta.
+La tarjeta `Horas gestión calle` de Reportes usa actualmente `operational_seconds` de `executive_daily_employee_summary` para Vendedores.
+
+La vista antigua puede inflar sesiones históricas abiertas mediante `COALESCE(ended_at, now())`.
+
+Auditoría real:
+
+- Reportes mostró aproximadamente `43 h 40 min` de gestión calle.
+- Jornadas mostró aproximadamente `22 h 23 min` de ventana de ruta acumulada.
+- Cesar Caba llegó a mostrar `105,408 s` (~29 h 17 min) en un solo día en la vista antigua.
+
+**Beta.11 debe corregirlo.**
+
+Fuente correcta:
+
+```text
+Horas en calle = SUM(executive_route_journeys_v2.route_window_seconds)
+Atención clientes = SUM(executive_route_journeys_v2.visit_seconds)
+Traslado/espera = SUM(executive_route_journeys_v2.transit_wait_estimated_seconds)
+```
 
 ---
 
-# 6. TERRITORIO OFICIAL HISTÓRICO
+# 5. TERRITORIO OFICIAL HISTÓRICO
 
-`route_stops` conserva snapshot al planificar:
+`route_stops` conserva snapshot:
 
 - `official_region_at_plan`
 - `official_province_at_plan`
 - `official_municipality_at_plan`
 
-Backfill verificado:
+Backfill verificado previamente:
 
 ```text
 72/72 Región oficial
@@ -261,13 +222,11 @@ Backfill verificado:
 72/72 Municipio oficial
 ```
 
-Vista usada por Jornadas/Reportes: `executive_route_journeys_v2`.
-
-Objetivo: correcciones futuras del GPS/maestro no deben reescribir silenciosamente el territorio de una jornada histórica.
+Vista operativa: `executive_route_journeys_v2`.
 
 ---
 
-# 7. SEGURIDAD / SCOPING
+# 6. SEGURIDAD / SCOPING
 
 `executive_route_journeys_v2` aplica alcance en Supabase:
 
@@ -276,156 +235,287 @@ Administrador / Supervisor -> todas las jornadas
 Otros perfiles              -> solo employee_id propio
 ```
 
-Pruebas realizadas simulando `authenticated`:
+Validado backend y visualmente con Cesar Caba.
 
-- Vendedor -> solo sus propias jornadas: VALIDADO.
-- Administrador -> conjunto global: VALIDADO.
-
-Además, el perfil real de Cesar Caba fue validado visualmente en producción mostrando solamente sus jornadas.
-
-Mantener defensa en profundidad frontend + backend.
+Mantener defensa frontend + backend en beta.11, especialmente al crear vistas de Gestores y exportaciones.
 
 ---
 
-# 8. REPORTES V2
+# 7. REPORTES BETA.10 — ESTADO VISUAL
 
-Ruta: `/reportes`.
+Funciona, pero la arquitectura de KPI requiere rediseño.
 
-Filtros implementados:
+Problemas detectados:
 
-- Día;
-- Semana;
-- Mes;
-- Rango personalizado;
-- Tipo colaborador;
-- Colaborador;
-- Estado jornada;
-- Tipo cliente ruta;
-- Región oficial;
-- Provincia oficial;
-- Municipio oficial.
+1. `auto-fit/minmax(190px,1fr)` puede dejar una segunda fila con pocas tarjetas y grandes vacíos.
+2. `Monto vendido` se ve mal ajustado y no posee jerarquía suficiente.
+3. Los KPI se presentan como una matriz plana aunque pertenecen a dominios distintos.
+4. `Horas gestión calle` tiene el bug P0 descrito arriba.
 
-Regla matemática:
+Beta.11 debe agrupar KPI por:
 
-```text
-Cobertura período = SUM(visitados) / SUM(planificados)
-Resolución período = SUM(resueltos) / SUM(planificados)
-```
-
-Nunca promediar porcentajes diarios directamente.
-
-Beta.10 agrega en KPI:
-
-- `Horas gestión calle`.
-- `Horas gestión showroom / CRM`.
-- conserva `Tiempo operativo total`.
-
-Exportaciones beta.10 agregan:
-
-- canal de gestión (`Calle` / `CRM / Showroom`);
-- horas de gestión.
-
-Actividades no territorializadas como llamadas/showroom/ventas generales no deben fingir precisión territorial inexistente.
+- Ejecución Calle.
+- CRM / Showroom.
+- Resultado Comercial.
 
 ---
 
-# 9. INICIO
+# 8. GESTORES — PIEZA PRINCIPAL PENDIENTE
 
-La franja superior de Jornadas en beta.10 debe mostrar:
+Jornadas actual está centrado en Vendedores.
 
-```text
-Planificadas · Activas · Finalizadas · Pendientes cierre · Cobertura hoy
-```
+Los Gestores no deben usar `route_session` ficticias.
 
-Ejemplo con la planificación observada:
+Fuentes reales disponibles:
 
-```text
-1 planificada · 0 activas · 0 finalizadas · 0 pendientes cierre · 0% cobertura hoy
-```
+- `calls`;
+- `appointments`;
+- `showroom_sessions`;
+- `follow_ups`;
+- ventas/compras;
+- primera/última actividad registrada.
 
-Objetivo: distinguir claramente entre trabajo preparado pero aún no iniciado y ausencia total de actividad.
+Métricas beta.11:
+
+### Llamadas
+
+- realizadas;
+- contactadas;
+- no contesta;
+- ocupado;
+- teléfono incorrecto;
+- contactabilidad;
+- duración total;
+- promedio;
+- citas generadas.
+
+### Showroom
+
+- citas programadas;
+- confirmadas;
+- recibidas/atendidas;
+- reprogramadas;
+- tiempo real de atención;
+- promedio de atención.
+
+### Seguimientos
+
+Tabla `follow_ups` existe con:
+
+- `assigned_employee_id`;
+- `due_at`;
+- `status`;
+- `source_type`;
+- `source_id`;
+- `completed_at`.
+
+Actualmente debe integrarse con `next_action + follow_up_date` para construir una worklist real.
 
 ---
 
-# 10. BASELINE CONSERVADO
+# 9. BETA.11 — ARQUITECTURA APROBADA
 
-Beta.10 conserva todo el baseline de beta.9:
+Documento rector:
 
-- Login premium y responsive;
-- Clientes;
-- Mapa territorial oficial;
-- filtros Región/Provincia/Municipio/Distrito individual y en cascada;
-- análisis territorial;
-- Planificación con `Disponibles` / `Seleccionados`;
-- radio/polígono;
-- orden por cercanía;
-- Captación centralizada;
-- Cobertura;
-- Visitas;
-- Llamadas;
-- Agenda/Showroom;
-- Recepción;
+`docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
+
+Nombre del bloque:
+
+**V0.6.5-beta.11 — Operational Intelligence & UX Polish**
+
+Objetivos:
+
+1. corregir horas Calle;
+2. añadir Atención clientes;
+3. añadir Traslado/espera;
+4. promedio de atención;
+5. evolucionar Jornadas a Control Operativo;
+6. tabs Calle / CRM-Showroom;
+7. vista real de Gestores;
+8. follow-ups / cola de trabajo;
+9. rediseñar KPI por grupos semánticos;
+10. corregir Monto vendido;
+11. hover/focus/selected premium en tarjetas;
+12. filtros en dos niveles + chips;
+13. persistir filtros en URL/query params;
+14. detalle en panel lateral;
+15. Centro de Alertas Operativas categorizado;
+16. severidad por color + icono + texto;
+17. alertas con deep-link al objeto exacto;
+18. marcar todas como leídas;
+19. deduplicación;
+20. exportaciones alineadas;
+21. responsive/accessibility;
+22. optimización de bundle después de estabilizar funcionalidad.
+
+---
+
+# 10. NOTIFICACIONES BETA.11
+
+Campana actual mezcla notificaciones, Agenda y Jornadas en una lista plana.
+
+Beta.11 debe agrupar:
+
 - Jornadas;
-- Reportes multiperíodo;
-- Calidad geográfica;
+- Rutas / Visitas;
+- CRM / Seguimientos;
+- Agenda / Showroom;
+- Calidad de datos;
+- Sistema.
+
+Severidad:
+
+- Crítica = rojo.
+- Acción requerida = ámbar.
+- Información = azul.
+- Resuelto = verde cuando corresponda.
+
+Color nunca debe ser el único indicador.
+
+Una alerta debe abrir el objeto concreto, no solo el módulo general.
+
+---
+
+# 11. SISTEMA VISUAL BETA.11
+
+Todas las tarjetas KPI deben compartir estados:
+
+### Default
+
+- borde neutro;
+- sombra mínima.
+
+### Hover
+
+- elevación ~2px;
+- borde brand suave;
+- sombra mayor;
+- icono intensificado;
+- transición 160–200ms.
+
+### Focus-visible
+
+Equivalente accesible al hover.
+
+### Selected
+
+Si la tarjeta actúa como filtro/drill-down:
+
+- borde brand persistente;
+- fondo suave;
+- chip/filtro activo visible.
+
+No usar cursor pointer en tarjetas no accionables.
+
+Respetar `prefers-reduced-motion`.
+
+---
+
+# 12. FILTROS BETA.11
+
+Dividir en:
+
+## Principales
+
+- Período.
+- Fecha/Mes/Rango.
+- Tipo colaborador.
+- Colaborador.
+
+## Segmentación
+
+- Estado.
+- Tipo cliente.
+- Región.
+- Provincia.
+- Municipio.
+
+Mostrar chips activos.
+
+Preferir query parameters para persistencia y navegación Back/Forward.
+
+---
+
+# 13. BASELINE QUE NO SE DEBE ROMPER
+
+- Login premium.
+- Clientes.
+- Mapa territorial oficial.
+- filtros territoriales individuales/cascada.
+- análisis territorial.
+- Planificación Disponibles/Seleccionados.
+- radio/polígono.
+- orden por cercanía.
+- Rutas.
+- regla temporal de jornada.
+- Captación.
+- Cobertura.
+- Visitas.
+- Llamadas.
+- Agenda/Showroom.
+- Recepción.
+- Jornadas.
+- Reportes multiperíodo.
+- Calidad geográfica.
 - Administración/Configuración.
 
 ---
 
-# 11. DEUDA TÉCNICA / SIGUIENTES MEJORAS
+# 14. ESTRATEGIA DE IMPLEMENTACIÓN BETA.11
 
-No bloqueantes:
+No implementar directamente en `main`.
 
-1. Bundle principal supera 500 KB minificado; pendiente optimización mediante code splitting/lazy loading cuando el bloque funcional esté estabilizado.
-2. Revisar más adelante si conviene agregar comparativos de horas Calle vs CRM/Showroom por colaborador/período en gráficos dedicados.
-3. Mantener validación de responsive en móvil/tablet a medida que crezcan los KPI de Reportes.
+Orden:
 
-No mezclar optimización de bundle con correcciones funcionales urgentes salvo que exista impacto real de rendimiento.
+1. checkpoint documental docs-only;
+2. rama feature beta.11;
+3. auditoría de vistas/RLS;
+4. corregir fuentes de tiempo Calle;
+5. definir capa ejecutiva CRM/Showroom;
+6. integrar follow-ups;
+7. sistema visual KPI;
+8. Control Operativo Calle/CRM;
+9. Reportes;
+10. Notificaciones;
+11. panel lateral;
+12. filtros persistentes;
+13. exportaciones;
+14. responsive/accessibility;
+15. build;
+16. GitHub Actions;
+17. validación Admin/Vendedor/Gestor;
+18. merge;
+19. Fetch/Pull local;
+20. build local;
+21. deploy manual Cloudflare;
+22. validación productiva.
 
 ---
 
-# 12. SIGUIENTE PASO OBLIGATORIO
-
-Validar visualmente beta.10 en producción.
-
-Checklist:
-
-- [ ] versión `0.6.5-beta.10` visible.
-- [ ] Inicio: `Planificadas` visible y conteo correcto.
-- [ ] Jornadas: histórico `No ejecutada` visible.
-- [ ] Reportes: `Horas gestión calle` visible.
-- [ ] Reportes: `Horas gestión showroom / CRM` visible.
-- [ ] Reportes: `Tiempo operativo total` sigue visible.
-- [ ] filtros por Vendedor/Gestor afectan correctamente los KPI de horas.
-
-Después de esta comprobación, beta.10 puede considerarse estable para continuar con el siguiente bloque funcional.
-
----
-
-# 13. RECUPERACIÓN EN NUEVO CHAT
+# 15. RECUPERACIÓN EN NUEVO CHAT
 
 Leer en este orden:
 
 1. `PROJECT_HANDOFF.md`.
-2. `docs/V065_BETA10_REFINEMENT_STATUS.md`.
-3. `docs/V065C_DEPLOYMENT_BETA9.md`.
+2. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`.
+3. `docs/V065_BETA10_REFINEMENT_STATUS.md`.
 4. `docs/V065C_IMPLEMENTATION_STATUS.md`.
 5. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
-6. `package.json` en `main`.
-7. commits recientes GitHub.
-8. ledger Supabase real.
-9. Cloudflare real.
+6. `package.json`.
+7. GitHub main/PRs.
+8. Supabase remoto.
+9. Cloudflare productivo.
 
 Mensaje recomendado:
 
-> “Continúa Gestión de Ventas Diaria. Lee primero `PROJECT_HANDOFF.md` del repositorio `jjriosjose/Gestion_de_Ventas_Diaria` y después `docs/V065_BETA10_REFINEMENT_STATUS.md`. Verifica GitHub main, Supabase y Cloudflare. Beta.10 ya fue desplegada con Cloudflare Version ID `8d6271ac-79e1-4794-b347-7023919040be`; el backend V065C de beta.9 sigue vigente. Admin y el scoping real de Cesar Caba ya fueron validados; falta confirmar visualmente los refinamientos de beta.10.”
+> “Continúa Gestión de Ventas Diaria. Lee `PROJECT_HANDOFF.md` y `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`. La producción actual es V0.6.5-beta.10 con Cloudflare Version ID `8d6271ac-79e1-4794-b347-7023919040be`. Beta.10 fue validada con Admin y Cesar Caba. Antes de desarrollar beta.11, confirma el bug conocido de `Horas gestión calle` y la arquitectura Calle vs CRM/Showroom en Supabase/GitHub.”
 
 ---
 
-# 14. FUENTE DE VERDAD
+# 16. FUENTE DE VERDAD
 
 1. GitHub `main` = código vigente.
 2. Supabase remoto = esquema/datos/políticas reales.
-3. Cloudflare = interfaz realmente desplegada.
-4. Documentación = decisiones y checkpoints.
-5. Conversaciones = contexto, no fuente definitiva.
+3. Cloudflare = UI realmente desplegada.
+4. Documentación = decisiones/checkpoints.
+5. Conversación = contexto, no fuente definitiva.
