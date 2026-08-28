@@ -52,15 +52,62 @@ Cloudflare UI    = V0.6.5-beta.10 desplegada
 Siguiente bloque = V0.6.5-beta.11 Operational Intelligence & UX Polish
 ```
 
+---
+
+# 0A. PRINCIPIO COMERCIAL / SaaS-READY — DECISIÓN ARQUITECTÓNICA OBLIGATORIA
+
+A partir del 27/08/2026 la aplicación **no se considera exclusivamente un sistema interno de Almacenes Karaka**.
+
+Debe desarrollarse como **producto de software empresarial comercializable y progresivamente SaaS-ready**.
+
+Almacenes Karaka se considera la **implementación/configuración de referencia actual** del producto.
+
+Principio principal:
+
+> **Cada actualización debe mejorar el producto sin romper lo que ya funciona y debe aumentar su capacidad para ser comercializado, configurado y adaptado a diferentes clientes.**
+
+Reglas obligatorias:
+
+1. mantener comportamiento productivo vigente salvo autorización explícita;
+2. no eliminar ni alterar funciones existentes sin aprobación;
+3. diseñar nuevas capacidades para múltiples tipos de organizaciones;
+4. evitar nuevos hardcodes específicos cuando exista una abstracción simple;
+5. priorizar configurabilidad, reutilización, escalabilidad y mantenibilidad;
+6. mantener branding separado de lógica de negocio;
+7. separar códigos internos estables de etiquetas visibles;
+8. diseñar componentes compartidos antes que duplicar patrones;
+9. proteger reglas críticas en backend/RLS además del frontend;
+10. si un cambio tiene impacto alto en lógica, datos, seguridad, Auth, RLS, métricas o historia: **detenerse y advertir antes de aplicar**.
+
+Estrategia:
+
+```text
+Fase actual     = SaaS-ready progresivo
+Fase futura     = organization abstraction
+Fase posterior  = multi-tenant SaaS real con organization_id + RLS por tenant
+```
+
+NO introducir multi-tenancy parcial de forma improvisada dentro de beta.11.
+
+Documentos obligatorios para esta decisión:
+
+1. `docs/COMMERCIAL_PRODUCT_ARCHITECTURE.md`
+2. `docs/V065_BETA11_COMMERCIALIZATION_ADDENDUM.md`
+3. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
+
+---
+
 Documentos prioritarios:
 
-1. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
-2. `docs/V065_BETA10_REFINEMENT_STATUS.md`
-3. `docs/V065C_IMPLEMENTATION_STATUS.md`
-4. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`
-5. `docs/V065C_DEPLOYMENT_BETA9.md`
-6. `docs/REQUIREMENTS_STATUS.md`
-7. `docs/V065_FUNCTIONAL_DESIGN.md`
+1. `docs/COMMERCIAL_PRODUCT_ARCHITECTURE.md`
+2. `docs/V065_BETA11_COMMERCIALIZATION_ADDENDUM.md`
+3. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
+4. `docs/V065_BETA10_REFINEMENT_STATUS.md`
+5. `docs/V065C_IMPLEMENTATION_STATUS.md`
+6. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`
+7. `docs/V065C_DEPLOYMENT_BETA9.md`
+8. `docs/REQUIREMENTS_STATUS.md`
+9. `docs/V065_FUNCTIONAL_DESIGN.md`
 
 ---
 
@@ -224,6 +271,8 @@ Backfill verificado previamente:
 
 Vista operativa: `executive_route_journeys_v2`.
 
+Comercialización no autoriza eliminar ni degradar la cartografía RD. La generalización territorial internacional será progresiva; los componentes nuevos deben evitar asumir que las etiquetas Región/Provincia/Municipio son universales.
+
 ---
 
 # 6. SEGURIDAD / SCOPING
@@ -238,6 +287,8 @@ Otros perfiles              -> solo employee_id propio
 Validado backend y visualmente con Cesar Caba.
 
 Mantener defensa frontend + backend en beta.11, especialmente al crear vistas de Gestores y exportaciones.
+
+Para multi-tenant futuro será obligatorio agregar scoping por organización de forma integral; no se considera implementado todavía.
 
 ---
 
@@ -254,9 +305,11 @@ Problemas detectados:
 
 Beta.11 debe agrupar KPI por:
 
-- Ejecución Calle.
+- Ejecución Calle / Field Operation.
 - CRM / Showroom.
 - Resultado Comercial.
+
+Los códigos internos de capacidades no deben depender de las etiquetas visibles Karaka.
 
 ---
 
@@ -309,15 +362,17 @@ Tabla `follow_ups` existe con:
 - `source_id`;
 - `completed_at`.
 
-Actualmente debe integrarse con `next_action + follow_up_date` para construir una worklist real.
+Debe integrarse como una cola de trabajo genérica de próximas acciones, no como entidad exclusiva de Karaka ni únicamente de llamadas.
 
 ---
 
 # 9. BETA.11 — ARQUITECTURA APROBADA
 
-Documento rector:
+Documentos rectores:
 
-`docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
+1. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`
+2. `docs/V065_BETA11_COMMERCIALIZATION_ADDENDUM.md`
+3. `docs/COMMERCIAL_PRODUCT_ARCHITECTURE.md`
 
 Nombre del bloque:
 
@@ -346,7 +401,9 @@ Objetivos:
 19. deduplicación;
 20. exportaciones alineadas;
 21. responsive/accessibility;
-22. optimización de bundle después de estabilizar funcionalidad.
+22. comenzar consolidación de componentes compartidos;
+23. aplicar principio SaaS-ready sin migración multi-tenant destructiva;
+24. optimización de bundle después de estabilizar funcionalidad.
 
 ---
 
@@ -373,6 +430,8 @@ Severidad:
 Color nunca debe ser el único indicador.
 
 Una alerta debe abrir el objeto concreto, no solo el módulo general.
+
+El componente debe decidir comportamiento mediante categoría/severidad/entity_type, no por nombre de empresa ni texto visible.
 
 ---
 
@@ -409,6 +468,8 @@ No usar cursor pointer en tarjetas no accionables.
 
 Respetar `prefers-reduced-motion`.
 
+Beta.11 debe preferir componentes reutilizables (`MetricCard`, `MetricGroup`, `FilterBar`, `FilterChip`, `DetailDrawer`, `NotificationItem`) y semantic design tokens.
+
 ---
 
 # 12. FILTROS BETA.11
@@ -433,6 +494,8 @@ Dividir en:
 Mostrar chips activos.
 
 Preferir query parameters para persistencia y navegación Back/Forward.
+
+Los query params deben usar IDs/códigos estables, no etiquetas visibles específicas del cliente.
 
 ---
 
@@ -459,6 +522,8 @@ Preferir query parameters para persistencia y navegación Back/Forward.
 - Calidad geográfica.
 - Administración/Configuración.
 
+La evolución comercial no permite romper estas capacidades ni reemplazarlas por abstracciones incompletas.
+
 ---
 
 # 14. ESTRATEGIA DE IMPLEMENTACIÓN BETA.11
@@ -469,11 +534,11 @@ Orden:
 
 1. checkpoint documental docs-only;
 2. rama feature beta.11;
-3. auditoría de vistas/RLS;
+3. auditoría de vistas/RLS/impacto comercial;
 4. corregir fuentes de tiempo Calle;
-5. definir capa ejecutiva CRM/Showroom;
-6. integrar follow-ups;
-7. sistema visual KPI;
+5. definir capa ejecutiva CRM/Showroom genérica;
+6. integrar follow-ups como work queue;
+7. sistema visual KPI/componente compartido;
 8. Control Operativo Calle/CRM;
 9. Reportes;
 10. Notificaciones;
@@ -481,14 +546,17 @@ Orden:
 12. filtros persistentes;
 13. exportaciones;
 14. responsive/accessibility;
-15. build;
-16. GitHub Actions;
-17. validación Admin/Vendedor/Gestor;
-18. merge;
-19. Fetch/Pull local;
-20. build local;
-21. deploy manual Cloudflare;
-22. validación productiva.
+15. QA comercial-ready (hardcodes, labels, IDs, tokens, scoping);
+16. build;
+17. GitHub Actions;
+18. validación Admin/Vendedor/Gestor;
+19. merge;
+20. Fetch/Pull local;
+21. build local;
+22. deploy manual Cloudflare;
+23. validación productiva.
+
+No realizar migración multi-tenant completa dentro de beta.11 solamente por la decisión de comercialización.
 
 ---
 
@@ -497,18 +565,20 @@ Orden:
 Leer en este orden:
 
 1. `PROJECT_HANDOFF.md`.
-2. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`.
-3. `docs/V065_BETA10_REFINEMENT_STATUS.md`.
-4. `docs/V065C_IMPLEMENTATION_STATUS.md`.
-5. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
-6. `package.json`.
-7. GitHub main/PRs.
-8. Supabase remoto.
-9. Cloudflare productivo.
+2. `docs/COMMERCIAL_PRODUCT_ARCHITECTURE.md`.
+3. `docs/V065_BETA11_COMMERCIALIZATION_ADDENDUM.md`.
+4. `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`.
+5. `docs/V065_BETA10_REFINEMENT_STATUS.md`.
+6. `docs/V065C_IMPLEMENTATION_STATUS.md`.
+7. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
+8. `package.json`.
+9. GitHub main/PRs.
+10. Supabase remoto.
+11. Cloudflare productivo.
 
 Mensaje recomendado:
 
-> “Continúa Gestión de Ventas Diaria. Lee `PROJECT_HANDOFF.md` y `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`. La producción actual es V0.6.5-beta.10 con Cloudflare Version ID `8d6271ac-79e1-4794-b347-7023919040be`. Beta.10 fue validada con Admin y Cesar Caba. Antes de desarrollar beta.11, confirma el bug conocido de `Horas gestión calle` y la arquitectura Calle vs CRM/Showroom en Supabase/GitHub.”
+> “Continúa Gestión de Ventas Diaria como producto empresarial comercializable. Lee `PROJECT_HANDOFF.md`, `docs/COMMERCIAL_PRODUCT_ARCHITECTURE.md`, `docs/V065_BETA11_COMMERCIALIZATION_ADDENDUM.md` y `docs/V065_BETA11_OPERATIONAL_INTELLIGENCE_DESIGN.md`. Producción actual: V0.6.5-beta.10, Cloudflare Version ID `8d6271ac-79e1-4794-b347-7023919040be`. Karaka es la configuración de referencia. Beta.11 debe ser SaaS-ready progresiva sin migración multi-tenant destructiva y debe corregir primero el bug de Horas gestión calle.”
 
 ---
 
