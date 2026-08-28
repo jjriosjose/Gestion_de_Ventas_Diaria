@@ -7,14 +7,15 @@ import { Dashboard } from './pages/Dashboard'
 import { Clients } from './pages/Clients'
 import { MapPage } from './pages/MapPage'
 import { Planning } from './pages/Planning'
-import { Routes as RoutesPage } from './pages/Routes'
+import { RoutesWorkspace } from './pages/RoutesWorkspace'
+import { Journeys } from './pages/Journeys'
 import { Capture } from './pages/Capture'
 import { Visits } from './pages/Visits'
 import { Calls } from './pages/Calls'
 import { Agenda } from './pages/Agenda'
 import { Reception } from './pages/Reception'
 import { Coverage } from './pages/Coverage'
-import { Reports } from './pages/Reports'
+import { ReportsV2 } from './pages/ReportsV2'
 import { Admin } from './pages/Admin'
 import { Settings } from './pages/Settings'
 import { DataQuality } from './pages/DataQuality'
@@ -31,7 +32,7 @@ function RequireAdministration({ children }: { children: React.ReactNode }) {
 }
 
 function Protected(){
-  const {session,employee,loading}=useAuth()
+  const {session,loading}=useAuth()
   if(loading)return <div className="boot-screen"><img src="/logo-karaka.png"/><div className="boot-loader"><i/></div><span>Iniciando sistema...</span></div>
   if(!session)return <Login/>
   return <ThemeProvider><Routes><Route element={<AppShell/>}>
@@ -39,14 +40,15 @@ function Protected(){
     <Route path="clientes" element={<RequirePermission permission="clients.view"><Clients/></RequirePermission>}/>
     <Route path="mapa" element={<RequirePermission permission="map.view"><MapPage/></RequirePermission>}/>
     <Route path="planificacion" element={<RequirePermission permission="planning.view"><Planning/></RequirePermission>}/>
-    <Route path="rutas" element={<RequirePermission permission="routes.view"><RoutesPage/></RequirePermission>}/>
+    <Route path="rutas" element={<RequirePermission permission="routes.view"><RoutesWorkspace/></RequirePermission>}/>
+    <Route path="jornadas" element={<RequirePermission permission="journeys.view"><Journeys/></RequirePermission>}/>
     <Route path="captacion" element={<RequirePermission permission="capture.view"><Capture/></RequirePermission>}/>
     <Route path="cobertura" element={<RequirePermission permission="coverage.view"><Coverage/></RequirePermission>}/>
     <Route path="visitas" element={<RequirePermission permission="visits.view"><Visits/></RequirePermission>}/>
     <Route path="llamadas" element={<RequirePermission permission="calls.view"><Calls/></RequirePermission>}/>
     <Route path="agenda" element={<RequirePermission permission="agenda.view"><Agenda/></RequirePermission>}/>
     <Route path="recepcion" element={<RequirePermission permission="reception.view"><Reception/></RequirePermission>}/>
-    <Route path="reportes" element={<RequirePermission permission="reports.view"><Reports/></RequirePermission>}/>
+    <Route path="reportes" element={<RequirePermission permission="reports.view"><ReportsV2/></RequirePermission>}/>
     <Route path="calidad-datos" element={<RequirePermission permission="data_quality.view"><DataQuality/></RequirePermission>}/>
     <Route path="administracion" element={<RequireAdministration><Admin/></RequireAdministration>}/>
     <Route path="configuracion" element={<RequirePermission permission="settings.view"><Settings/></RequirePermission>}/>
