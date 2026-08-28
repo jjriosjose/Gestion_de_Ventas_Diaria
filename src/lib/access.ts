@@ -3,7 +3,7 @@ import type { AccessProfile, Employee } from '../types'
 export type PermissionKey =
   | 'dashboard.view' | 'clients.view' | 'clients.edit' | 'map.view'
   | 'planning.view' | 'planning.manage' | 'routes.view' | 'routes.execute'
-  | 'journeys.view' | 'journeys.manage'
+  | 'journeys.view' | 'journeys.manage' | 'tracking.view'
   | 'capture.view' | 'capture.create' | 'coverage.view' | 'visits.view' | 'visits.execute'
   | 'calls.view' | 'calls.manage' | 'agenda.view' | 'agenda.manage'
   | 'reception.view' | 'reception.manage' | 'reports.view' | 'data_quality.view'
@@ -16,7 +16,7 @@ export const PERMISSION_GROUPS: Array<{ label: string; items: Array<{ key: Permi
     { key: 'dashboard.view', label: 'Inicio' }, { key: 'clients.view', label: 'Clientes' }, { key: 'clients.edit', label: 'Editar clientes' },
     { key: 'map.view', label: 'Mapa' }, { key: 'planning.view', label: 'Ver planificación' }, { key: 'planning.manage', label: 'Crear planificación' },
     { key: 'routes.view', label: 'Ver rutas' }, { key: 'routes.execute', label: 'Ejecutar rutas' },
-    { key: 'journeys.view', label: 'Ver control operativo' }, { key: 'journeys.manage', label: 'Gestionar jornadas' },
+    { key: 'journeys.view', label: 'Ver control operativo' }, { key: 'journeys.manage', label: 'Gestionar jornadas' }, { key: 'tracking.view', label: 'Ver tracking de calle' },
     { key: 'capture.view', label: 'Ver captación' }, { key: 'capture.create', label: 'Crear prospectos' },
   ] },
   { label: 'Gestión', items: [
@@ -39,7 +39,7 @@ const enabled = (...keys: PermissionKey[]) => new Set<PermissionKey>(keys)
 const PROFILE_DEFAULTS: Record<AccessProfile, Set<PermissionKey>> = {
   Administrador: new Set(ALL_KEYS),
   Supervisor: enabled(
-    'dashboard.view','clients.view','clients.edit','map.view','planning.view','planning.manage','routes.view','routes.execute','journeys.view','journeys.manage',
+    'dashboard.view','clients.view','clients.edit','map.view','planning.view','planning.manage','routes.view','routes.execute','journeys.view','journeys.manage','tracking.view',
     'capture.view','capture.create','coverage.view','visits.view','visits.execute','calls.view','calls.manage','agenda.view','agenda.manage',
     'reception.view','reception.manage','reports.view','data_quality.view','admin.import','admin.portfolio','settings.view'
   ),
