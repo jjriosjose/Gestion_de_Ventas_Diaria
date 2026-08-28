@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { hasPermission,profileForEmployee } from '../lib/access'
 import '../styles/journeys-reporting.css'
+import '../styles/dashboard-journey.css'
 
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Santo_Domingo'})
 const pct=(a:number,b:number)=>b?Math.round((a/b)*1000)/10:0
@@ -15,7 +16,7 @@ export function DashboardWorkspace(){
   const canView=hasPermission(employee,'journeys.view');const executive=['Administrador','Supervisor'].includes(profileForEmployee(employee))
   const load=async()=>{
     if(!employee?.id||!canView)return setRows([])
-    let q=supabase.from('executive_route_journeys').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').lte('route_date',today()).gte('route_date',today())
+    let q=supabase.from('executive_route_journeys').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').eq('route_date',today())
     if(!executive)q=q.eq('employee_id',employee.id)
     const current=await q
     let staleQ=supabase.from('executive_route_journeys').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').eq('derived_status','PENDIENTE_CIERRE')
