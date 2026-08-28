@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  BarChart3,BellRing,CalendarDays,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,
+  BarChart3,BellRing,CalendarDays,CalendarRange,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,
   ListChecks,LogOut,Map as MapIcon,MapPinned,Menu,PanelLeftClose,PanelLeftOpen,PhoneCall,Route,Settings,ShieldCheck,
   SlidersHorizontal,UserRoundCog,Users,X,
 } from 'lucide-react'
@@ -13,13 +13,13 @@ import packageInfo from '../../package.json'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon, permission: PermissionKey | 'ADMIN_ANY']
 type NavGroup = { label: string; items: NavItem[] }
-type AlertItem = { id: string; title: string; message?: string | null; created_at: string; synthetic?: boolean }
+type AlertItem = { id: string; title: string; message?: string | null; created_at: string; synthetic?: boolean; target?: 'agenda'|'journeys' }
 const APP_VERSION=packageInfo.version
 
 const groups: NavGroup[] = [
   { label: 'Operación', items: [
     ['/', 'Inicio', Gauge, 'dashboard.view'], ['/clientes', 'Clientes', Users, 'clients.view'], ['/mapa', 'Mapa', MapPinned, 'map.view'],
-    ['/planificacion', 'Planificación', ClipboardList, 'planning.view'], ['/rutas', 'Rutas', Route, 'routes.view'], ['/captacion', 'Captación', Captions, 'capture.view'],
+    ['/planificacion', 'Planificación', ClipboardList, 'planning.view'], ['/rutas', 'Rutas', Route, 'routes.view'], ['/jornadas', 'Jornadas', CalendarRange, 'journeys.view'], ['/captacion', 'Captación', Captions, 'capture.view'],
   ] },
   { label: 'Gestión', items: [
     ['/cobertura', 'Cobertura cartera', ListChecks, 'coverage.view'], ['/visitas', 'Visitas', ContactRound, 'visits.view'],
@@ -48,22 +48,28 @@ export function AppShell() {
   const loadNotifications = async () => {
     if (!employee?.id) return setNotifications([])
     const now = new Date(); const soon = new Date(now); soon.setDate(soon.getDate() + 3)
-    const [n, a] = await Promise.all([
+    const journeyAccess=hasPermission(employee,'journeys.view')
+    const executiveJourneyAccess=['Administrador','Supervisor'].includes(profileForEmployee(employee))
+    let journeyQuery:any=journeyAccess?supabase.from('executive_route_journeys').select('route_plan_id,employee_id,full_name,route_date,derived_status,planned_clients,visited_clients,coverage_pct').eq('derived_status','PENDIENTE_CIERRE').order('route_date',{ascending:true}).limit(10):null
+    if(journeyQuery&&!executiveJourneyAccess)journeyQuery=journeyQuery.eq('employee_id',employee.id)
+    const [n, a, j] = await Promise.all([
       supabase.from('notifications').select('*').eq('employee_id', employee.id).eq('status', 'UNREAD').order('created_at', { ascending: false }).limit(10),
       supabase.from('appointments').select('id,status,appointment_at,requested_appointment_at,clients(legal_name),prospects(legal_name)').eq('employee_id', employee.id).in('status', ['PENDIENTE_VALIDACION','CONFIRMADA','REPROGRAMADA']).or(`appointment_at.lte.${soon.toISOString()},requested_appointment_at.lte.${soon.toISOString()}`).order('created_at', { ascending: false }).limit(20),
+      journeyQuery||Promise.resolve({data:[],error:null}),
     ])
-    const stored: AlertItem[] = (n.data || []).map((item: any) => ({ ...item, synthetic: false }))
+    const stored: AlertItem[] = (n.data || []).map((item: any) => ({ ...item, synthetic: false, target:'agenda' }))
     const upcoming: AlertItem[] = (a.data || []).map((item: any) => {
       const name = item.clients?.legal_name || item.prospects?.legal_name || 'Cliente'; const date = item.appointment_at || item.requested_appointment_at
-      return { id: `appointment-${item.id}`, title: item.status === 'PENDIENTE_VALIDACION' ? 'Showroom pendiente de validar' : 'Cita showroom próxima', message: `${name}${date ? ` · ${new Date(date).toLocaleString('es-DO')}` : ''}`, created_at: date || now.toISOString(), synthetic: true }
+      return { id: `appointment-${item.id}`, title: item.status === 'PENDIENTE_VALIDACION' ? 'Showroom pendiente de validar' : 'Cita showroom próxima', message: `${name}${date ? ` · ${new Date(date).toLocaleString('es-DO')}` : ''}`, created_at: date || now.toISOString(), synthetic: true, target:'agenda' as const }
     })
-    const unique = new globalThis.Map<string, AlertItem>(); [...stored, ...upcoming].forEach((item) => unique.set(item.id, item)); setNotifications(Array.from(unique.values()).slice(0, 20))
+    const staleJourneys:AlertItem[]=(j.data||[]).map((item:any)=>({id:`journey-${item.route_plan_id}`,title:executiveJourneyAccess?`Jornada pendiente · ${item.full_name}`:'Jornada pendiente de cierre',message:`${new Date(`${item.route_date}T12:00:00`).toLocaleDateString('es-DO')} · ${item.visited_clients||0}/${item.planned_clients||0} visitados · ${Number(item.coverage_pct||0)}% cobertura`,created_at:`${item.route_date}T23:59:59`,synthetic:true,target:'journeys' as const}))
+    const unique = new globalThis.Map<string, AlertItem>(); [...staleJourneys,...stored, ...upcoming].forEach((item) => unique.set(item.id, item)); setNotifications(Array.from(unique.values()).slice(0, 20))
   }
   useEffect(() => { void loadNotifications() }, [employee?.id, loc.pathname])
 
   const openAlert = async (item: AlertItem) => {
     if (!item.synthetic) await supabase.from('notifications').update({ status: 'READ', read_at: new Date().toISOString() }).eq('id', item.id)
-    setNotificationsOpen(false); navigate('/agenda'); await loadNotifications()
+    setNotificationsOpen(false); navigate(item.target==='journeys'?'/jornadas':'/agenda'); await loadNotifications()
   }
 
   const allowed = (permission: PermissionKey | 'ADMIN_ANY') => permission === 'ADMIN_ANY' ? hasAnyAdminPermission(employee) : hasPermission(employee, permission)
@@ -84,7 +90,7 @@ export function AppShell() {
     <main className="main-area">
       <header className="topbar"><button className="mobile-menu" onClick={() => setDrawer(true)}><Menu/></button><div><span className="eyebrow">ALMACENES KARAKA</span><h1>{title}</h1></div><div className="top-actions" style={{ position: 'relative' }}>
         <button className="icon-btn" title="Alertas" onClick={() => { setNotificationsOpen(v => !v); setViewOpen(false) }} style={{ position: 'relative' }}><BellRing size={19}/>{notifications.length > 0 && <span className="notification-count">{notifications.length}</span>}</button>
-        {notificationsOpen && <div className="panel top-popover alerts-popover"><div className="panel-head"><div><b>Alertas operativas</b><span>{notifications.length ? `${notifications.length} pendientes o próximas` : 'No tienes alertas'}</span></div></div><div className="cards-list">{notifications.map(item => <button key={item.id} className="activity-card popover-action" onClick={() => void openAlert(item)}><div className="activity-main"><b>{item.title}</b><span>{item.message || ''}</span><small>{item.synthetic ? 'Agenda / Showroom' : new Date(item.created_at).toLocaleString('es-DO')}</small></div></button>)}</div></div>}
+        {notificationsOpen && <div className="panel top-popover alerts-popover"><div className="panel-head"><div><b>Alertas operativas</b><span>{notifications.length ? `${notifications.length} pendientes o próximas` : 'No tienes alertas'}</span></div></div><div className="cards-list">{notifications.map(item => <button key={item.id} className="activity-card popover-action" onClick={() => void openAlert(item)}><div className="activity-main"><b>{item.title}</b><span>{item.message || ''}</span><small>{item.target==='journeys'?'Jornadas':item.synthetic ? 'Agenda / Showroom' : new Date(item.created_at).toLocaleString('es-DO')}</small></div></button>)}</div></div>}
         <button className={`icon-btn ${viewOpen ? 'active' : ''}`} title="Controles de vista" aria-label="Controles de vista" onClick={() => { setViewOpen(v => !v); setNotificationsOpen(false) }}><SlidersHorizontal size={19}/></button>
         {viewOpen && <div className="panel top-popover view-popover"><div className="panel-head"><div><b>Vista rápida</b><span>{profileForEmployee(employee)} · personaliza esta sesión</span></div></div><button className="view-option" onClick={() => setCollapsed(v => !v)}>{collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}<div><b>{collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'}</b><span>Gana o recupera espacio de trabajo</span></div></button><label className="view-option toggle-option"><input type="checkbox" checked={dense} onChange={(event) => setDense(event.target.checked)}/><div><b>Vista compacta</b><span>Reduce espacios en tablas y paneles</span></div></label>{hasPermission(employee,'settings.view') && <button className="view-option" onClick={() => { setViewOpen(false); navigate('/configuracion') }}><Settings size={17}/><div><b>Configuración</b><span>Tema y preferencias personales</span></div></button>}</div>}
         <div className="user-chip"><div className="avatar">{employee?.full_name?.slice(0,1) || 'K'}</div><div><b>{employee?.full_name}</b><span>{employee?.job_title}</span></div></div>
