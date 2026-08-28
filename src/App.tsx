@@ -3,7 +3,7 @@ import { useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { AppShell } from './components/AppShell'
 import { Login } from './pages/Login'
-import { Dashboard } from './pages/Dashboard'
+import { DashboardWorkspace } from './pages/DashboardWorkspace'
 import { Clients } from './pages/Clients'
 import { MapPage } from './pages/MapPage'
 import { Planning } from './pages/Planning'
@@ -36,7 +36,7 @@ function Protected(){
   if(loading)return <div className="boot-screen"><img src="/logo-karaka.png"/><div className="boot-loader"><i/></div><span>Iniciando sistema...</span></div>
   if(!session)return <Login/>
   return <ThemeProvider><Routes><Route element={<AppShell/>}>
-    <Route index element={<RequirePermission permission="dashboard.view"><Dashboard/></RequirePermission>}/>
+    <Route index element={<RequirePermission permission="dashboard.view"><DashboardWorkspace/></RequirePermission>}/>
     <Route path="clientes" element={<RequirePermission permission="clients.view"><Clients/></RequirePermission>}/>
     <Route path="mapa" element={<RequirePermission permission="map.view"><MapPage/></RequirePermission>}/>
     <Route path="planificacion" element={<RequirePermission permission="planning.view"><Planning/></RequirePermission>}/>
