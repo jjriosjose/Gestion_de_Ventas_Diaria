@@ -8,7 +8,7 @@ import { Clients } from './pages/Clients'
 import { MapPage } from './pages/MapPage'
 import { Planning } from './pages/Planning'
 import { RoutesWorkspace } from './pages/RoutesWorkspace'
-import { Journeys } from './pages/Journeys'
+import { JourneysWorkspace } from './pages/JourneysWorkspace'
 import { Capture } from './pages/Capture'
 import { VisitsWorkspace } from './pages/VisitsWorkspace'
 import { Calls } from './pages/Calls'
@@ -41,7 +41,7 @@ function Protected(){
     <Route path="mapa" element={<RequirePermission permission="map.view"><MapPage/></RequirePermission>}/>
     <Route path="planificacion" element={<RequirePermission permission="planning.view"><Planning/></RequirePermission>}/>
     <Route path="rutas" element={<RequirePermission permission="routes.view"><RoutesWorkspace/></RequirePermission>}/>
-    <Route path="jornadas" element={<RequirePermission permission="journeys.view"><Journeys/></RequirePermission>}/>
+    <Route path="jornadas" element={<RequirePermission permission="journeys.view"><JourneysWorkspace/></RequirePermission>}/>
     <Route path="captacion" element={<RequirePermission permission="capture.view"><Capture/></RequirePermission>}/>
     <Route path="cobertura" element={<RequirePermission permission="coverage.view"><Coverage/></RequirePermission>}/>
     <Route path="visitas" element={<RequirePermission permission="visits.view"><VisitsWorkspace/></RequirePermission>}/>
