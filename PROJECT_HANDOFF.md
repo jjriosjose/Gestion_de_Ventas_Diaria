@@ -15,23 +15,25 @@ Fecha operativa del checkpoint: **27/08/2026 (RD)**.
 
 - Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`.
 - Rama estable: `main`.
-- Versión: **0.6.5-beta.9**.
+- Versión: **0.6.5-beta.10**.
 - PR #38 `V0.6.5-beta.9 · Jornadas, cierre diario y reportes multiperíodo`: **MERGED**.
-- Merge commit funcional beta.9: `143bc3b185573a85405feec83b4ece903543893f`.
-- Build GitHub Actions del código beta.9: **SUCCESS**.
+- PR #39 `V0.6.5-beta.10 · Horas por gestión y refinamientos de Jornadas`: **MERGED**.
+- Merge commit funcional beta.10: `74c214e9dd94275a052f3d1c55827753feeb4c33`.
+- GitHub Actions TypeScript + Vite de beta.10: **SUCCESS**.
 - Build local previo a deploy: **SUCCESS**.
 
 Documentos de apoyo:
 
-1. `docs/V065C_IMPLEMENTATION_STATUS.md`
-2. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`
-3. `docs/V065C_DEPLOYMENT_BETA9.md`
-4. `docs/REQUIREMENTS_STATUS.md`
-5. `docs/V065_FUNCTIONAL_DESIGN.md`
+1. `docs/V065_BETA10_REFINEMENT_STATUS.md`
+2. `docs/V065C_IMPLEMENTATION_STATUS.md`
+3. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`
+4. `docs/V065C_DEPLOYMENT_BETA9.md`
+5. `docs/REQUIREMENTS_STATUS.md`
+6. `docs/V065_FUNCTIONAL_DESIGN.md`
 
 ## Supabase
 
-Backend V065C de beta.9 **APLICADO EN PRODUCCIÓN**.
+Backend V065C de beta.9 **APLICADO EN PRODUCCIÓN** y reutilizado por beta.10 sin nuevas migraciones.
 
 Migraciones remotas verificadas:
 
@@ -45,28 +47,27 @@ No hacer replay manual para igualar timestamps del ledger remoto con nombres de 
 
 ## Cloudflare
 
-**V0.6.5-beta.9 DESPLEGADA EN PRODUCCIÓN Y CARGANDO CORRECTAMENTE.**
+**V0.6.5-beta.10 DESPLEGADA EN PRODUCCIÓN.**
 
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- Cloudflare Current Version ID: `3e1e4435-5236-429d-bcca-a14668424726`
-- Wrangler: `4.125.0`
-- Build local: `✓ built in 13.68s`
-- Assets beta.9 subidos correctamente.
+- Cloudflare Current Version ID: `8d6271ac-79e1-4794-b347-7023919040be`
+- Wrangler usado en la línea de despliegue: `4.125.0`.
+- 7 assets nuevos/modificados fueron subidos correctamente en el deploy beta.10.
 - La advertencia de chunks >500 KB es no bloqueante; queda como deuda de optimización.
 
 Estado real:
 
 ```text
-GitHub main      = V0.6.5-beta.9
-Supabase backend = V0.6.5-beta.9 / V065C aplicado
-Cloudflare UI    = V0.6.5-beta.9 desplegada
+GitHub main      = V0.6.5-beta.10
+Supabase backend = V0.6.5-beta.9 / V065C aplicado (sin cambios beta.10)
+Cloudflare UI    = V0.6.5-beta.10 desplegada
 ```
 
 ---
 
-# 1. VALIDACIÓN PRODUCTIVA BETA.9
+# 1. VALIDACIÓN PRODUCTIVA
 
-## Administrador — VALIDADO VISUALMENTE
+## Beta.9 — Administrador VALIDADO VISUALMENTE
 
 Capturas productivas del usuario Administrador confirmaron:
 
@@ -87,19 +88,30 @@ Capturas productivas del usuario Administrador confirmaron:
 
 Datos productivos de prueba observados en agosto 2026 mantienen correctamente la diferencia entre cobertura y cierre operativo.
 
-## Vendedor — PENDIENTE DE VALIDACIÓN VISUAL FINAL
+## Beta.9 — Vendedor Cesar Caba VALIDADO VISUALMENTE
 
-El backend ya fue probado con scoping de Vendedor y devolvió solamente sus propias jornadas, pero todavía debe completarse la validación visual en navegador autenticado como Vendedor.
+Capturas productivas autenticadas como Cesar Caba confirmaron:
 
-Validar específicamente:
+- menú `Jornadas` visible;
+- `Mis jornadas` muestra exclusivamente sus propias jornadas;
+- no aparecen jornadas de Eduar Ceballos ni otros vendedores;
+- Rutas muestra su planificación asignada;
+- scoping visual coincide con el scoping backend previamente probado;
+- la versión visible era `0.6.5-beta.9`.
 
-- menú Jornadas visible;
-- `Mis jornadas` no muestra otros colaboradores;
-- Rutas solo permite ejecutar jornada del día actual;
-- una jornada anterior nunca muestra `Continuar`;
-- pendiente de cierre dirige a revisión/cierre;
-- Reportes solo muestran alcance propio;
-- campana/Inicio muestran alertas correspondientes.
+La regla temporal sigue siendo backend-driven: una jornada de un día anterior no puede continuar aunque se intente evadir la interfaz.
+
+## Beta.10 — PENDIENTE VALIDACIÓN VISUAL FINAL
+
+Beta.10 ya está desplegada. Validar solamente los refinamientos:
+
+- versión visible `0.6.5-beta.10`;
+- Inicio muestra `Planificadas` además de Activas/Finalizadas/Pendientes;
+- una planificación histórica nunca iniciada aparece como `No ejecutada`;
+- Reportes muestra `Horas gestión calle`;
+- Reportes muestra `Horas gestión showroom / CRM`;
+- `Tiempo operativo total` continúa como referencia general;
+- filtros por tipo/colaborador continúan afectando correctamente las nuevas tarjetas.
 
 ---
 
@@ -140,11 +152,12 @@ Ruta: `/jornadas`.
 
 ## Vendedor — Mis jornadas
 
-Debe mostrar exclusivamente su alcance:
+Muestra exclusivamente su alcance:
 
 - jornada del día;
 - programadas;
 - finalizadas;
+- no ejecutadas;
 - pendientes de cierre;
 - cobertura;
 - cierre operativo;
@@ -154,6 +167,8 @@ Debe mostrar exclusivamente su alcance:
 - detalle de paradas.
 
 Una jornada vencida jamás ofrece `Continuar`.
+
+El código técnico histórico `NO_INICIADA` se presenta en UI como **`No ejecutada`** cuando su fecha ya pasó, para evitar sugerir que todavía puede iniciarse.
 
 ## Admin/Supervisor — Control de jornadas
 
@@ -218,6 +233,9 @@ No son equivalentes.
 - Atención = visitas.
 - Eventualidades = incidencias.
 - Traslado/espera = residual validado.
+- Tiempo operativo total = tiempo operativo acumulado de los colaboradores incluidos en el filtro ejecutivo.
+- Horas gestión calle = `operational_seconds` de colaboradores tipo Vendedor.
+- Horas gestión showroom / CRM = `operational_seconds` de colaboradores tipo Gestor; incluye la gestión registrada en llamadas/showroom según las vistas ejecutivas vigentes.
 
 Sesiones históricas abiertas se limitan al fin del día operativo y no acumulan 24/48/72 horas indefinidamente.
 
@@ -263,6 +281,8 @@ Pruebas realizadas simulando `authenticated`:
 - Vendedor -> solo sus propias jornadas: VALIDADO.
 - Administrador -> conjunto global: VALIDADO.
 
+Además, el perfil real de Cesar Caba fue validado visualmente en producción mostrando solamente sus jornadas.
+
 Mantener defensa en profundidad frontend + backend.
 
 ---
@@ -294,13 +314,42 @@ Resolución período = SUM(resueltos) / SUM(planificados)
 
 Nunca promediar porcentajes diarios directamente.
 
+Beta.10 agrega en KPI:
+
+- `Horas gestión calle`.
+- `Horas gestión showroom / CRM`.
+- conserva `Tiempo operativo total`.
+
+Exportaciones beta.10 agregan:
+
+- canal de gestión (`Calle` / `CRM / Showroom`);
+- horas de gestión.
+
 Actividades no territorializadas como llamadas/showroom/ventas generales no deben fingir precisión territorial inexistente.
 
 ---
 
-# 9. BASELINE PREVIO CONSERVADO
+# 9. INICIO
 
-Beta.9 conserva:
+La franja superior de Jornadas en beta.10 debe mostrar:
+
+```text
+Planificadas · Activas · Finalizadas · Pendientes cierre · Cobertura hoy
+```
+
+Ejemplo con la planificación observada:
+
+```text
+1 planificada · 0 activas · 0 finalizadas · 0 pendientes cierre · 0% cobertura hoy
+```
+
+Objetivo: distinguir claramente entre trabajo preparado pero aún no iniciado y ausencia total de actividad.
+
+---
+
+# 10. BASELINE CONSERVADO
+
+Beta.10 conserva todo el baseline de beta.9:
 
 - Login premium y responsive;
 - Clientes;
@@ -316,61 +365,64 @@ Beta.9 conserva:
 - Llamadas;
 - Agenda/Showroom;
 - Recepción;
+- Jornadas;
+- Reportes multiperíodo;
 - Calidad geográfica;
 - Administración/Configuración.
 
 ---
 
-# 10. OBSERVACIONES UX POST-DEPLOY
+# 11. DEUDA TÉCNICA / SIGUIENTES MEJORAS
 
-No bloqueantes; considerar en siguiente parche después de validar Vendedor:
+No bloqueantes:
 
-1. En la franja de Jornadas de Inicio conviene añadir **Planificadas / sin iniciar hoy**, para que el estado sea más accionable antes del inicio de ruta.
-2. Una ruta pasada que nunca inició debería mostrarse como **`No ejecutada`** o **`Vencida sin iniciar`**, en lugar de `No iniciada`, para evitar ambigüedad histórica.
-3. Bundle principal supera 500 KB minificado; pendiente optimización mediante code splitting/lazy loading cuando el bloque funcional esté estabilizado.
+1. Bundle principal supera 500 KB minificado; pendiente optimización mediante code splitting/lazy loading cuando el bloque funcional esté estabilizado.
+2. Revisar más adelante si conviene agregar comparativos de horas Calle vs CRM/Showroom por colaborador/período en gráficos dedicados.
+3. Mantener validación de responsive en móvil/tablet a medida que crezcan los KPI de Reportes.
 
-No implementar estos ajustes antes de completar la validación visual del perfil Vendedor, salvo que aparezca un bug funcional.
+No mezclar optimización de bundle con correcciones funcionales urgentes salvo que exista impacto real de rendimiento.
 
 ---
 
-# 11. SIGUIENTE PASO OBLIGATORIO
+# 12. SIGUIENTE PASO OBLIGATORIO
 
-Completar validación productiva con un usuario Vendedor real.
+Validar visualmente beta.10 en producción.
 
 Checklist:
 
-- [ ] Inicio del Vendedor.
-- [ ] Jornadas del Vendedor.
-- [ ] Rutas del Vendedor.
-- [ ] jornada pasada no continuable.
-- [ ] Reportes personales.
-- [ ] ausencia de datos de otros vendedores.
-- [ ] alertas de jornada si corresponde.
+- [ ] versión `0.6.5-beta.10` visible.
+- [ ] Inicio: `Planificadas` visible y conteo correcto.
+- [ ] Jornadas: histórico `No ejecutada` visible.
+- [ ] Reportes: `Horas gestión calle` visible.
+- [ ] Reportes: `Horas gestión showroom / CRM` visible.
+- [ ] Reportes: `Tiempo operativo total` sigue visible.
+- [ ] filtros por Vendedor/Gestor afectan correctamente los KPI de horas.
 
-Después de esto decidir si beta.9 queda estable o si se crea un parche beta.9.1 con refinamientos UX.
+Después de esta comprobación, beta.10 puede considerarse estable para continuar con el siguiente bloque funcional.
 
 ---
 
-# 12. RECUPERACIÓN EN NUEVO CHAT
+# 13. RECUPERACIÓN EN NUEVO CHAT
 
 Leer en este orden:
 
 1. `PROJECT_HANDOFF.md`.
-2. `docs/V065C_DEPLOYMENT_BETA9.md`.
-3. `docs/V065C_IMPLEMENTATION_STATUS.md`.
-4. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
-5. `package.json` en `main`.
-6. commits recientes GitHub.
-7. ledger Supabase real.
-8. Cloudflare real.
+2. `docs/V065_BETA10_REFINEMENT_STATUS.md`.
+3. `docs/V065C_DEPLOYMENT_BETA9.md`.
+4. `docs/V065C_IMPLEMENTATION_STATUS.md`.
+5. `docs/V065C_JORNADAS_REPORTES_DESIGN.md`.
+6. `package.json` en `main`.
+7. commits recientes GitHub.
+8. ledger Supabase real.
+9. Cloudflare real.
 
 Mensaje recomendado:
 
-> “Continúa Gestión de Ventas Diaria. Lee primero `PROJECT_HANDOFF.md` del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`, luego los documentos V065C. Verifica GitHub main, Supabase y Cloudflare. Beta.9 ya fue desplegada; confirma el estado real antes de modificar código. La validación Admin pasó y falta completar validación visual del perfil Vendedor.”
+> “Continúa Gestión de Ventas Diaria. Lee primero `PROJECT_HANDOFF.md` del repositorio `jjriosjose/Gestion_de_Ventas_Diaria` y después `docs/V065_BETA10_REFINEMENT_STATUS.md`. Verifica GitHub main, Supabase y Cloudflare. Beta.10 ya fue desplegada con Cloudflare Version ID `8d6271ac-79e1-4794-b347-7023919040be`; el backend V065C de beta.9 sigue vigente. Admin y el scoping real de Cesar Caba ya fueron validados; falta confirmar visualmente los refinamientos de beta.10.”
 
 ---
 
-# 13. FUENTE DE VERDAD
+# 14. FUENTE DE VERDAD
 
 1. GitHub `main` = código vigente.
 2. Supabase remoto = esquema/datos/políticas reales.
