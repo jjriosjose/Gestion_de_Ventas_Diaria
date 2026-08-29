@@ -1,0 +1,266 @@
+.tracking-head-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.tracking-layout-switch{
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:3px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--surface);
+}
+.tracking-layout-switch button{
+  min-height:32px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 9px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+.tracking-layout-switch button.active{
+  background:#eef4ff;
+  color:#1d4ed8;
+  box-shadow:inset 0 0 0 1px #cddcff;
+}
+.tracking-stage{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  min-width:0;
+}
+.tracking-stage-toolbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:9px 11px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--surface) 96%,#eef4ff 4%);
+  box-shadow:0 4px 16px rgba(15,23,42,.05);
+}
+.tracking-stage-title{
+  min-width:175px;
+  display:grid;
+  gap:2px;
+}
+.tracking-stage-title b{font-size:12px}
+.tracking-stage-title span{font-size:9px;color:var(--muted)}
+.tracking-stage-summary{
+  flex:1;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  overflow:auto;
+}
+.tracking-stage-summary span{
+  min-width:max-content;
+  padding:5px 8px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--surface);
+  color:var(--muted);
+  font-size:8.5px;
+}
+.tracking-stage-summary b{color:var(--text);font-size:10px}
+.tracking-stage-actions{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.tracking-filters.tracking-filters-collapsed{display:none!important}
+
+/* Expanded map: keep the analytical page, but give the map the visual priority. */
+.tracking-stage-expanded .metric-section,
+.tracking-stage-expanded .tracking-quality-groups{
+  display:none;
+}
+.tracking-stage-expanded .tracking-workspace{
+  grid-template-columns:minmax(0,1fr) 300px;
+}
+.tracking-stage-expanded .tracking-map-panel{
+  min-height:680px;
+  display:flex;
+  flex-direction:column;
+}
+.tracking-stage-expanded .tracking-map-shell{
+  flex:1;
+  min-height:600px;
+}
+.tracking-stage-expanded .tracking-map-host{
+  height:calc(100vh - 255px)!important;
+  min-height:600px!important;
+}
+.tracking-stage-expanded .tracking-roster{
+  align-self:stretch;
+  max-height:calc(100vh - 205px);
+  overflow:hidden;
+}
+.tracking-stage-expanded .tracking-seller-list{
+  max-height:calc(100vh - 285px);
+  overflow:auto;
+}
+
+/* Control Tower: an application-level workspace without changing global routing or shell code. */
+body.tracking-control-tower-open{overflow:hidden!important}
+.tracking-stage-control-tower{
+  position:fixed;
+  inset:8px;
+  z-index:5000;
+  padding:10px;
+  border:1px solid #dce3ec;
+  border-radius:16px;
+  background:#f5f7fa;
+  box-shadow:0 28px 80px rgba(15,23,42,.24);
+  overflow:hidden;
+}
+.tracking-stage-control-tower .tracking-stage-toolbar{
+  flex:0 0 auto;
+  background:#fff;
+}
+.tracking-stage-control-tower .metric-section,
+.tracking-stage-control-tower .tracking-quality-groups{
+  display:none;
+}
+.tracking-stage-control-tower .tracking-filters{
+  flex:0 0 auto;
+  max-height:270px;
+  overflow:auto;
+}
+.tracking-stage-control-tower .tracking-empty-day{
+  flex:0 0 auto;
+}
+.tracking-stage-control-tower .tracking-workspace{
+  flex:1 1 auto;
+  min-height:0;
+  height:auto;
+  grid-template-columns:minmax(0,1fr) 320px;
+  gap:10px;
+}
+.tracking-stage-control-tower .tracking-map-panel{
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.tracking-stage-control-tower .tracking-map-head,
+.tracking-stage-control-tower .tracking-map-options{
+  flex:0 0 auto;
+}
+.tracking-stage-control-tower .tracking-map-shell{
+  flex:1 1 auto;
+  min-height:0;
+  height:auto!important;
+}
+.tracking-stage-control-tower .tracking-map-host{
+  height:100%!important;
+  min-height:520px!important;
+}
+.tracking-stage-control-tower .tracking-roster{
+  height:100%;
+  min-height:0;
+  align-self:stretch;
+  overflow:hidden;
+}
+.tracking-stage-control-tower .tracking-seller-list{
+  max-height:none;
+  height:calc(100% - 56px);
+  overflow:auto;
+}
+.tracking-stage-control-tower .tracking-route-legend{
+  top:14px;
+  left:14px;
+}
+.tracking-stage-control-tower .tracking-map-legend{
+  bottom:12px;
+}
+
+.tracking-workspace.tracking-roster-collapsed{
+  grid-template-columns:minmax(0,1fr)!important;
+}
+.tracking-roster-collapsed .tracking-map-panel{
+  width:100%;
+}
+
+.tracking-empty-day{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  padding:15px 17px;
+  border-style:dashed;
+  background:linear-gradient(135deg,#fff,#f8fbff);
+}
+.tracking-empty-day>svg{
+  width:26px;
+  height:26px;
+  padding:6px;
+  border-radius:10px;
+  background:#eef4ff;
+  color:#2563eb;
+}
+.tracking-empty-day>div{display:grid;gap:3px}
+.tracking-empty-day b{font-size:12px}
+.tracking-empty-day span{font-size:9.5px;color:var(--muted);line-height:1.35}
+.tracking-empty-day button{white-space:nowrap}
+
+/* Make route direction easier to read without turning the planned sequence into navigation. */
+.tracking-page .tracking-route-arrow-divicon span{
+  width:24px!important;
+  height:24px!important;
+  border:1px solid color-mix(in srgb,var(--seller) 42%,#fff)!important;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  font-size:17px!important;
+  line-height:1;
+  box-shadow:0 3px 10px rgba(15,23,42,.16);
+  filter:none!important;
+}
+.tracking-page .tracking-stop-pin{
+  box-shadow:0 5px 13px rgba(15,23,42,.22)!important;
+}
+.tracking-page .tracking-stop-offset:hover{
+  position:relative;
+  z-index:50;
+}
+
+@media(max-width:1180px){
+  .tracking-layout-switch button{padding:6px 7px}
+  .tracking-layout-switch button svg{display:none}
+  .tracking-stage-expanded .tracking-workspace{grid-template-columns:minmax(0,1fr) 270px}
+}
+@media(max-width:980px){
+  .tracking-head-actions{justify-content:flex-start}
+  .tracking-stage-toolbar{align-items:flex-start;flex-wrap:wrap}
+  .tracking-stage-summary{order:3;width:100%;flex-basis:100%}
+  .tracking-stage-expanded .tracking-workspace,
+  .tracking-stage-control-tower .tracking-workspace{grid-template-columns:1fr}
+  .tracking-stage-expanded .tracking-roster,
+  .tracking-stage-control-tower .tracking-roster{max-height:260px;height:auto}
+  .tracking-stage-control-tower .tracking-seller-list{height:auto;max-height:205px}
+}
+@media(max-width:720px){
+  .tracking-layout-switch{width:100%}
+  .tracking-layout-switch button{flex:1;justify-content:center}
+  .tracking-stage-expanded .tracking-map-panel{min-height:570px}
+  .tracking-stage-expanded .tracking-map-shell{min-height:500px}
+  .tracking-stage-expanded .tracking-map-host{height:62vh!important;min-height:500px!important}
+  .tracking-stage-control-tower{inset:4px;padding:6px;border-radius:12px}
+  .tracking-stage-control-tower .tracking-map-host{min-height:420px!important}
+  .tracking-empty-day{grid-template-columns:auto 1fr}
+  .tracking-empty-day button{grid-column:1/-1;width:100%}
+}
