@@ -1,4 +1,4 @@
-import { useEffect,useMemo,useRef } from 'react'
+import { useCallback,useEffect,useMemo,useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { formatAccuracy,formatDistance,geoClassFor,geoClassLabel,routeColorFor,type TrackingMapMode } from '../lib/trackingGeo'
@@ -37,7 +37,7 @@ const bearing=(a:[number,number],b:[number,number])=>{
 }
 
 export function LiveTrackingMap({snapshots,stops,events,selectedRoutePlanId='',selectedEventId='',playbackIndex=-1,showStops,viewMode,isolateSelected,onPlanSelect,onEventSelect}:Props){
- const host=useRef<HTMLDivElement|null>(null),mapRef=useRef<L.Map|null>(null),positionsRef=useRef<L.LayerGroup|null>(null),stopsRef=useRef<L.LayerGroup|null>(null),routesRef=useRef<L.LayerGroup|null>(null),comparisonRef=useRef<L.LayerGroup|null>(null)
+ const host=useRef<HTMLDivElement|null>(null),mapRef=useRef<L.Map|null>(null),positionsRef=useRef<L.LayerGroup|null>(null),stopsRef=useRef<L.LayerGroup|null>(null),routesRef=useRef<L.LayerGroup|null>(null),comparisonRef=useRef<L.LayerGroup|null>(null),smartFrameRef=useRef<(animate?:boolean)=>void>(()=>{})
  const employeeIds=useMemo(()=>Array.from(new Set([...snapshots.map(s=>s.employee_id),...stops.map(s=>s.employee_id),...events.map(e=>e.employee_id)])).sort(),[snapshots,stops,events])
  const selectedEvents=useMemo(()=>events.filter(e=>e.route_plan_id===selectedRoutePlanId&&e.has_gps&&e.latitude!=null&&e.longitude!=null).sort(eventOrder),[events,selectedRoutePlanId])
  const selectedEvent=useMemo(()=>events.find(e=>e.event_id===selectedEventId)||null,[events,selectedEventId])
@@ -53,31 +53,70 @@ export function LiveTrackingMap({snapshots,stops,events,selectedRoutePlanId='',s
   return out
  },[visibleStops])
 
+ const smartFrame=useCallback((animate=false)=>{
+  const map=mapRef.current;if(!map||playbackIndex>=0)return
+  if(viewMode==='QUALITY'&&selectedEvent)return
+  const points:Array<[number,number]>=[],sellerIds=new Set<string>(),seen=new Set<string>()
+  const add=(lat:number|null|undefined,lon:number|null|undefined,employeeId?:string)=>{
+   if(lat==null||lon==null||!Number.isFinite(Number(lat))||!Number.isFinite(Number(lon)))return
+   const point:[number,number]=[Number(lat),Number(lon)],key=`${point[0].toFixed(5)}:${point[1].toFixed(5)}`
+   if(!seen.has(key)){seen.add(key);points.push(point)}
+   if(employeeId)sellerIds.add(employeeId)
+  }
+  const coherentEvents=visibleEvents.filter(e=>e.has_gps&&e.latitude!=null&&e.longitude!=null&&!['DISTANT','UNRELIABLE'].includes(geoClassFor(e)))
+  const coherentSnapshots=visibleSnapshots.filter(s=>s.last_latitude!=null&&s.last_longitude!=null&&s.last_gps_reliable!==false&&s.last_location_exception_code!=='DISTANT_REGISTRATION')
+  if(selectedRoutePlanId){
+   const planStops=visibleStops.filter(s=>s.route_plan_id===selectedRoutePlanId&&s.latitude!=null&&s.longitude!=null)
+   const planEvents=coherentEvents.filter(e=>e.route_plan_id===selectedRoutePlanId)
+   planStops.forEach(s=>add(s.latitude,s.longitude,s.employee_id))
+   if(!planStops.length)planEvents.forEach(e=>add(e.latitude,e.longitude,e.employee_id))
+   const snapshot=coherentSnapshots.find(s=>s.route_plan_id===selectedRoutePlanId)
+   if(snapshot&&(viewMode==='LIVE'||!points.length))add(snapshot.last_latitude,snapshot.last_longitude,snapshot.employee_id)
+  }else{
+   visibleStops.filter(s=>s.latitude!=null&&s.longitude!=null).forEach(s=>add(s.latitude,s.longitude,s.employee_id))
+   coherentSnapshots.forEach(s=>add(s.last_latitude,s.last_longitude,s.employee_id))
+   if(!points.length)coherentEvents.forEach(e=>add(e.latitude,e.longitude,e.employee_id))
+  }
+  if(!points.length){
+   visibleSnapshots.filter(s=>s.last_latitude!=null&&s.last_longitude!=null).forEach(s=>add(s.last_latitude,s.last_longitude,s.employee_id))
+  }
+  if(!points.length)return
+  const selectedFocus=Boolean(selectedRoutePlanId),sellerCount=Math.max(1,sellerIds.size||new Set(visibleSnapshots.map(s=>s.employee_id)).size)
+  const maxZoom=selectedFocus?16:sellerCount===1?15:sellerCount<=4?14:13
+  const padding:[number,number]=selectedFocus?[72,72]:sellerCount===1?[64,64]:sellerCount<=4?[52,52]:[40,40]
+  map.stop()
+  if(points.length===1){map.setView(points[0],maxZoom,{animate});return}
+  const bounds=L.latLngBounds(points)
+  if(bounds.isValid())map.fitBounds(bounds,{padding,maxZoom,animate})
+ },[playbackIndex,viewMode,selectedEvent,selectedRoutePlanId,visibleStops,visibleEvents,visibleSnapshots])
+ smartFrameRef.current=smartFrame
+
  useEffect(()=>{
   if(!host.current||mapRef.current)return
-  const map=L.map(host.current,{zoomControl:false,preferCanvas:true,minZoom:7,maxBounds:BOUNDS,maxBoundsViscosity:.65}).setView(CENTER,8.5)
+  const element=host.current,map=L.map(element,{zoomControl:false,preferCanvas:true,minZoom:7,maxBounds:BOUNDS,maxBoundsViscosity:.65}).setView(CENTER,8.5)
   L.control.zoom({position:'bottomright'}).addTo(map)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map)
   positionsRef.current=L.layerGroup().addTo(map);stopsRef.current=L.layerGroup().addTo(map);routesRef.current=L.layerGroup().addTo(map);comparisonRef.current=L.layerGroup().addTo(map);mapRef.current=map
-  requestAnimationFrame(()=>map.invalidateSize())
-  return()=>{map.remove();mapRef.current=null}
+  const resize=()=>requestAnimationFrame(()=>{map.invalidateSize();smartFrameRef.current(false)})
+  const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null
+  observer?.observe(element);window.addEventListener('resize',resize);resize()
+  return()=>{observer?.disconnect();window.removeEventListener('resize',resize);map.remove();mapRef.current=null}
  },[])
+ useEffect(()=>{const id=window.setTimeout(()=>smartFrame(false),30);return()=>window.clearTimeout(id)},[smartFrame])
 
  useEffect(()=>{
-  const map=mapRef.current,layer=positionsRef.current;if(!map||!layer)return
-  layer.clearLayers();const points:L.LatLngExpression[]=[]
+  const layer=positionsRef.current;if(!layer)return
+  layer.clearLayers()
   visibleSnapshots.forEach(s=>{
    if(s.last_latitude==null||s.last_longitude==null)return
    const selected=s.route_plan_id===selectedRoutePlanId,color=routeColorFor(s.employee_id,employeeIds),state=statusColor(s.tracking_status)
-   points.push([s.last_latitude,s.last_longitude])
    const marker=L.circleMarker([s.last_latitude,s.last_longitude],{radius:selected?12:9,weight:selected?5:4,color,fillColor:state,fillOpacity:.96})
    const age=s.last_event_age_minutes==null?'sin hora':s.last_event_age_minutes<1?'ahora':`hace ${s.last_event_age_minutes} min`
    marker.bindTooltip(`<div class="tracking-map-tooltip"><b>${esc(s.full_name)}</b><span>${esc(s.tracking_status.replaceAll('_',' '))}</span><span>${esc(s.last_event_label||'Último registro')} · ${esc(age)}</span>${s.last_subject_name?`<strong>${esc(s.last_subject_name)}</strong>`:''}<small>${s.last_accuracy_m!=null?`${esc(formatAccuracy(s.last_accuracy_m))} · `:''}último evento GPS confiable</small></div>`,{direction:'top',opacity:.98})
    marker.on('click',()=>onPlanSelect?.(s.route_plan_id));marker.addTo(layer)
    L.marker([s.last_latitude,s.last_longitude],{interactive:false,icon:L.divIcon({className:'tracking-initial-marker',html:`<span style="background:${color}">${esc(s.full_name.slice(0,1).toUpperCase())}</span>`,iconSize:[22,22],iconAnchor:[11,11]})}).addTo(layer)
   })
-  if(viewMode==='LIVE'&&!selectedRoutePlanId&&points.length){const bounds=L.latLngBounds(points);if(bounds.isValid())map.fitBounds(bounds.pad(.22),{maxZoom:13})}
- },[visibleSnapshots,selectedRoutePlanId,employeeIds,onPlanSelect,viewMode])
+ },[visibleSnapshots,selectedRoutePlanId,employeeIds,onPlanSelect])
 
  useEffect(()=>{
   const layer=stopsRef.current;if(!layer)return
@@ -95,16 +134,15 @@ export function LiveTrackingMap({snapshots,stops,events,selectedRoutePlanId='',s
  },[visibleStops,visibleEvents,employeeIds,selectedRoutePlanId,showStops,onPlanSelect,overlapIndex])
 
  useEffect(()=>{
-  const map=mapRef.current,layer=routesRef.current;if(!map||!layer)return
+  const layer=routesRef.current;if(!layer)return
   layer.clearLayers();if(viewMode==='LIVE'&&!selectedRoutePlanId)return
-  const planIds=Array.from(new Set([...visibleStops.map(s=>s.route_plan_id),...visibleEvents.map(e=>e.route_plan_id)])),boundsPoints:L.LatLngExpression[]=[]
+  const planIds=Array.from(new Set([...visibleStops.map(s=>s.route_plan_id),...visibleEvents.map(e=>e.route_plan_id)]))
   planIds.forEach(planId=>{
    const planStops=visibleStops.filter(s=>s.route_plan_id===planId&&s.latitude!=null&&s.longitude!=null).sort((a,b)=>a.stop_order-b.stop_order)
    const planEvents=visibleEvents.filter(e=>e.route_plan_id===planId&&e.has_gps&&e.latitude!=null&&e.longitude!=null).sort(eventOrder)
    const routeEvents=viewMode==='ROUTES'?planEvents.filter(e=>{const geo=geoClassFor(e);return geo!=='DISTANT'&&geo!=='UNRELIABLE'}):planEvents
    const employeeId=planStops[0]?.employee_id||routeEvents[0]?.employee_id||planEvents[0]?.employee_id||'',color=routeColorFor(employeeId,employeeIds),selected=planId===selectedRoutePlanId,dim=Boolean(selectedRoutePlanId&&!selected)
    const plannedPoints=planStops.map(s=>[s.latitude!,s.longitude!] as [number,number]),actualPoints=routeEvents.map(e=>[e.latitude!,e.longitude!] as [number,number])
-   if(viewMode==='ROUTES')boundsPoints.push(...(plannedPoints.length?plannedPoints:actualPoints))
    if(plannedPoints.length>1){
     L.polyline(plannedPoints,{color,weight:selected?4:3,opacity:dim?.18:selected?.82:.58,dashArray:'5 7',lineCap:'round',lineJoin:'round'}).bindTooltip('Secuencia planificada entre paradas · no representa navegación vial').addTo(layer)
     if(viewMode==='ROUTES')for(let i=0;i<plannedPoints.length-1;i++){
@@ -122,8 +160,7 @@ export function LiveTrackingMap({snapshots,stops,events,selectedRoutePlanId='',s
    if(start)L.marker([start.latitude!,start.longitude!],{icon:L.divIcon({className:'tracking-endpoint-divicon',html:`<span style="--seller:${color}">S</span>`,iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layer)
    if(finish)L.marker([finish.latitude!,finish.longitude!],{icon:L.divIcon({className:'tracking-endpoint-divicon',html:`<span style="--seller:${color}">F</span>`,iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layer)
   })
-  if(viewMode==='ROUTES'&&!selectedEventId&&playbackIndex<0&&boundsPoints.length){const bounds=L.latLngBounds(boundsPoints);if(bounds.isValid())map.fitBounds(bounds.pad(.16),{maxZoom:15})}
- },[visibleStops,visibleEvents,employeeIds,selectedRoutePlanId,selectedEventId,viewMode,playbackIndex,onEventSelect])
+ },[visibleStops,visibleEvents,employeeIds,selectedRoutePlanId,selectedEventId,viewMode,onEventSelect])
 
  useEffect(()=>{
   const map=mapRef.current,layer=comparisonRef.current;if(!map||!layer)return
