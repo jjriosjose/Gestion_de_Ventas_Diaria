@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, ChevronDown, ChevronUp, FilterX, LocateFixed, Map as MapIcon, Search, Shuffle, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarPlus, ChevronDown, ChevronUp, FilterX, LoaderCircle, LocateFixed, Map as MapIcon, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { currentPosition } from '../lib/geo'
 import { orderByNearest, uniqueSorted } from '../lib/spatial'
 import { TerritoryClientMap } from '../components/TerritoryClientMap'
 import type { MapZone } from '../components/TerritoryClientMap'
@@ -17,14 +16,39 @@ import { loadClientsPaged } from '../lib/clientLoader'
 import { hasPermission } from '../lib/access'
 import type { Client, Employee } from '../types'
 import '../styles/territorial-v2.css'
+import '../styles/planning-ordering.css'
 
 type GpsFilter = 'ALL' | 'WITH' | 'WITHOUT'
 type GeoFilter = 'ALL' | 'VERIFICADA' | 'SIN_VERIFICAR' | 'POSIBLE_ERROR'
 type AvailabilityFilter = 'AVAILABLE' | 'ALL' | 'PLANNED'
 type TerritoryMode = 'MASTER' | 'OFFICIAL'
 type PlanningListView = 'SELECTED' | 'AVAILABLE'
+type RouteOrderDirection = 'NEAR_FIRST' | 'FAR_FIRST'
+type RouteOriginMode = 'SELECTION_CENTER' | 'MY_LOCATION'
+type PlanningPoint = { latitude:number; longitude:number }
 
 const PLANNING_CLIENT_COLUMNS = 'id,company_code,codempr,client_type,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,sector_id,phone1,mobile,latitude,longitude,geo_status,last_invoice_date'
+const PLANNING_POSITION_CACHE_MS = 120_000
+let planningPositionCache:{point:PlanningPoint;expiresAt:number}|null=null
+
+function planningCurrentPosition():Promise<PlanningPoint>{
+  const now=Date.now()
+  if(planningPositionCache&&planningPositionCache.expiresAt>now)return Promise.resolve(planningPositionCache.point)
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation)return reject(new Error('Este dispositivo no dispone de geolocalización.'))
+    navigator.geolocation.getCurrentPosition(
+      position=>{
+        const point={latitude:position.coords.latitude,longitude:position.coords.longitude}
+        planningPositionCache={point,expiresAt:Date.now()+PLANNING_POSITION_CACHE_MS}
+        resolve(point)
+      },
+      ()=>reject(new Error('No fue posible obtener la ubicación para ordenar.')),
+      {enableHighAccuracy:false,timeout:2500,maximumAge:PLANNING_POSITION_CACHE_MS},
+    )
+  })
+}
+
+const hasGps=(client:Client)=>client.latitude!=null&&client.longitude!=null
 
 export function Planning() {
   const { employee } = useAuth()
@@ -62,6 +86,9 @@ export function Planning() {
   const [selectionPanelOpen,setSelectionPanelOpen]=useState(true)
   const [selectionView,setSelectionView]=useState<PlanningListView>('AVAILABLE')
   const [focusPoint,setFocusPoint]=useState<[number,number]|null>(null)
+  const [routeOrigin,setRouteOrigin]=useState<RouteOriginMode>('SELECTION_CENTER')
+  const [ordering,setOrdering]=useState(false)
+  const [orderFeedback,setOrderFeedback]=useState('')
   const [busy,setBusy]=useState(false)
 
   const selectedVendor=vendors.find(item=>item.id===vendor)
@@ -90,6 +117,7 @@ export function Planning() {
     setSelected([])
     setSelectionView('AVAILABLE')
     setFocusPoint(null)
+    setOrderFeedback('')
   },[vendor,includeOutsidePortfolio,date])
 
   useEffect(()=>{
@@ -151,9 +179,9 @@ export function Planning() {
       }else if(!matchesOfficialSelection(geoAssessments.get(client.id),officialAreas,officialSelection))return false
       if(manager&&client.manager_employee_id!==manager)return false
       if(company&&client.company_code!==company)return false
-      const hasGps=client.latitude!=null&&client.longitude!=null
-      if(gpsFilter==='WITH'&&!hasGps)return false
-      if(gpsFilter==='WITHOUT'&&hasGps)return false
+      const clientHasGps=hasGps(client)
+      if(gpsFilter==='WITH'&&!clientHasGps)return false
+      if(gpsFilter==='WITHOUT'&&clientHasGps)return false
       if(geoFilter!=='ALL'&&client.geo_status!==geoFilter)return false
       if(!matchesGeoQualityFilter(geoAssessments.get(client.id),territorialQuality))return false
       const isPlanned=plannedIds.has(client.id)
@@ -166,10 +194,11 @@ export function Planning() {
 
   const clientById=useMemo(()=>new Map(clients.map(c=>[c.id,c])),[clients])
   const selectedClients=useMemo(()=>selected.map(id=>clientById.get(id)).filter((c):c is Client=>Boolean(c)),[selected,clientById])
+  const selectedOrderById=useMemo(()=>new Map(selected.map((id,index)=>[id,index+1])),[selected])
   const filteredIdSet=useMemo(()=>new Set(filteredClients.map(c=>c.id)),[filteredClients])
-  const filteredGpsCount=useMemo(()=>filteredClients.filter(c=>c.latitude!=null&&c.longitude!=null).length,[filteredClients])
+  const filteredGpsCount=useMemo(()=>filteredClients.filter(hasGps).length,[filteredClients])
   const filteredMismatchCount=useMemo(()=>filteredClients.filter(c=>isGeoMismatch(geoAssessments.get(c.id)?.assessment_status)).length,[filteredClients,geoAssessments])
-  const selectedGpsCount=useMemo(()=>selectedClients.filter(c=>c.latitude!=null&&c.longitude!=null).length,[selectedClients])
+  const selectedGpsCount=useMemo(()=>selectedClients.filter(hasGps).length,[selectedClients])
   const selectedInFilterCount=useMemo(()=>selected.filter(id=>filteredIdSet.has(id)).length,[selected,filteredIdSet])
   const selectedOutsideFilterCount=selected.length-selectedInFilterCount
   const planningListClients=selectionView==='SELECTED'?selectedClients:filteredClients
@@ -180,18 +209,21 @@ export function Planning() {
     setSelectionPanelOpen(true)
     setSelectionView('SELECTED')
   }
+  const clearOrderFeedback=()=>setOrderFeedback('')
   const toggleClient=(id:string)=>{
-    if(!canManagePlanning)return
+    if(!canManagePlanning||ordering)return
     const adding=!selected.includes(id)
     setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id])
+    clearOrderFeedback()
     if(adding)openSelectedView()
   }
   const addAreaSelection=(ids:string[])=>{
-    if(!canManagePlanning)return
+    if(!canManagePlanning||ordering)return
     const visible=new Set(filteredClients.map(c=>c.id))
     const eligible=ids.filter(id=>visible.has(id))
     if(!eligible.length)return
     setSelected(current=>Array.from(new Set([...current,...eligible])))
+    clearOrderFeedback()
     openSelectedView()
   }
   const clearFilters=()=>{
@@ -199,23 +231,59 @@ export function Planning() {
   }
   const removeOutsideCurrentFilter=()=>{
     setSelected(current=>current.filter(id=>filteredIdSet.has(id)))
+    clearOrderFeedback()
+  }
+  const clearSelection=()=>{
+    if(ordering)return
+    setSelected([])
+    clearOrderFeedback()
   }
   const focusClient=(client:Client)=>{
     if(client.latitude==null||client.longitude==null)return
     setFocusPoint([client.latitude,client.longitude])
   }
-  const orderSelected=async()=>{
-    if(!canManagePlanning||selected.length<2)return
-    let start:{latitude:number;longitude:number}|null=null
-    try{const p=await currentPosition();start={latitude:p.latitude,longitude:p.longitude}}catch{}
-    setSelected(orderByNearest(selectedClients,start).map(c=>c.id))
-    openSelectedView()
+
+  const orderSelected=async(direction:RouteOrderDirection)=>{
+    if(!canManagePlanning||selected.length<2||ordering)return
+    setOrdering(true)
+    setOrderFeedback('')
+    try{
+      await new Promise<void>(resolve=>window.requestAnimationFrame(()=>resolve()))
+      let start:PlanningPoint|null=null
+      let originLabel='Centro geográfico de la selección'
+      let originFallback=false
+      if(routeOrigin==='MY_LOCATION'){
+        try{
+          start=await planningCurrentPosition()
+          originLabel='Mi ubicación'
+        }catch{
+          originLabel='Centro geográfico de la selección'
+          originFallback=true
+        }
+      }
+
+      const baseOrder=orderByNearest(selectedClients,start)
+      const geocoded=baseOrder.filter(hasGps)
+      const withoutGeo=baseOrder.filter(client=>!hasGps(client))
+      const directional=direction==='FAR_FIRST'?[...geocoded].reverse():geocoded
+      const finalOrder=[...directional,...withoutGeo]
+      setSelected(finalOrder.map(client=>client.id))
+      openSelectedView()
+
+      const directionLabel=direction==='FAR_FIRST'?'Lejanos → cercanos':'Cercanos → lejanos'
+      const gpsNote=withoutGeo.length?` · ${withoutGeo.length} sin GPS al final`:''
+      const fallbackNote=originFallback?' · GPS no disponible: se usó el centro de la selección':''
+      setOrderFeedback(`✓ ${finalOrder.length} paradas ordenadas · ${directionLabel} · Origen: ${originLabel}${gpsNote}${fallbackNote}`)
+    }finally{
+      setOrdering(false)
+    }
   }
 
   const create=async()=>{
     if(!canManagePlanning)return alert('Tu perfil tiene acceso de consulta.')
     if(!vendor||!date)return alert('Selecciona vendedor y fecha')
     if(!selected.length)return alert('Selecciona al menos un cliente')
+    if(ordering)return
     setBusy(true)
     try{
       const territorialLabel=territoryMode==='OFFICIAL'?officialArea?.name:(municipality||province||region)
@@ -226,10 +294,20 @@ export function Planning() {
       if(stopError){await supabase.from('route_plans').delete().eq('id',plan.id);throw stopError}
       setSelected([])
       setSelectionView('AVAILABLE')
+      setOrderFeedback('')
       alert('Planificación creada correctamente. Puedes verla desde Rutas.')
     }catch(error){alert(error instanceof Error?error.message:'No se pudo crear la planificación')}
     finally{setBusy(false)}
   }
+
+  const orderButtons=(compact=true)=><div className="planning-order-buttons">
+    <button className={`secondary ${compact?'compact':''}`} disabled={selected.length<2||ordering||busy} onClick={()=>void orderSelected('NEAR_FIRST')} title="Construye una secuencia continua desde el origen y comienza por el extremo más cercano.">
+      {ordering?<LoaderCircle className="planning-order-spinner" size={15}/>:<ArrowDown size={15}/>} Cercanos primero
+    </button>
+    <button className={`secondary ${compact?'compact':''}`} disabled={selected.length<2||ordering||busy} onClick={()=>void orderSelected('FAR_FIRST')} title="Usa la misma secuencia geográfica en sentido inverso: inicia en el extremo más lejano y termina cerca del origen.">
+      {ordering?<LoaderCircle className="planning-order-spinner" size={15}/>:<ArrowUp size={15}/>} Lejanos primero
+    </button>
+  </div>
 
   return <div className="page-stack">
     <div className="page-head"><div><span className="eyebrow">PLANIFICACIÓN TERRITORIAL</span><h2>{canManagePlanning?'Crear jornada':'Consultar planificación'}</h2><p>Planifica rutas de visitas por cartera, división territorial, zonas guardadas y cercanía visual.</p></div></div>
@@ -239,9 +317,10 @@ export function Planning() {
         <div className="route-manager-note"><b>Planificación de visitas:</b> esta pantalla crea únicamente rutas de visita. Las tareas de prospección se gestionan desde el módulo Captación.</div>
         <label>Vendedor<select value={vendor} onChange={e=>setVendor(e.target.value)}><option value="">Seleccionar...</option>{vendors.map(i=><option value={i.id} key={i.id}>{i.full_name}</option>)}</select></label>
         <label>Fecha<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
-        {canManagePlanning?<> {canOverridePortfolio&&vendor&&<label className="checkbox"><input type="checkbox" checked={includeOutsidePortfolio} onChange={e=>setIncludeOutsidePortfolio(e.target.checked)}/> Incluir clientes fuera de esta cartera</label>}<div className="selected-summary-grid"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Con GPS</span><strong>{selectedGpsCount}</strong></div><div className="selected-summary-card"><span>Sin GPS</span><strong>{selected.length-selectedGpsCount}</strong></div></div></>:<div className="empty-state"><b>Vista global habilitada</b></div>}
-        {canManagePlanning&&<button className="primary full" disabled={busy||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={18}/>{busy?'Creando...':'Crear planificación'}</button>}
+        {canManagePlanning?<>{canOverridePortfolio&&vendor&&<label className="checkbox"><input type="checkbox" checked={includeOutsidePortfolio} onChange={e=>setIncludeOutsidePortfolio(e.target.checked)}/> Incluir clientes fuera de esta cartera</label>}<div className="selected-summary-grid"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Con GPS</span><strong>{selectedGpsCount}</strong></div><div className="selected-summary-card"><span>Sin GPS</span><strong>{selected.length-selectedGpsCount}</strong></div></div></>:<div className="empty-state"><b>Vista global habilitada</b></div>}
+        {canManagePlanning&&<button className="primary full" disabled={busy||ordering||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={18}/>{busy?'Creando...':ordering?'Ordenando...':'Crear planificación'}</button>}
       </aside>
+
       <main className="planner-main">
         <section className="panel planner-filter-panel"><div className="panel-head"><div><b>Filtros territoriales y comerciales</b><span>{!vendor?'Selecciona un vendedor para cargar su cartera.':includeOutsidePortfolio?'Cobertura administrativa: todas las carteras.':`Cartera homologada de ${selectedVendor?.full_name||'vendedor'}.`}</span></div></div>
           <div className="territory-source-row"><b>Territorio según</b><div className="segmented compact-segmented"><button className={territoryMode==='MASTER'?'active':''} onClick={()=>setTerritoryMode('MASTER')}>Maestro comercial</button><button className={territoryMode==='OFFICIAL'?'active':''} onClick={()=>setTerritoryMode('OFFICIAL')}>División territorial oficial</button></div></div>
@@ -249,8 +328,8 @@ export function Planning() {
           <div className="planner-filter-actions"><div className="meta"><span>{filteredClients.length.toLocaleString()} clientes filtrados</span><span>{filteredGpsCount.toLocaleString()} con GPS</span><span>{filteredMismatchCount.toLocaleString()} con diferencia territorial</span>{loadingClients&&<span>Cargando cartera…</span>}</div><button className="secondary compact" onClick={clearFilters}><FilterX size={15}/> Limpiar filtros</button></div>
         </section>
 
-        <section className="panel"><div className="panel-head"><div><b>Selección de clientes</b><span>Selecciona en lista, mapa, polígono o radio. El perímetro siempre respeta los filtros activos y agrega únicamente clientes elegibles.</span></div><div className="button-row"><button className="secondary compact" disabled={selected.length<2} onClick={()=>void orderSelected()}><Shuffle size={15}/> Ordenar por cercanía</button><button className="secondary compact" disabled={!selected.length} onClick={()=>setSelected([])}>Limpiar selección</button></div></div>
-          <TerritoryClientMap clients={filteredClients} geoAssessments={geoAssessments} selectedIds={selected} selectable={canManagePlanning} areaTools={canManagePlanning} zones={mapZones} showZones={true} focusPoint={focusPoint} height={540} onToggleClient={toggleClient} onAreaSelect={(ids)=>addAreaSelection(ids)}/>
+        <section className="panel"><div className="panel-head"><div><b>Selección de clientes</b><span>Selecciona en lista, mapa, polígono o radio. El perímetro siempre respeta los filtros activos y agrega únicamente clientes elegibles.</span></div><div className="button-row">{orderButtons()}<button className="secondary compact" disabled={!selected.length||ordering} onClick={clearSelection}>Limpiar selección</button></div></div>
+          <TerritoryClientMap clients={filteredClients} geoAssessments={geoAssessments} selectedIds={selected} selectable={canManagePlanning&&!ordering} areaTools={canManagePlanning&&!ordering} zones={mapZones} showZones={true} focusPoint={focusPoint} height={540} onToggleClient={toggleClient} onAreaSelect={(ids)=>addAreaSelection(ids)}/>
         </section>
 
         <section className="panel planning-selection-panel">
@@ -258,15 +337,24 @@ export function Planning() {
             <div><span className="eyebrow">SELECCIÓN DE PLANIFICACIÓN</span><b>Preparación de la ruta</b><span>{selected.length?`${selected.length.toLocaleString()} cliente(s) seleccionados para la jornada.`:`Revisa los candidatos filtrados o selecciona clientes desde el mapa.`}</span></div>
             <button className="secondary compact" onClick={()=>setSelectionPanelOpen(value=>!value)}>{selectionPanelOpen?<><ChevronUp size={15}/> Ocultar</>:<><ChevronDown size={15}/> Mostrar</>}</button>
           </div>
+
           {selectionPanelOpen&&<div className="planning-selection-body">
+            <div className="planning-order-config">
+              <label className="planning-origin-control"><span>Origen para ordenar</span><select value={routeOrigin} disabled={ordering} onChange={event=>{setRouteOrigin(event.target.value as RouteOriginMode);setOrderFeedback('')}}><option value="SELECTION_CENTER">Centro de la selección · recomendado</option><option value="MY_LOCATION">Mi ubicación actual</option></select></label>
+              <div className="planning-order-explanation"><b>{routeOrigin==='SELECTION_CENTER'?'Orden reproducible para cualquier administrador.':'Usa la ubicación del dispositivo solo para esta ordenación.'}</b><span>{routeOrigin==='SELECTION_CENTER'?'No depende de dónde esté físicamente quien crea la ruta.':'La lectura se guarda 2 minutos y espera como máximo 2.5 s; si falla, usa el centro de la selección.'}</span></div>
+              {orderButtons(false)}
+            </div>
+            {(ordering||orderFeedback)&&<div className={`planning-order-status ${ordering?'working':'done'}`}>{ordering?<><LoaderCircle className="planning-order-spinner" size={16}/><b>Ordenando ruta…</b><span>Calculando secuencia geográfica de {selected.length} paradas.</span></>:<span>{orderFeedback}</span>}</div>}
+
             <div className="planning-selection-toolbar">
               <div className="segmented compact-segmented planning-selection-tabs"><button className={selectionView==='SELECTED'?'active':''} onClick={()=>setSelectionView('SELECTED')}>Seleccionados · {selected.length}</button><button className={selectionView==='AVAILABLE'?'active':''} onClick={()=>setSelectionView('AVAILABLE')}>Disponibles · {filteredClients.length}</button></div>
-              <div className="button-row"><button className="secondary compact" disabled={selected.length<2} onClick={()=>void orderSelected()}><Shuffle size={15}/> Ordenar</button>{selectedOutsideFilterCount>0&&<button className="secondary compact" onClick={removeOutsideCurrentFilter}><FilterX size={15}/> Quitar fuera de filtro ({selectedOutsideFilterCount})</button>}<button className="secondary compact" disabled={!selected.length} onClick={()=>setSelected([])}><X size={15}/> Limpiar</button>{canManagePlanning&&<button className="primary compact" disabled={busy||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={15}/>{busy?'Creando...':`Crear planificación · ${selected.length}`}</button>}</div>
+              <div className="button-row">{selectedOutsideFilterCount>0&&<button className="secondary compact" disabled={ordering} onClick={removeOutsideCurrentFilter}><FilterX size={15}/> Quitar fuera de filtro ({selectedOutsideFilterCount})</button>}<button className="secondary compact" disabled={!selected.length||ordering} onClick={clearSelection}><X size={15}/> Limpiar</button>{canManagePlanning&&<button className="primary compact" disabled={busy||ordering||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={15}/>{busy?'Creando...':ordering?'Ordenando...':`Crear planificación · ${selected.length}`}</button>}</div>
             </div>
+
             <div className="selected-summary-grid planning-selection-summary"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Dentro del filtro actual</span><strong>{selectedInFilterCount}</strong></div><div className="selected-summary-card"><span>Fuera del filtro actual</span><strong>{selectedOutsideFilterCount}</strong></div></div>
             {selectedOutsideFilterCount>0&&<div className="planning-selection-warning"><b>{selectedOutsideFilterCount} seleccionado(s) no coinciden con los filtros actuales.</b><span>Se mantienen en la ruta para evitar pérdidas silenciosas. Puedes retirarlos con “Quitar fuera de filtro”.</span></div>}
             <div className="planning-selection-list-meta"><span>{selectionView==='SELECTED'?`${selected.length.toLocaleString()} seleccionado(s) · ${selectedGpsCount.toLocaleString()} con GPS`:`${filteredClients.length.toLocaleString()} candidato(s) según filtros · ${filteredGpsCount.toLocaleString()} con GPS`}</span>{planningListClients.length>250&&<small>Mostrando los primeros 250. Acota con filtros para trabajar un conjunto menor.</small>}</div>
-            <div className="planning-selection-list">{planningListClients.length===0?<div className="empty-state"><b>{selectionView==='SELECTED'?'Aún no hay clientes seleccionados.':'No hay clientes que coincidan con los filtros actuales.'}</b><span>{selectionView==='SELECTED'?'Selecciona desde el mapa, radio, polígono o la pestaña Disponibles.':'Modifica los filtros para ampliar la búsqueda.'}</span></div>:planningListClients.slice(0,250).map(client=>{const checked=selected.includes(client.id);const assessment=geoAssessments.get(client.id);const hasGps=client.latitude!=null&&client.longitude!=null;return <div key={client.id} className={`planning-client-row ${checked?'selected':''}`}><div className="activity-icon"><MapIcon size={17}/></div><div className="activity-main"><b>{client.legal_name}</b><span>{client.codempr} · {client.client_type||'SIN TIPO'} · {client.municipality||client.province||'Sin municipio'}</span><small>{client.manager_employee_id?`Gestor asignado · `:''}{geoQualityLabel(assessment?.assessment_status)}{!filteredIdSet.has(client.id)?' · Fuera del filtro actual':''}</small></div><div className="planning-client-status"><span className="badge">{plannedIds.has(client.id)?'PLANIFICADO':checked?'SELECCIONADO':'DISPONIBLE'}</span></div><div className="planning-client-actions">{hasGps&&<button className="secondary compact" onClick={()=>focusClient(client)}><LocateFixed size={14}/> Ubicar</button>}{canManagePlanning&&<button className={checked?'secondary compact':'primary compact'} onClick={()=>toggleClient(client.id)}>{checked?<><X size={14}/> Quitar</>:<>Seleccionar</>}</button>}</div></div>})}</div>
+            <div className="planning-selection-list">{planningListClients.length===0?<div className="empty-state"><b>{selectionView==='SELECTED'?'Aún no hay clientes seleccionados.':'No hay clientes que coincidan con los filtros actuales.'}</b><span>{selectionView==='SELECTED'?'Selecciona desde el mapa, radio, polígono o la pestaña Disponibles.':'Modifica los filtros para ampliar la búsqueda.'}</span></div>:planningListClients.slice(0,250).map(client=>{const checked=selected.includes(client.id);const assessment=geoAssessments.get(client.id);const clientHasGps=hasGps(client);const routeOrder=selectedOrderById.get(client.id);return <div key={client.id} className={`planning-client-row ${checked?'selected':''}`}><div className={routeOrder?'planning-route-order-badge':'activity-icon'}>{routeOrder?String(routeOrder).padStart(2,'0'):<MapIcon size={17}/>}</div><div className="activity-main"><b>{client.legal_name}</b><span>{client.codempr} · {client.client_type||'SIN TIPO'} · {client.municipality||client.province||'Sin municipio'}</span><small>{routeOrder?`Parada ${routeOrder} · `:''}{client.manager_employee_id?`Gestor asignado · `:''}{geoQualityLabel(assessment?.assessment_status)}{!filteredIdSet.has(client.id)?' · Fuera del filtro actual':''}</small></div><div className="planning-client-status"><span className="badge">{plannedIds.has(client.id)?'PLANIFICADO':checked?'SELECCIONADO':'DISPONIBLE'}</span></div><div className="planning-client-actions">{clientHasGps&&<button className="secondary compact" onClick={()=>focusClient(client)}><LocateFixed size={14}/> Ubicar</button>}{canManagePlanning&&<button className={checked?'secondary compact':'primary compact'} disabled={ordering} onClick={()=>toggleClient(client.id)}>{checked?<><X size={14}/> Quitar</>:<>Seleccionar</>}</button>}</div></div>})}</div>
           </div>}
         </section>
       </main>

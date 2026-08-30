@@ -1,0 +1,20 @@
+.planning-order-buttons{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.planning-order-buttons .planning-order-spinner{animation:planning-order-spin .8s linear infinite}
+.planning-order-config{display:grid;grid-template-columns:minmax(220px,300px) minmax(260px,1fr) auto;gap:10px;align-items:end;border:1px solid var(--border);border-radius:13px;background:var(--surface-2);padding:11px 12px}
+.planning-origin-control{display:flex;flex-direction:column;gap:5px}
+.planning-origin-control span{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.planning-origin-control select{height:38px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);padding:0 10px;font-size:10px;font-weight:700;outline:0}
+.planning-origin-control select:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 10%,transparent)}
+.planning-order-explanation{display:flex;flex-direction:column;gap:3px;min-width:0}
+.planning-order-explanation b{font-size:10px}
+.planning-order-explanation span{font-size:9px;color:var(--muted);line-height:1.35}
+.planning-order-status{display:flex;align-items:center;gap:7px;border-radius:11px;padding:8px 10px;font-size:9px;border:1px solid var(--border)}
+.planning-order-status.working{background:color-mix(in srgb,var(--brand) 6%,var(--surface));border-color:color-mix(in srgb,var(--brand) 24%,var(--border));color:var(--text)}
+.planning-order-status.done{background:color-mix(in srgb,#17865c 6%,var(--surface));border-color:color-mix(in srgb,#17865c 26%,var(--border));color:#116847}
+.planning-order-status span{font-weight:700}
+.planning-route-order-badge{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#17865c;color:#fff;font-size:10px;font-weight:850;box-shadow:0 3px 10px rgba(23,134,92,.18)}
+.planning-route-order-marker{background:transparent!important;border:0!important}
+.planning-route-order-marker span{width:24px;height:24px;border-radius:999px;display:grid;place-items:center;background:#17865c;color:#fff;border:2px solid #fff;font-size:9px;font-weight:900;box-shadow:0 3px 10px rgba(15,23,42,.28);pointer-events:none}
+@keyframes planning-order-spin{to{transform:rotate(360deg)}}
+@media(max-width:1180px){.planning-order-config{grid-template-columns:1fr 1fr}.planning-order-buttons{grid-column:1/-1}}
+@media(max-width:720px){.planning-order-config{grid-template-columns:1fr}.planning-order-buttons{grid-column:auto;width:100%}.planning-order-buttons button{flex:1}.planning-order-status{align-items:flex-start;flex-wrap:wrap}}
