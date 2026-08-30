@@ -23,29 +23,40 @@ Fecha del checkpoint: **30/08/2026 (República Dominicana)**
 - Merge SHA: **`97d798e440974127dc40c4a1a402569ce8cb159b`**.
 - GitHub Actions sobre el head final del PR: **SUCCESS**.
 - GitHub Actions sobre `main` después del merge, run #594: **SUCCESS**.
+- Build local previo a producción: **SUCCESS**.
 - `package.json` en `main` confirma `0.6.5-beta.12.2.6`.
 
 ## 3. Cloudflare / producción
+
+Versión productiva actual: **0.6.5-beta.12.2.6**.
 
 URL productiva:
 
 `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Último Version ID confirmado antes de beta.12.2.6:
+Wrangler validado:
 
-`c359c16b-b8fa-4e86-98b5-79c30d22e83d`
+`4.125.0`
 
-Ese Version ID corresponde al checkpoint productivo anterior **0.6.5-beta.12.2.5 · Smart Map Framing**.
+Cloudflare Current Version ID:
 
-**Importante:** beta.12.2.6 ya está fusionada y validada en GitHub `main`, pero no debe declararse desplegada en Cloudflare hasta ejecutar el flujo real de Wrangler y registrar un nuevo `Current Version ID`.
+`c04e27a4-fb7d-49f7-bc35-acd42acaba40`
 
-El flujo productivo confirmado sigue siendo manual desde el repositorio local sincronizado:
+Estado del despliegue: **SUCCESS**.
+
+Checkpoint productivo anterior:
+
+`c359c16b-b8fa-4e86-98b5-79c30d22e83d` — `0.6.5-beta.12.2.5 · Smart Map Framing`.
+
+Flujo productivo confirmado:
 
 1. GitHub Desktop -> `main` -> Fetch/Pull.
-2. `npm run build`.
-3. `npm run deploy`.
-4. registrar URL y `Current Version ID` de Wrangler.
-5. smoke test de producción.
+2. confirmar `0 changed files`.
+3. validar versión local de `package.json`.
+4. `npm run build`.
+5. `npm run deploy`.
+6. registrar URL y `Current Version ID` de Wrangler.
+7. smoke test de producción.
 
 ## 4. V0.6.5-beta.12.2.6 — Route Ordering UX
 
@@ -86,7 +97,7 @@ Prueba realizada con cartera de **Rendy Mejías**:
 - módulo Rutas mostró exactamente la misma secuencia `1..11`;
 - mapa y lista de Rutas conservaron el mismo `stop_order`.
 
-Resultado: **QA funcional aprobado**.
+Resultado: **QA funcional aprobado y desplegado a producción**.
 
 ## 6. Tracking — estado protegido
 
@@ -174,7 +185,7 @@ Este Excel queda como base para futuras pruebas de carga múltiple de vendedores
 
 ## 10. Próximo QA recomendado
 
-Después de desplegar beta.12.2.6, el siguiente QA de mayor valor es **multi-vendedor con 3–4 vendedores**, utilizando rutas coherentes para validar:
+Después de beta.12.2.6, el siguiente QA de mayor valor es **multi-vendedor con 3–4 vendedores**, utilizando rutas coherentes para validar:
 
 - colores por vendedor;
 - Smart Map Framing;
@@ -197,6 +208,8 @@ No insertar datos masivos en Supabase sin definir antes escenario, reversibilida
 - QA manual cuando corresponda;
 - merge solo aprobado;
 - GitHub Desktop Fetch/Pull;
+- confirmar `main` y `0 changed files` antes de ejecutar comandos;
+- validar versión local de `package.json`;
 - `npm run build`;
 - `npm run deploy`;
 - no afirmar producción hasta obtener `Current Version ID` real;
