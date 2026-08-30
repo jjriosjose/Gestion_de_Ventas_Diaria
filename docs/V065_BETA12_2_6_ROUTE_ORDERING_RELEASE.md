@@ -2,7 +2,7 @@
 
 Fecha de aprobación funcional: **30/08/2026 (RD)**.
 
-Estado: **APROBADA para producción tras QA manual + CI verde**.
+Estado: **PRODUCTIVA · QA manual + CI + despliegue Cloudflare validados**.
 
 ## Objetivo
 
@@ -30,6 +30,9 @@ Corregir la experiencia y la lógica de ordenamiento de rutas en Planificación 
 ### Automatizado
 
 - GitHub Actions `Build validation`: **SUCCESS** (`tsc -b && vite build`).
+- Build final del head de release `d8775d8bc45cc1b725298bec955a218c1b883f4e`: **SUCCESS**.
+- Build de `main` tras merge `97d798e440974127dc40c4a1a402569ce8cb159b`: **SUCCESS**.
+- Build local previo al deploy: **SUCCESS**.
 - Validación controlada: la secuencia `Lejanos primero` es el inverso exacto de la secuencia geocodificada `Cercanos primero`.
 - Clientes sin GPS permanecen al final en ambos sentidos.
 
@@ -62,8 +65,16 @@ Resultado: **QA funcional aprobado**.
 
 - RC validada: `0.6.5-beta.12.2.6-rc.1`.
 - Release promovida: `0.6.5-beta.12.2.6`.
-- PR de promoción: #52.
+- PR RC histórico: **#52**, cerrado sin merge por limitación técnica al permanecer Draft.
+- PR de release: **#53**, fusionado a `main`.
+- Merge SHA: **`97d798e440974127dc40c4a1a402569ce8cb159b`**.
 
 ## Producción
 
-El merge a `main` y el despliegue Cloudflare deben confirmarse por separado. No registrar un Version ID de Cloudflare hasta obtenerlo del despliegue real de Wrangler/Cloudflare.
+- Cloudflare Workers URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
+- Wrangler validado: **4.125.0**.
+- `Current Version ID`: **`c04e27a4-fb7d-49f7-bc35-acd42acaba40`**.
+- Despliegue: **SUCCESS**.
+- Fecha: **30/08/2026 (RD)**.
+
+Este Version ID reemplaza como checkpoint productivo al anterior `c359c16b-b8fa-4e86-98b5-79c30d22e83d` de beta.12.2.5.
