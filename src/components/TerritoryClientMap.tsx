@@ -78,6 +78,7 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null)
   const [radiusKm, setRadiusKm] = useState(5)
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
+  const selectedOrderMap = useMemo(() => new Map(selectedIds.map((id,index)=>[id,index+1])), [selectedIds])
   const geocoded = useMemo(() => clients.filter(isGeocoded), [clients])
   const activeOfficialZone = useMemo(() => zones.find((zone) => zone.id.startsWith('official-') && zone.geometry) || null, [zones])
   const savedZones = useMemo(() => zones.filter((zone) => !zone.id.startsWith('official-')), [zones])
@@ -199,28 +200,47 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
 
       const createIndividual = (client: Client) => {
         const selected = selectedSet.has(client.id)
+        const routeOrder = selectedOrderMap.get(client.id)
         const assessment = geoAssessments.get(client.id)
         const status = assessment?.assessment_status
         const mismatch = isGeoMismatch(status)
         const outsideDivision = status === 'FUERA_DIVISION'
         const fillColor = selected ? '#17865c' : mismatch ? '#d97706' : outsideDivision ? '#7c3aed' : '#c71f2d'
-        const marker = L.circleMarker([client.latitude!, client.longitude!], { radius: selected ? 8 : 6, weight: selected ? 3 : 2, color: '#ffffff', fillColor, fillOpacity: 0.92 })
+        const marker = L.circleMarker([client.latitude!, client.longitude!], { radius: selected ? 9 : 6, weight: selected ? 3 : 2, color: '#ffffff', fillColor, fillOpacity: 0.92 })
         const navigation = `https://www.google.com/maps/dir/?api=1&destination=${client.latitude},${client.longitude}&travelmode=driving&dir_action=navigate`
         const masterTerritory = [client.region, client.province, client.municipality].filter(Boolean).join(' · ') || 'Sin territorio maestro'
         const detectedTerritory = assessmentDetectedTerritory(assessment)
         const quality = geoQualityLabel(status)
         const qualityFlag = mismatch ? '<strong>⚠ Maestro ≠ coordenada</strong>' : outsideDivision ? '<strong>⚠ Fuera de división</strong>' : ''
+        const routeFlag = routeOrder ? `<strong>Parada ${String(routeOrder).padStart(2,'0')}</strong>` : ''
 
-        marker.bindTooltip(`<div class="territorial-tooltip"><b>${escapeHtml(client.legal_name)}</b><span>${escapeHtml(client.codempr)}</span><span>${escapeHtml(client.municipality || client.province || 'Sin localidad')}</span>${qualityFlag}${selected ? '<strong>✓ Seleccionado</strong>' : selectable ? '<strong>Pulse para seleccionar</strong>' : ''}</div>`, { direction: 'top', offset: [0, -6], opacity: 0.96 })
-        marker.bindPopup(`<div class="map-popup"><b>${escapeHtml(client.legal_name)}</b><small>${escapeHtml(client.codempr)}</small><span><b>Maestro:</b> ${escapeHtml(masterTerritory)}</span><span><b>Coordenada:</b> ${escapeHtml(detectedTerritory)}</span><span><b>Calidad:</b> ${escapeHtml(quality)}</span><span>V: ${escapeHtml(client.v_cartera || '—')}</span><span>G: ${escapeHtml(client.g_cartera || '—')}</span><a target="_blank" rel="noreferrer" href="${navigation}">Navegar con Google Maps</a></div>`)
+        marker.bindTooltip(`<div class="territorial-tooltip"><b>${escapeHtml(client.legal_name)}</b><span>${escapeHtml(client.codempr)}</span><span>${escapeHtml(client.municipality || client.province || 'Sin localidad')}</span>${routeFlag}${qualityFlag}${selected ? '<strong>✓ Seleccionado</strong>' : selectable ? '<strong>Pulse para seleccionar</strong>' : ''}</div>`, { direction: 'top', offset: [0, -6], opacity: 0.96 })
+        marker.bindPopup(`<div class="map-popup"><b>${escapeHtml(client.legal_name)}</b><small>${escapeHtml(client.codempr)}</small>${routeOrder?`<span><b>Parada:</b> ${routeOrder}</span>`:''}<span><b>Maestro:</b> ${escapeHtml(masterTerritory)}</span><span><b>Coordenada:</b> ${escapeHtml(detectedTerritory)}</span><span><b>Calidad:</b> ${escapeHtml(quality)}</span><span>V: ${escapeHtml(client.v_cartera || '—')}</span><span>G: ${escapeHtml(client.g_cartera || '—')}</span><a target="_blank" rel="noreferrer" href="${navigation}">Navegar con Google Maps</a></div>`)
         if (selectable && mode === 'NONE') marker.on('click', () => onToggleClient?.(client.id))
         marker.addTo(layer)
+
+        if(routeOrder){
+          L.marker([client.latitude!,client.longitude!],{
+            interactive:false,
+            zIndexOffset:1400,
+            icon:L.divIcon({
+              className:'planning-route-order-marker',
+              html:`<span>${routeOrder}</span>`,
+              iconSize:[24,24],
+              iconAnchor:[12,12],
+            }),
+          }).addTo(layer)
+        }
       }
 
       if (geocoded.length > 90 && zoom <= 12) {
+        const selectedClients = geocoded.filter((client)=>selectedSet.has(client.id))
+        const unselectedClients = geocoded.filter((client)=>!selectedSet.has(client.id))
+        selectedClients.forEach(createIndividual)
+
         const cellPx = zoom <= 8 ? 95 : zoom <= 10 ? 78 : 62
         const buckets = new Map<string, Client[]>()
-        geocoded.forEach((client) => {
+        unselectedClients.forEach((client) => {
           const projected = map.project([client.latitude!, client.longitude!], zoom)
           const key = `${Math.floor(projected.x / cellPx)}:${Math.floor(projected.y / cellPx)}`
           const list = buckets.get(key) || []
@@ -231,11 +251,10 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
           if (bucket.length === 1) return createIndividual(bucket[0])
           const latitude = bucket.reduce((sum, client) => sum + client.latitude!, 0) / bucket.length
           const longitude = bucket.reduce((sum, client) => sum + client.longitude!, 0) / bucket.length
-          const selectedCount = bucket.filter((client) => selectedSet.has(client.id)).length
           const mismatchCount = bucket.filter((client) => isGeoMismatch(geoAssessments.get(client.id)?.assessment_status)).length
-          const clusterFill = selectedCount ? '#17865c' : mismatchCount ? '#d97706' : '#c71f2d'
+          const clusterFill = mismatchCount ? '#d97706' : '#c71f2d'
           const cluster = L.circleMarker([latitude, longitude], { radius: Math.min(24, 11 + Math.log2(bucket.length) * 2.4), weight: 3, color: '#ffffff', fillColor: clusterFill, fillOpacity: 0.94 })
-          cluster.bindTooltip(`<div class="territorial-tooltip cluster"><b>${bucket.length} clientes</b>${selectedCount ? `<span>${selectedCount} seleccionados</span>` : '<span>Pulse para acercar</span>'}${mismatchCount ? `<strong>⚠ ${mismatchCount} con diferencia territorial</strong>` : ''}</div>`, { direction: 'top', opacity: 0.96 })
+          cluster.bindTooltip(`<div class="territorial-tooltip cluster"><b>${bucket.length} clientes</b><span>Pulse para acercar</span>${mismatchCount ? `<strong>⚠ ${mismatchCount} con diferencia territorial</strong>` : ''}</div>`, { direction: 'top', opacity: 0.96 })
           cluster.on('click', () => map.flyTo([latitude, longitude], Math.min(18, zoom + 2)))
           cluster.addTo(layer)
           L.marker([latitude, longitude], { interactive: false, icon: L.divIcon({ className: 'cluster-count-marker', html: `<span>${bucket.length}</span>`, iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(layer)
@@ -246,7 +265,7 @@ export function TerritoryClientMap({ clients, geoAssessments = EMPTY_GEO_ASSESSM
     })
 
     return () => window.cancelAnimationFrame(frame)
-  }, [geocoded, geoAssessments, mode, onToggleClient, selectable, selectedSet, zoom])
+  }, [geocoded, geoAssessments, mode, onToggleClient, selectable, selectedOrderMap, selectedSet, zoom])
 
   useEffect(() => {
     const layer = zoneLayerRef.current
