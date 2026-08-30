@@ -6,6 +6,20 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.12.2.6 — Route Ordering UX
+
+- Planificación sustituye el botón ambiguo `Ordenar` por `Cercanos primero` y `Lejanos primero`.
+- El sentido inverso recorre la misma secuencia geográfica optimizada en orden contrario; no alterna hacia el cliente más lejano en cada paso.
+- El origen predeterminado pasa a ser el centro geográfico de la selección, evitando depender silenciosamente de la ubicación física del administrador.
+- Opción explícita `Mi ubicación actual` con lectura ligera, espera máxima de 2.5 s, cache de 2 minutos y fallback al centro de la selección.
+- Feedback visible mientras se ordena y bloqueo de acciones concurrentes.
+- Numeración de paradas `01..N` visible en lista y mapa durante la preparación.
+- Clientes seleccionados permanecen fuera de clusters para preservar la secuencia visual.
+- Clientes sin GPS quedan al final y el resultado lo informa.
+- `route_stops.stop_order` conserva exactamente el orden aprobado en Planificación.
+- QA manual validado con 11 clientes: secuencia, sentido inverso y persistencia de orden en Rutas.
+- Sin migraciones Supabase, SQL ni cambios a Tracking/Jornadas/Visitas.
+
 ## 0.6.4 — Cierre de jornada + distancia GPS estimada
 
 - Cierre transaccional de ruta/jornada desde backend.
