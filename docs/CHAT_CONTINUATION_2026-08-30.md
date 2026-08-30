@@ -2,7 +2,7 @@
 
 Fecha del checkpoint: **30/08/2026 (República Dominicana)**
 
-> Este documento existe para continuar el proyecto en un nuevo chat sin depender del historial completo. Si algo aquí difiere del estado real de GitHub, Supabase o Cloudflare, **los servicios reales son la fuente de verdad**.
+> Este documento es el checkpoint operativo prioritario para continuar el proyecto. Si algo aquí difiere del estado real de GitHub, Supabase o Cloudflare, **los servicios reales son la fuente de verdad**.
 
 ## 1. Fuentes de verdad
 
@@ -10,77 +10,120 @@ Fecha del checkpoint: **30/08/2026 (República Dominicana)**
 - Rama estable: `main`
 - Frontend: React + TypeScript + Vite
 - Backend: Supabase
-- Deploy: Cloudflare Workers / Wrangler
-- No asumir que una función existe solo porque fue mencionada en conversaciones anteriores: verificar primero el código y los servicios.
-- No ejecutar cambios de código, deploys, migraciones ni modificaciones de datos al comenzar el nuevo chat. Primero reconstruir contexto y auditar.
+- Producción: Cloudflare Workers / Wrangler
+- Datos actuales: **TEST** hasta declaración explícita de Go-Live.
+- No asumir que una función existe solo por historial de chat: verificar código y servicios.
 
-## 2. Estado productivo actual
+## 2. Estado GitHub actual
 
-- Versión en `main`: **0.6.5-beta.12.2.5**
-- Último bloque: **Smart Map Framing**
-- PR #51: fusionado a `main`
-- Merge SHA: `82ec55ea192032836076eafd934b0375c774daaf`
-- Build TypeScript + Vite: SUCCESS antes del merge
-- Cloudflare producción: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- Cloudflare Current Version ID: **`c359c16b-b8fa-4e86-98b5-79c30d22e83d`**
+- Versión en `main`: **0.6.5-beta.12.2.6**
+- Release: **Route Ordering UX**
+- PR RC histórico: #52, cerrado sin merge únicamente porque permaneció Draft.
+- PR release: **#53, MERGED**.
+- Merge SHA: **`97d798e440974127dc40c4a1a402569ce8cb159b`**.
+- GitHub Actions sobre el head final del PR: **SUCCESS**.
+- GitHub Actions sobre `main` después del merge, run #594: **SUCCESS**.
+- `package.json` en `main` confirma `0.6.5-beta.12.2.6`.
 
-La interfaz debe mostrar versión `0.6.5-beta.12.2.5` después de refresco fuerte.
+## 3. Cloudflare / producción
 
-## 3. Tracking — estado actual
+URL productiva:
 
-Tracking es una pantalla de control operativo / torre de control, no GPS continuo de fondo.
+`https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-### Capacidades actuales
+Último Version ID confirmado antes de beta.12.2.6:
 
-- ruta `/tracking`
-- permiso `tracking.view`
-- Administrador/Supervisor global por defecto; otros perfiles sin acceso por defecto salvo override explícito
-- backend también protege el acceso; no depender solo del menú/frontend
-- filtros por fecha, vendedor, estado, frescura, territorio, recorrido, tipo de registro, calidad GPS y registro vs cliente
-- KPI operativos
-- modos: `En vivo`, `Recorridos`, `Calidad GPS`
-- vistas de layout: `Estándar`, `Mapa grande`, `Control Tower`
-- panel `Fuerza de calle`
-- playback por `route_plan_id`, nunca mezclar dos planes del mismo vendedor
-- timeline de eventos GPS
-- mapa Leaflet + OSM
-- colores estables por vendedor
-- número de parada siempre visible; estado como segunda señal visual
-- líneas/flechas de secuencia planificada
-- comparación `R = registro` vs `C = ubicación maestra del cliente`
-- anomalías geográficas no bloquean la gestión
-- GPS no confiable se conserva para auditoría, pero no debe presentarse como ubicación exacta
-- registros distantes/no confiables no deben deformar el encuadre operativo normal
-- Calidad GPS sí puede abrir el mapa para mostrar `R ↔ C`
-- Smart Map Framing beta.12.2.5:
-  - 1 vendedor: zoom más cercano
-  - 2–4 vendedores: fit conjunto
-  - 5+: contexto más amplio
-  - ruta seleccionada: prioridad de cámara
-  - ResizeObserver al cambiar Estándar/Mapa grande/Control Tower
+`c359c16b-b8fa-4e86-98b5-79c30d22e83d`
 
-### Definición importante
+Ese Version ID corresponde al checkpoint productivo anterior **0.6.5-beta.12.2.5 · Smart Map Framing**.
 
-No hay breadcrumbs/GPS continuo en segundo plano. Existen puntos GPS reales asociados a eventos: inicio/fin de ruta, inicio/fin de visita y eventualidades. Las uniones entre puntos son estimadas y no deben presentarse como calle exacta recorrida.
+**Importante:** beta.12.2.6 ya está fusionada y validada en GitHub `main`, pero no debe declararse desplegada en Cloudflare hasta ejecutar el flujo real de Wrangler y registrar un nuevo `Current Version ID`.
 
-## 4. Validación GPS beta.12.x
+El flujo productivo confirmado sigue siendo manual desde el repositorio local sincronizado:
 
-Prueba real con Cesar Caba desde móvil:
+1. GitHub Desktop -> `main` -> Fetch/Pull.
+2. `npm run build`.
+3. `npm run deploy`.
+4. registrar URL y `Current Version ID` de Wrangler.
+5. smoke test de producción.
 
-- precisión aprox. ±15 m
-- calidad GPS excelente
-- registro realizado físicamente en Santo Domingo para cliente con punto maestro en Barahona
-- distancia aprox. 130 km
-- clasificación `DISTANT_REGISTRATION`
-- la visita se permitió y quedó marcada para auditoría
+## 4. V0.6.5-beta.12.2.6 — Route Ordering UX
 
-Esto confirmó la regla actual: una anomalía geográfica **no bloquea** la gestión; se registra y se audita.
+Problema corregido: el botón de ordenamiento de Planificación no comunicaba actividad, podía esperar hasta 8 s por una lectura GPS nueva y podía usar silenciosamente la ubicación física del administrador como origen.
 
-## 5. Supabase tracking ya aplicado
+Implementado y validado:
 
-No pedir al usuario ejecutar SQL de beta.12. Las migraciones de tracking ya fueron aplicadas.
+- `Cercanos primero`.
+- `Lejanos primero`.
+- El sentido inverso reutiliza la misma secuencia geográfica y la recorre al revés.
+- Origen predeterminado: **Centro de la selección**, determinista y reproducible.
+- Opción explícita: **Mi ubicación actual**.
+- GPS exclusivo de planificación: espera máxima 2.5 s, cache 2 min y fallback al centro de selección.
+- No se modificó `src/lib/geo.ts`.
+- Feedback visible `Ordenando ruta…`.
+- Botones bloqueados durante procesamiento.
+- Numeración `01..N` en lista de preparación.
+- Numeración visible en mapa.
+- Seleccionados permanecen fuera de clusters para conservar la secuencia.
+- Clientes sin GPS quedan al final.
+- `route_stops.stop_order` conserva el orden visual aprobado.
 
-Vistas públicas estables:
+Documentos:
+
+- `docs/V065_BETA12_2_6_ROUTE_ORDERING_RC1.md`
+- `docs/V065_BETA12_2_6_ROUTE_ORDERING_RELEASE.md`
+
+## 5. QA manual de beta.12.2.6
+
+Prueba realizada con cartera de **Rendy Mejías**:
+
+- 11 clientes seleccionados, todos con GPS;
+- ordenamiento visual correcto;
+- continuidad geográfica validada;
+- fallback visible de `Mi ubicación actual` al centro de selección cuando GPS no estuvo disponible;
+- `Lejanos primero` validado;
+- planificación TEST creada;
+- módulo Rutas mostró exactamente la misma secuencia `1..11`;
+- mapa y lista de Rutas conservaron el mismo `stop_order`.
+
+Resultado: **QA funcional aprobado**.
+
+## 6. Tracking — estado protegido
+
+Tracking continúa como torre de control operativo, no como GPS continuo de fondo.
+
+Capacidades vigentes:
+
+- ruta `/tracking`;
+- permiso `tracking.view`;
+- filtros por fecha, vendedor, estado, frescura, territorio, recorrido, tipo de registro, calidad GPS y registro vs cliente;
+- modos `En vivo`, `Recorridos`, `Calidad GPS`;
+- layouts `Estándar`, `Mapa grande`, `Control Tower`;
+- panel `Fuerza de calle`;
+- playback por `route_plan_id`;
+- timeline de eventos GPS;
+- mapa Leaflet + OSM;
+- colores estables por vendedor;
+- número de parada visible;
+- líneas/flechas de secuencia planificada;
+- comparación `R = registro` vs `C = cliente`;
+- anomalías geográficas se auditan, no bloquean automáticamente;
+- Smart Map Framing de beta.12.2.5 permanece vigente.
+
+Beta.12.2.6 **no modificó Tracking**.
+
+No hay breadcrumbs/GPS continuo de fondo. Los puntos GPS reales provienen de eventos como inicio/fin de ruta, inicio/fin de visita y eventualidades; las uniones son estimadas.
+
+## 7. Supabase
+
+No hubo cambios Supabase para beta.12.2.6:
+
+- sin SQL;
+- sin migraciones;
+- sin cambios de esquema;
+- sin cambios de RLS.
+
+Vistas de Tracking existentes:
 
 - `executive_tracking_events_v1`
 - `executive_tracking_stops_v1`
@@ -90,123 +133,77 @@ Función de permiso:
 
 - `private.current_user_can_view_tracking()`
 
-Scoping:
+No hacer replay manual ciego de migraciones.
 
-- Admin/Supervisor con permiso -> global
-- otros con permiso explícito -> solo sus propias filas
-- sin permiso -> 0 filas
+## 8. Datos TEST / Go-Live
 
-## 6. Principio de producto
+Todos los datos actuales de la app continúan considerándose **TEST**.
 
-La aplicación debe evolucionar como producto empresarial comercializable / SaaS-ready, no como lógica rígida exclusiva de Almacenes Karaka.
+- no borrar historial sin aprobación explícita;
+- no limpiar producción hasta que el usuario declare Go-Live;
+- datasets de QA deben ser identificables y reversibles.
 
-Concepto comercial recomendado:
+La planificación utilizada para validar beta.12.2.6 es una planificación TEST.
 
-**Field Sales Execution / Sales Force Automation (SFA) con inteligencia geográfica**.
+## 9. Cartera y rutas mensuales — trabajo realizado
 
-No implementar multi-tenancy parcial improvisado. Para una demo futura se acordó que la opción profesional es:
+Archivo maestro identificado:
 
-- app demo separada
-- branding neutral
-- Supabase Demo independiente
-- usuario demo con permisos completos
-- datos ficticios
-- ninguna acción de demo debe afectar producción
-- posible reset periódico de datos demo
+- `Base Cartera(2).xlsx`
+- hoja principal `cartera`
+- aproximadamente 1,997 registros y 47 columnas
+- hojas adicionales `usuarios` y `Hoja2`.
 
-Esta fase demo/SaaS todavía NO se ha ejecutado.
+Se generó el Excel:
 
-## 7. Datos de prueba y Go-Live
+`Rutas_Mensuales_Septiembre_2026.xlsx`
 
-Los datos actuales siguen considerándose **TEST** hasta que el usuario declare explícitamente Go-Live.
+Criterios usados:
 
-- no borrar/resetear historial de prueba sin aprobación
-- no asumir que es momento de limpiar producción
-- cualquier dataset artificial para QA debe ser claramente identificable y reversible
+- septiembre 2026;
+- lunes a viernes;
+- exclusión de cadenas;
+- conservación de Vendedor/Gestor real;
+- prioridad por recencia de compra, montos, pagos, balances/relevancia;
+- algunos clientes con 2 visitas al mes;
+- coherencia geográfica;
+- mínimo 8 clientes diarios cuando la cartera y geografía lo permiten;
+- rutas reducidas cuando forzar 8 clientes implicaría mezclar zonas absurdamente distantes.
 
-## 8. Próxima prueba de Tracking
+Este Excel queda como base para futuras pruebas de carga múltiple de vendedores y validación de Tracking/Control Tower.
 
-Después de beta.12.2.5, el siguiente QA deseado es multi-vendedor con 3–4 vendedores para validar:
+## 10. Próximo QA recomendado
 
-- colores por vendedor
-- smart framing
-- rutas próximas y parcialmente solapadas
-- Fuerza de calle con varias tarjetas
-- selección individual y atenuación de otras rutas
-- flechas y secuencia
-- puntos cercanos/solapados
-- Control Tower
+Después de desplegar beta.12.2.6, el siguiente QA de mayor valor es **multi-vendedor con 3–4 vendedores**, utilizando rutas coherentes para validar:
 
-No insertar datos de prueba en Supabase sin confirmar primero el escenario y la reversibilidad.
+- colores por vendedor;
+- Smart Map Framing;
+- rutas próximas/parcialmente solapadas;
+- Fuerza de calle;
+- selección individual y atenuación;
+- flechas/secuencia;
+- puntos cercanos y solapados;
+- Control Tower;
+- desempeño con varias rutas simultáneas.
 
-## 9. TAREA PENDIENTE PRIORITARIA — CARTERA → RUTAS MENSUALES EN EXCEL
+No insertar datos masivos en Supabase sin definir antes escenario, reversibilidad y método de carga.
 
-La última solicitud del usuario antes de cambiar de chat es **NO código**. Es un análisis de la base/cartera y generación de un Excel para luego cargar rutas de prueba en la app.
+## 11. Workflow de desarrollo obligatorio
 
-Solicitud exacta a reconstruir:
+- feature branch;
+- PR a `main`;
+- revisar diff;
+- CI verde;
+- QA manual cuando corresponda;
+- merge solo aprobado;
+- GitHub Desktop Fetch/Pull;
+- `npm run build`;
+- `npm run deploy`;
+- no afirmar producción hasta obtener `Current Version ID` real;
+- registrar checkpoint de producción.
 
-1. localizar y analizar detalladamente el documento/archivo **Cartera** disponible en el proyecto/conversación;
-2. utilizar toda la información relevante de clientes, incluyendo cuando exista:
-   - última fecha de compra
-   - última fecha de pago
-   - montos de compra/venta
-   - balances u otros indicadores
-   - vendedor asociado
-   - gestor asociado
-   - región/provincia/municipio
-   - latitud/longitud
-3. crear un **Excel de rutas diarias por vendedor para un mes completo**;
-4. días de trabajo: **lunes a viernes**;
-5. mínimo **8 clientes diarios por vendedor** cuando la cartera disponible lo permita;
-6. **excluir cadenas**;
-7. algunos clientes deben programarse **2 veces en el mes**, priorizados con una lógica defendible basada en fecha de compra, monto, pago/recencia y relevancia comercial;
-8. las rutas deben tener coherencia geográfica, no solo prioridad comercial: agrupar/ordenar por proximidad usando ubicación/territorio cuando exista;
-9. evitar asignaciones absurdas entre provincias/zonas en un mismo día;
-10. conservar vendedor/gestor real del cliente;
-11. preparar el Excel de forma que posteriormente pueda utilizarse como dataset de prueba/carga de rutas en la app;
-12. documentar claramente la lógica de priorización y cualquier cliente excluido por falta de datos o por ser cadena.
+## 12. PROJECT_HANDOFF.md
 
-### Antes de generar el Excel
+`PROJECT_HANDOFF.md` sigue conteniendo historial y decisiones arquitectónicas muy importantes, pero su cabecera quedó desactualizada en beta.10. Para el estado reciente debe leerse primero **este checkpoint del 30/08/2026** y luego `PROJECT_HANDOFF.md` como contexto histórico.
 
-En el nuevo chat:
-
-- usar Files para localizar el archivo Cartera si no está adjunto directamente;
-- leer la skill de spreadsheets (`/home/oai/skills/spreadsheets/SKILL.md`) antes de crear/modificar Excel;
-- inspeccionar nombres de hojas/columnas y calidad de datos;
-- identificar cómo reconocer `cadenas` con la información real del archivo, no inventar una lista ciega;
-- validar qué mes se va a planificar. Si el archivo y el contexto no determinan el mes, pedir únicamente ese dato antes de generar rutas;
-- no modificar Supabase ni la app para esta tarea;
-- primero entregar el Excel y explicar la lógica; después el usuario decidirá si se carga a la app.
-
-## 10. Regla para comenzar el próximo chat
-
-El nuevo chat debe iniciar con una **Auditoría de Continuidad breve**:
-
-1. leer este documento;
-2. verificar `package.json` en GitHub `main`;
-3. verificar estado actual del repositorio antes de cualquier cambio;
-4. no tocar código ni datos;
-5. localizar el archivo Cartera;
-6. analizarlo;
-7. continuar con la tarea de rutas mensuales en Excel.
-
-## 11. Workflow de desarrollo que debe mantenerse
-
-Cuando posteriormente haya cambios de código:
-
-- trabajar en feature branch
-- PR hacia `main`
-- revisar archivos cambiados
-- esperar GitHub Actions build
-- fusionar solo con CI verde
-- usuario hace GitHub Desktop Fetch/Pull
-- `npm run build`
-- luego `npm run deploy`
-- no afirmar deploy hasta recibir Wrangler `Current Version ID`
-- registrar checkpoint de producción
-
-No trabajar directamente sobre `main` salvo documentación/checkpoints muy controlados.
-
-## 12. Nota sobre PROJECT_HANDOFF.md
-
-`PROJECT_HANDOFF.md` existe, pero su cabecera de estado quedó en beta.10. Contiene historial y decisiones arquitectónicas útiles, pero para el estado operativo más reciente debe leerse primero **este documento de 30/08/2026**, y luego usar `PROJECT_HANDOFF.md` como contexto histórico.
+GitHub `main`, Supabase y Cloudflare siempre prevalecen sobre documentación o conversación si existe discrepancia.
