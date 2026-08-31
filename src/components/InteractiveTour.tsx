@@ -4,10 +4,14 @@ import { createPortal } from 'react-dom'
 import { useLocation,useNavigate } from 'react-router-dom'
 import './InteractiveTour.css'
 
+type PreviewKind='route'|'visit-flow'|'reception-flow'
+
 type TourStep={
   id:string
   path?:string
   target:string
+  secondaryTargets?:string[]
+  preview?:PreviewKind
   eyebrow:string
   title:string
   body:string
@@ -22,13 +26,13 @@ const baseSteps:TourStep[]=[
   {id:'welcome',target:'.brand-block',eyebrow:'RECORRIDO INTERACTIVO',title:'Conoce Gestión de Ventas Diaria',body:'Un recorrido guiado por las funciones principales del sistema. La demo bloquea acciones sensibles y solo permite interacciones seguras.',hint:'Usa Siguiente para avanzar. Puedes salir en cualquier momento.'},
   {id:'home',path:'/',target:'.content .page-head',eyebrow:'01 · INICIO',title:'Visión ejecutiva de la operación',body:'El inicio concentra indicadores y accesos rápidos para entender el estado comercial antes de entrar al detalle operativo.'},
   {id:'planning',path:'/planificacion',target:'.planner-v2',eyebrow:'02 · PLANIFICACIÓN',title:'Construye jornadas desde la cartera y el mapa',body:'Selecciona vendedor, fecha, territorio y clientes. La planificación combina filtros comerciales con contexto geográfico sin mezclar zonas de forma arbitraria.'},
-  {id:'ordering',path:'/planificacion',target:'.planner-main .territorial-map-shell',eyebrow:'03 · SECUENCIA DE RUTA',title:'Visualiza ambos sentidos antes de crear la ruta',body:'La línea verde representa Cercanos → Lejanos y la violeta muestra la misma secuencia en sentido inverso, Lejanos → Cercanos. Las paradas se renumeran según el sentido elegido.',hint:'La ruta dibujada durante el tour es una simulación visual. No crea planificación ni modifica datos.'},
+  {id:'ordering',path:'/planificacion',target:'.planner-main .territorial-map-shell',preview:'route',eyebrow:'03 · SECUENCIA DE RUTA',title:'Visualiza ambos sentidos antes de crear la ruta',body:'La línea verde representa Cercanos → Lejanos y la violeta muestra la misma secuencia en sentido inverso, Lejanos → Cercanos. Las paradas se renumeran según el sentido elegido.',hint:'La ruta dibujada durante el tour es una simulación visual. No crea planificación ni modifica datos.'},
   {id:'routes',path:'/rutas',target:'.route-workspace',eyebrow:'04 · TMS / RUTAS',title:'Plan vs ejecución en una sola vista',body:'Consulta rutas asignadas, cobertura, estados, mapa, secuencia de paradas y eventualidades de la jornada. El sistema mantiene trazabilidad desde la planificación hasta el cierre.'},
   {id:'journeys',path:'/jornadas',target:'.content .page-head',eyebrow:'05 · JORNADAS',title:'Control del ciclo operativo',body:'Las jornadas permiten revisar ejecución, cierres y pendientes sin convertir automáticamente una parada pendiente en una visita realizada.'},
   {id:'manager-calls',path:'/llamadas',target:'#crm-cartera',eyebrow:'06 · GESTOR / CRM',title:'Gestión telefónica con contexto 360 del cliente',body:'El Gestor consulta cartera, última llamada, última visita, resultado comercial y estado de showroom antes de contactar al cliente. Una llamada puede dejar seguimiento o generar una solicitud de showroom pendiente de validación.',hint:'El tour solo muestra el flujo. No guarda llamadas ni crea citas.'},
   {id:'manager-agenda',path:'/agenda',target:'.calendar-list',eyebrow:'07 · AGENDA / SHOWROOM',title:'De la intención a una cita confirmada',body:'Agenda concentra solicitudes, validación telefónica, citas confirmadas, reprogramaciones, asistencia y conversión. Una intención de showroom no cuenta como cita pactada hasta que el Gestor la confirma.',hint:'Recepción registra la llegada física; el Gestor continúa la atención comercial.'},
-  {id:'manager-visits',path:'/visitas',target:'.cards-list',eyebrow:'08 · VISITAS Y SEGUIMIENTO',title:'La visita alimenta la continuidad comercial',body:'Las visitas conservan llegada, salida, duración, resultado, compra, contacto y próxima acción. Cuando el cliente manifiesta interés en showroom, la visita puede originar una solicitud que pasa al flujo de validación del Gestor.',hint:'El recorrido no abre ni finaliza visitas.'},
-  {id:'manager-reception',path:'/recepcion',target:'.kpi-grid',eyebrow:'09 · RECEPCIÓN',title:'Llegada, espera, atención y salida',body:'Recepción controla citas esperadas, personas dentro del showroom, clientes en espera y atenciones en curso. La llegada física y la gestión comercial se mantienen separadas para conservar trazabilidad.',hint:'Una persona puede registrarse en recepción sin asignar Gestor cuando corresponde.'},
+  {id:'manager-visits',path:'/visitas',target:'.page-stack > .cards-list',preview:'visit-flow',eyebrow:'08 · VISITAS Y SEGUIMIENTO',title:'La visita alimenta la continuidad comercial',body:'La lista real permite leer llegada, salida, duración, resultado y compra/no compra. La visita conserva además contacto y próxima acción; si existe interés en showroom, puede originar una solicitud para validación del Gestor.',hint:'El recorrido se actualiza cuando termina de cargar la lista y no abre ni finaliza visitas.'},
+  {id:'manager-reception',path:'/recepcion',target:'.page-stack > .kpi-grid',secondaryTargets:['.page-stack > .page-head .primary'],preview:'reception-flow',eyebrow:'09 · RECEPCIÓN',title:'Llegada, espera, atención y salida',body:'Recepción controla la presencia física desde la entrada hasta la salida. Los indicadores muestran citas esperadas, personas dentro, espera y atención; “Llegada sin cita” permite registrar una entrada cuando corresponde.',hint:'El tour solo demuestra el flujo. No registra llegadas, atenciones ni salidas.'},
   {id:'tracking',path:'/tracking',target:'.tracking-workspace',eyebrow:'10 · TRACKING',title:'Seguimiento operativo sobre eventos GPS reales',body:'Tracking consolida vendedores, rutas, paradas y eventos GPS de inicio/fin de ruta, visitas y eventualidades. No se presenta como GPS continuo de fondo.'},
   {id:'tracking-modes',path:'/tracking',target:'.tracking-mode-switch',eyebrow:'11 · RECORRIDOS Y CALIDAD',title:'En vivo, recorridos y calidad GPS',body:'Cambia entre la última posición confiable, la secuencia de recorridos y la auditoría Registro vs Cliente.',safeActionLabel:'Mostrar Recorridos',safeActionSelector:'.tracking-mode-switch button:nth-child(2)'},
   {id:'control-tower',path:'/tracking',target:'.tracking-layout-switch',eyebrow:'12 · CONTROL TOWER',title:'Supervisión multi-vendedor',body:'Control Tower amplía el mapa, resume vendedores activos y conserva filtros, colores y selección individual para supervisar varias rutas al mismo tiempo.',safeActionLabel:'Activar Control Tower',safeActionSelector:'.tracking-layout-switch button:nth-child(3)'},
@@ -38,6 +42,16 @@ const baseSteps:TourStep[]=[
 ]
 
 function clamp(value:number,min:number,max:number){return Math.max(min,Math.min(max,value))}
+
+function rectFor(element:HTMLElement,pad=10):Rect|null{
+  const box=element.getBoundingClientRect()
+  if(box.bottom<0||box.top>window.innerHeight||box.right<0||box.left>window.innerWidth)return null
+  const left=clamp(box.left-pad,8,Math.max(8,window.innerWidth-50))
+  const top=clamp(box.top-pad,8,Math.max(8,window.innerHeight-50))
+  const width=Math.max(42,Math.min(box.width+pad*2,window.innerWidth-left-8))
+  const height=Math.max(42,Math.min(box.height+pad*2,window.innerHeight-top-8))
+  return{top,left,width,height}
+}
 
 function routePreviewRect():Rect|null{
   const element=document.querySelector('.planner-main .leaflet-container') as HTMLElement|null
@@ -70,31 +84,43 @@ function RouteDirectionPreview({rect}:{rect:Rect}){
   </div>
 }
 
+function FlowPreview({rect,kind}:{rect:Rect;kind:'visit-flow'|'reception-flow'}){
+  const items=kind==='visit-flow'
+    ?['Llegada','Duración','Resultado','Compra / No compra','Próxima acción']
+    :['Llegada','Espera','Atención','Salida']
+  const width=Math.min(kind==='visit-flow'?760:570,window.innerWidth-32)
+  const left=clamp(rect.left+rect.width-width,16,window.innerWidth-width-16)
+  const above=rect.top-58
+  const top=above>=12?above:Math.min(window.innerHeight-54,rect.top+rect.height+10)
+  return <div aria-hidden="true" style={{position:'fixed',zIndex:10004,left,top,width,minHeight:44,display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:14,background:'rgba(255,255,255,.97)',border:'1px solid rgba(210,28,45,.35)',boxShadow:'0 10px 30px rgba(15,23,42,.16)',pointerEvents:'none'}}>
+    {items.map((item,i)=><span key={item} style={{display:'flex',alignItems:'center',gap:8,whiteSpace:'nowrap',fontSize:12,fontWeight:800,color:'#263244'}}>{i>0&&<b style={{color:'#d21c2d',fontSize:15}}>→</b>}<span style={{padding:'5px 8px',borderRadius:9,background:i===0?'#fff0f2':'#f6f8fb',border:'1px solid #e7eaf0'}}>{item}</span></span>)}
+  </div>
+}
+
 export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[];onStart?:()=>void}){
   const navigate=useNavigate();const location=useLocation()
-  const [active,setActive]=useState(false),[index,setIndex]=useState(0),[rect,setRect]=useState<Rect|null>(null),[previewRect,setPreviewRect]=useState<Rect|null>(null),[targetReady,setTargetReady]=useState(false)
-  const timerRef=useRef<number|null>(null)
+  const [active,setActive]=useState(false),[index,setIndex]=useState(0),[rect,setRect]=useState<Rect|null>(null),[secondaryRects,setSecondaryRects]=useState<Rect[]>([]),[previewRect,setPreviewRect]=useState<Rect|null>(null),[targetReady,setTargetReady]=useState(false)
+  const timerRef=useRef<number|null>(null),mutationTimerRef=useRef<number|null>(null)
   const steps=useMemo(()=>baseSteps.filter(step=>!step.path||availablePaths.includes(step.path)),[availablePaths])
   const step=steps[index]||steps[0]
 
   const stopTimer=()=>{if(timerRef.current!=null){window.clearTimeout(timerRef.current);timerRef.current=null}}
+  const stopMutationTimer=()=>{if(mutationTimerRef.current!=null){window.clearTimeout(mutationTimerRef.current);mutationTimerRef.current=null}}
   const locateTarget=()=>{
     const element=document.querySelector(step?.target||'') as HTMLElement|null
-    setPreviewRect(step?.id==='ordering'?routePreviewRect():null)
+    setPreviewRect(step?.preview==='route'?routePreviewRect():null)
+    setSecondaryRects((step?.secondaryTargets||[]).map(selector=>document.querySelector(selector) as HTMLElement|null).filter(Boolean).map(element=>rectFor(element as HTMLElement,7)).filter(Boolean) as Rect[])
     if(!element){setRect(null);setTargetReady(false);return false}
-    const box=element.getBoundingClientRect();const pad=10
-    const left=clamp(box.left-pad,8,Math.max(8,window.innerWidth-50))
-    const top=clamp(box.top-pad,8,Math.max(8,window.innerHeight-50))
-    const width=Math.max(42,Math.min(box.width+pad*2,window.innerWidth-left-8))
-    const height=Math.max(42,Math.min(box.height+pad*2,window.innerHeight-top-8))
-    setRect({top,left,width,height});setTargetReady(true);return true
+    const nextRect=rectFor(element,10)
+    if(!nextRect){setRect(null);setTargetReady(false);return false}
+    setRect(nextRect);setTargetReady(true);return true
   }
 
   useEffect(()=>{
     if(!active||!step)return
     const changingPath=Boolean(step.path&&location.pathname!==step.path)
-    if(changingPath){navigate(step.path!);setTargetReady(false);setPreviewRect(null)}
-    stopTimer()
+    if(changingPath){navigate(step.path!);setTargetReady(false);setPreviewRect(null);setSecondaryRects([])}
+    stopTimer();stopMutationTimer()
     let attempts=0,scrolled=false
     const seek=()=>{
       attempts+=1
@@ -109,14 +135,16 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
     }
     timerRef.current=window.setTimeout(seek,changingPath?220:40)
     const sync=()=>locateTarget()
+    const observer=new MutationObserver(()=>{stopMutationTimer();mutationTimerRef.current=window.setTimeout(()=>locateTarget(),80)})
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true})
     window.addEventListener('resize',sync);window.addEventListener('scroll',sync,true)
-    return()=>{stopTimer();window.removeEventListener('resize',sync);window.removeEventListener('scroll',sync,true)}
-  },[active,index,step?.id,step?.path,step?.target,location.pathname,navigate])
+    return()=>{stopTimer();stopMutationTimer();observer.disconnect();window.removeEventListener('resize',sync);window.removeEventListener('scroll',sync,true)}
+  },[active,index,step?.id,step?.path,step?.target,step?.preview,location.pathname,navigate])
 
   useEffect(()=>()=>{document.body.classList.remove('product-tour-active')},[])
 
   const start=()=>{onStart?.();setIndex(0);setActive(true);document.body.classList.add('product-tour-active')}
-  const close=()=>{setActive(false);setRect(null);setPreviewRect(null);document.body.classList.remove('product-tour-active')}
+  const close=()=>{setActive(false);setRect(null);setSecondaryRects([]);setPreviewRect(null);document.body.classList.remove('product-tour-active')}
   const next=()=>{if(index>=steps.length-1){try{window.localStorage.setItem('karaka-product-tour-completed','1')}catch{};close();return}setIndex(i=>Math.min(i+1,steps.length-1))}
   const previous=()=>setIndex(i=>Math.max(0,i-1))
   const runSafeAction=()=>{
@@ -139,7 +167,9 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   const overlay=active&&step?createPortal(<div className="product-tour-root" role="dialog" aria-modal="true" aria-label="Recorrido interactivo del sistema">
     <div className={`product-tour-shield ${rect?'has-target':'no-target'}`}/>
     {rect&&<button type="button" className={`product-tour-focus ${step.safeActionSelector?'clickable':''}`} style={{top:rect.top,left:rect.left,width:rect.width,height:rect.height}} onClick={step.safeActionSelector?runSafeAction:undefined} aria-label={step.safeActionLabel||'Elemento destacado'}/>} 
-    {step.id==='ordering'&&previewRect&&<RouteDirectionPreview rect={previewRect}/>} 
+    {secondaryRects.map((secondary,i)=><div key={i} className="product-tour-focus" style={{top:secondary.top,left:secondary.left,width:secondary.width,height:secondary.height,pointerEvents:'none'}} aria-hidden="true"/>)}
+    {step.preview==='route'&&previewRect&&<RouteDirectionPreview rect={previewRect}/>} 
+    {(step.preview==='visit-flow'||step.preview==='reception-flow')&&rect&&<FlowPreview rect={rect} kind={step.preview}/>} 
     <section className="product-tour-card" style={cardStyle}>
       <div className="product-tour-card-head"><span>{step.eyebrow}</span><button type="button" onClick={close} aria-label="Salir del recorrido"><X size={18}/></button></div>
       <h3>{step.title}</h3><p>{step.body}</p>
