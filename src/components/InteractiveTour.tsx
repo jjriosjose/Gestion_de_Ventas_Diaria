@@ -22,7 +22,7 @@ const baseSteps:TourStep[]=[
   {id:'welcome',target:'.brand-block',eyebrow:'RECORRIDO INTERACTIVO',title:'Conoce Gestión de Ventas Diaria',body:'Un recorrido guiado por las funciones principales del sistema. La demo bloquea acciones sensibles y solo permite interacciones seguras.',hint:'Usa Siguiente para avanzar. Puedes salir en cualquier momento.'},
   {id:'home',path:'/',target:'.content .page-head',eyebrow:'01 · INICIO',title:'Visión ejecutiva de la operación',body:'El inicio concentra indicadores y accesos rápidos para entender el estado comercial antes de entrar al detalle operativo.'},
   {id:'planning',path:'/planificacion',target:'.planner-v2',eyebrow:'02 · PLANIFICACIÓN',title:'Construye jornadas desde la cartera y el mapa',body:'Selecciona vendedor, fecha, territorio y clientes. La planificación combina filtros comerciales con contexto geográfico sin mezclar zonas de forma arbitraria.'},
-  {id:'ordering',path:'/planificacion',target:'.planning-order-config',eyebrow:'03 · SECUENCIA DE RUTA',title:'Cercanos primero o lejanos primero',body:'La ruta puede ordenarse desde el centro de la selección o desde la ubicación actual. La numeración visual se conserva como stop_order al crear la planificación.',hint:'Esta demo no crea rutas ni modifica datos.'},
+  {id:'ordering',path:'/planificacion',target:'.planning-order-config',eyebrow:'03 · SECUENCIA DE RUTA',title:'Visualiza ambos sentidos antes de crear la ruta',body:'La línea verde representa Cercanos → Lejanos y la violeta muestra la misma secuencia en sentido inverso, Lejanos → Cercanos. Las paradas se renumeran según el sentido elegido.',hint:'La ruta dibujada durante el tour es una simulación visual. No crea planificación ni modifica datos.'},
   {id:'routes',path:'/rutas',target:'.route-workspace',eyebrow:'04 · TMS / RUTAS',title:'Plan vs ejecución en una sola vista',body:'Consulta rutas asignadas, cobertura, estados, mapa, secuencia de paradas y eventualidades de la jornada. El sistema mantiene trazabilidad desde la planificación hasta el cierre.'},
   {id:'journeys',path:'/jornadas',target:'.content .page-head',eyebrow:'05 · JORNADAS',title:'Control del ciclo operativo',body:'Las jornadas permiten revisar ejecución, cierres y pendientes sin convertir automáticamente una parada pendiente en una visita realizada.'},
   {id:'tracking',path:'/tracking',target:'.tracking-workspace',eyebrow:'06 · TRACKING',title:'Seguimiento operativo sobre eventos GPS reales',body:'Tracking consolida vendedores, rutas, paradas y eventos GPS de inicio/fin de ruta, visitas y eventualidades. No se presenta como GPS continuo de fondo.'},
@@ -35,9 +35,40 @@ const baseSteps:TourStep[]=[
 
 function clamp(value:number,min:number,max:number){return Math.max(min,Math.min(max,value))}
 
+function routePreviewRect():Rect|null{
+  const element=document.querySelector('.planner-main .leaflet-container') as HTMLElement|null
+  if(!element)return null
+  const box=element.getBoundingClientRect()
+  const left=Math.max(8,box.left),top=Math.max(8,box.top)
+  const right=Math.min(window.innerWidth-8,box.right),bottom=Math.min(window.innerHeight-8,box.bottom)
+  if(right-left<260||bottom-top<180)return null
+  return{left,top,width:right-left,height:bottom-top}
+}
+
+function RouteDirectionPreview({rect}:{rect:Rect}){
+  const nearPoints='120,390 250,330 370,360 520,250 690,285 850,135'
+  const farPoints='850,165 690,315 520,280 370,390 250,360 120,420'
+  const nearNodes=[[120,390],[250,330],[370,360],[520,250],[690,285],[850,135]]
+  const farNodes=[[850,165],[690,315],[520,280],[370,390],[250,360],[120,420]]
+  return <div className="product-tour-route-preview" style={{left:rect.left,top:rect.top,width:rect.width,height:rect.height}} aria-hidden="true">
+    <div className="product-tour-route-demo-label">SIMULACIÓN VISUAL · NO GUARDA DATOS</div>
+    <div className="product-tour-route-legend"><span className="near">Cercanos → Lejanos</span><span className="far">Lejanos → Cercanos</span></div>
+    <svg viewBox="0 0 1000 520" preserveAspectRatio="none">
+      <defs>
+        <marker id="tour-near-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 z" fill="#16865c"/></marker>
+        <marker id="tour-far-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 z" fill="#6d5ce7"/></marker>
+      </defs>
+      <polyline className="tour-demo-path near" points={nearPoints} markerMid="url(#tour-near-arrow)" markerEnd="url(#tour-near-arrow)"/>
+      <polyline className="tour-demo-path far" points={farPoints} markerMid="url(#tour-far-arrow)" markerEnd="url(#tour-far-arrow)"/>
+      {nearNodes.map(([x,y],i)=><g className="tour-demo-node near" key={`n-${i}`}><circle cx={x} cy={y} r="18"/><text x={x} y={y+6} textAnchor="middle">{i+1}</text></g>)}
+      {farNodes.map(([x,y],i)=><g className="tour-demo-node far" key={`f-${i}`}><circle cx={x} cy={y} r="18"/><text x={x} y={y+6} textAnchor="middle">{i+1}</text></g>)}
+    </svg>
+  </div>
+}
+
 export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[];onStart?:()=>void}){
   const navigate=useNavigate();const location=useLocation()
-  const [active,setActive]=useState(false),[index,setIndex]=useState(0),[rect,setRect]=useState<Rect|null>(null),[targetReady,setTargetReady]=useState(false)
+  const [active,setActive]=useState(false),[index,setIndex]=useState(0),[rect,setRect]=useState<Rect|null>(null),[previewRect,setPreviewRect]=useState<Rect|null>(null),[targetReady,setTargetReady]=useState(false)
   const timerRef=useRef<number|null>(null)
   const steps=useMemo(()=>baseSteps.filter(step=>!step.path||availablePaths.includes(step.path)),[availablePaths])
   const step=steps[index]||steps[0]
@@ -45,6 +76,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   const stopTimer=()=>{if(timerRef.current!=null){window.clearTimeout(timerRef.current);timerRef.current=null}}
   const locateTarget=()=>{
     const element=document.querySelector(step?.target||'') as HTMLElement|null
+    setPreviewRect(step?.id==='ordering'?routePreviewRect():null)
     if(!element){setRect(null);setTargetReady(false);return false}
     const box=element.getBoundingClientRect();const pad=10
     const left=clamp(box.left-pad,8,Math.max(8,window.innerWidth-50))
@@ -56,7 +88,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
 
   useEffect(()=>{
     if(!active||!step)return
-    if(step.path&&location.pathname!==step.path){navigate(step.path);setTargetReady(false)}
+    if(step.path&&location.pathname!==step.path){navigate(step.path);setTargetReady(false);setPreviewRect(null)}
     stopTimer()
     let attempts=0
     const seek=()=>{attempts+=1;if(locateTarget()||attempts>20)return;timerRef.current=window.setTimeout(seek,100)}
@@ -69,7 +101,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   useEffect(()=>()=>{document.body.classList.remove('product-tour-active')},[])
 
   const start=()=>{onStart?.();setIndex(0);setActive(true);document.body.classList.add('product-tour-active')}
-  const close=()=>{setActive(false);setRect(null);document.body.classList.remove('product-tour-active')}
+  const close=()=>{setActive(false);setRect(null);setPreviewRect(null);document.body.classList.remove('product-tour-active')}
   const next=()=>{if(index>=steps.length-1){try{window.localStorage.setItem('karaka-product-tour-completed','1')}catch{};close();return}setIndex(i=>Math.min(i+1,steps.length-1))}
   const previous=()=>setIndex(i=>Math.max(0,i-1))
   const runSafeAction=()=>{
@@ -91,6 +123,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   const overlay=active&&step?createPortal(<div className="product-tour-root" role="dialog" aria-modal="true" aria-label="Recorrido interactivo del sistema">
     <div className={`product-tour-shield ${rect?'has-target':'no-target'}`}/>
     {rect&&<button type="button" className={`product-tour-focus ${step.safeActionSelector?'clickable':''}`} style={{top:rect.top,left:rect.left,width:rect.width,height:rect.height}} onClick={step.safeActionSelector?runSafeAction:undefined} aria-label={step.safeActionLabel||'Elemento destacado'}/>} 
+    {step.id==='ordering'&&previewRect&&<RouteDirectionPreview rect={previewRect}/>} 
     <section className="product-tour-card" style={cardStyle}>
       <div className="product-tour-card-head"><span>{step.eyebrow}</span><button type="button" onClick={close} aria-label="Salir del recorrido"><X size={18}/></button></div>
       <h3>{step.title}</h3><p>{step.body}</p>
