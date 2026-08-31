@@ -63,6 +63,20 @@ function routePreviewRect():Rect|null{
   return{left,top,width:right-left,height:bottom-top}
 }
 
+function SpotlightMask({rects}:{rects:Rect[]}){
+  const width=window.innerWidth,height=window.innerHeight
+  const hasTargets=rects.length>0
+  return <svg className="product-tour-mask" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <mask id="product-tour-spotlight-mask" maskUnits="userSpaceOnUse" x="0" y="0" width={width} height={height}>
+        <rect x="0" y="0" width={width} height={height} fill="white"/>
+        {rects.map((item,i)=><rect key={i} x={item.left} y={item.top} width={item.width} height={item.height} rx="18" ry="18" fill="black"/>)}
+      </mask>
+    </defs>
+    <rect x="0" y="0" width={width} height={height} fill="#0f172a" fillOpacity={hasTargets?0.34:0.52} mask="url(#product-tour-spotlight-mask)"/>
+  </svg>
+}
+
 function RouteDirectionPreview({rect}:{rect:Rect}){
   const nearPoints='120,390 250,330 370,360 520,250 690,285 850,135'
   const farPoints='850,165 690,315 520,280 370,390 250,360 120,420'
@@ -164,8 +178,10 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
     return{left:clamp(left,16,window.innerWidth-cardWidth-16),top:clamp(top,16,window.innerHeight-cardHeight-16),width:cardWidth}
   },[rect,step?.id])
 
+  const spotlightRects=rect?[rect,...secondaryRects]:[]
   const overlay=active&&step?createPortal(<div className="product-tour-root" role="dialog" aria-modal="true" aria-label="Recorrido interactivo del sistema">
     <div className={`product-tour-shield ${rect?'has-target':'no-target'}`}/>
+    <SpotlightMask rects={spotlightRects}/>
     {rect&&<button type="button" className={`product-tour-focus ${step.safeActionSelector?'clickable':''}`} style={{top:rect.top,left:rect.left,width:rect.width,height:rect.height}} onClick={step.safeActionSelector?runSafeAction:undefined} aria-label={step.safeActionLabel||'Elemento destacado'}/>} 
     {secondaryRects.map((secondary,i)=><div key={i} className="product-tour-focus" style={{top:secondary.top,left:secondary.left,width:secondary.width,height:secondary.height,pointerEvents:'none'}} aria-hidden="true"/>)}
     {step.preview==='route'&&previewRect&&<RouteDirectionPreview rect={previewRect}/>} 
