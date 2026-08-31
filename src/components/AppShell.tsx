@@ -9,6 +9,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { hasAnyAdminPermission, hasPermission, profileForEmployee, type PermissionKey } from '../lib/access'
 import { NotificationCenterBell } from './NotificationCenterBell'
+import { InteractiveTour } from './InteractiveTour'
 import packageInfo from '../../package.json'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon, permission: PermissionKey | 'ADMIN_ANY']
@@ -43,6 +44,8 @@ export function AppShell() {
   useEffect(() => { window.localStorage.setItem('karaka-density', dense ? 'compact' : 'comfortable') }, [dense])
 
   const allowed = (permission: PermissionKey | 'ADMIN_ANY') => permission === 'ADMIN_ANY' ? hasAnyAdminPermission(employee) : hasPermission(employee, permission)
+  const availableTourPaths = allItems.filter((item) => allowed(item[3])).map((item) => item[0])
+  const prepareTour = () => { setCollapsed(false); setDrawer(false); setViewOpen(false) }
 
   const sidebar = <>
     <div className="brand-block"><img src="/logo-karaka.png" /><div className="brand-copy"><b>Gestion de Ventas</b><span>Diaria</span></div></div>
@@ -59,6 +62,7 @@ export function AppShell() {
     <div className={`mobile-drawer ${drawer ? 'open' : ''}`}><div className="drawer-panel"><button className="drawer-close" onClick={() => setDrawer(false)}><X/></button>{sidebar}</div><button className="drawer-backdrop" onClick={() => setDrawer(false)} aria-label="Cerrar menú"/></div>
     <main className="main-area">
       <header className="topbar"><button className="mobile-menu" onClick={() => setDrawer(true)}><Menu/></button><div><span className="eyebrow">ALMACENES KARAKA</span><h1>{title}</h1></div><div className="top-actions" style={{ position: 'relative' }}>
+        <InteractiveTour availablePaths={availableTourPaths} onStart={prepareTour}/>
         <NotificationCenterBell onOpen={() => setViewOpen(false)}/>
         <button className={`icon-btn ${viewOpen ? 'active' : ''}`} title="Controles de vista" aria-label="Controles de vista" onClick={() => setViewOpen(v => !v)}><SlidersHorizontal size={19}/></button>
         {viewOpen && <div className="panel top-popover view-popover"><div className="panel-head"><div><b>Vista rápida</b><span>{profileForEmployee(employee)} · personaliza esta sesión</span></div></div><button className="view-option" onClick={() => setCollapsed(v => !v)}>{collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}<div><b>{collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'}</b><span>Gana o recupera espacio de trabajo</span></div></button><label className="view-option toggle-option"><input type="checkbox" checked={dense} onChange={(event) => setDense(event.target.checked)}/><div><b>Vista compacta</b><span>Reduce espacios en tablas y paneles</span></div></label>{hasPermission(employee,'settings.view') && <button className="view-option" onClick={() => { setViewOpen(false); navigate('/configuracion') }}><Settings size={17}/><div><b>Configuración</b><span>Tema y preferencias personales</span></div></button>}</div>}
