@@ -1,0 +1,28 @@
+.view-density-block{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.view-density-copy{display:flex;flex-direction:column;gap:3px}.view-density-copy b{font-size:12px}.view-density-copy span{font-size:10px;color:var(--muted);line-height:1.35}.view-density-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.view-density-options button{min-height:32px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--muted);font-size:10px;font-weight:800;padding:0 8px}.view-density-options button.active{background:var(--brand-soft);border-color:color-mix(in srgb,var(--brand) 45%,var(--border));color:var(--brand)}
+
+.app-layout.density-compact{--topbar:64px;--radius:16px}
+.app-layout.density-compact .sidebar{left:10px;top:10px;bottom:10px;width:calc(var(--sidebar) - 20px);padding:10px 8px;border-radius:18px}
+.app-layout.density-compact .brand-block{height:58px;margin-bottom:6px;padding:2px 7px 8px}.app-layout.density-compact .brand-block img{width:50px;height:40px}.app-layout.density-compact .brand-copy b{font-size:12px}.app-layout.density-compact .brand-copy span{font-size:10px}
+.app-layout.density-compact .nav-group{margin:5px 0 8px}.app-layout.density-compact .nav-label{padding:4px 10px;font-size:8px}.app-layout.density-compact .nav-item{height:36px;margin:1px 0;padding:0 10px;font-size:12px;gap:9px}.app-layout.density-compact .nav-item svg{width:17px;height:17px}
+.app-layout.density-compact .topbar{padding:0 20px}.app-layout.density-compact .topbar h1{font-size:19px}.app-layout.density-compact .top-actions{gap:8px}.app-layout.density-compact .icon-btn{width:34px;height:34px}.app-layout.density-compact .avatar{width:32px;height:32px}.app-layout.density-compact .user-chip b{font-size:11px}.app-layout.density-compact .user-chip span{font-size:9px}
+.app-layout.density-compact .content{padding:14px 18px}.app-layout.density-compact .page-stack{gap:12px}.app-layout.density-compact .page-head{gap:12px}.app-layout.density-compact .page-head>div:first-child{gap:3px}.app-layout.density-compact h2{font-size:24px}.app-layout.density-compact h3{font-size:17px}
+.app-layout.density-compact .panel{padding:14px}.app-layout.density-compact .panel-head{margin-bottom:10px}.app-layout.density-compact .kpi-grid{gap:9px}.app-layout.density-compact .kpi-card{min-height:88px;padding:12px;gap:9px}.app-layout.density-compact .kpi-icon{width:34px;height:34px}.app-layout.density-compact .kpi-card strong{font-size:23px}.app-layout.density-compact .dashboard-grid{gap:10px}.app-layout.density-compact .chart-panel{min-height:330px}
+.app-layout.density-compact .search-field,.app-layout.density-compact .field{height:38px}.app-layout.density-compact .filter-bar>input,.app-layout.density-compact .filter-bar>select,.app-layout.density-compact label>input,.app-layout.density-compact label>select,.app-layout.density-compact .zone-toolbar input,.app-layout.density-compact .inline-date input{min-height:38px;padding:7px 9px}.app-layout.density-compact label{gap:4px;font-size:10px}.app-layout.density-compact .primary,.app-layout.density-compact .secondary,.app-layout.density-compact .danger,.app-layout.density-compact .success-btn{min-height:38px}.app-layout.density-compact th{padding:9px 11px}.app-layout.density-compact td{padding:9px 11px}
+.app-layout.density-compact .map-page{height:calc(100dvh - var(--topbar) - 28px)}.app-layout.density-compact .map-shell,.app-layout.density-compact .leaflet-map{min-height:clamp(380px,55dvh,500px)}
+.app-layout.density-compact .territorial-map-shell,.app-layout.density-compact .territorial-map{min-height:clamp(390px,54dvh,500px)!important}
+
+body.product-tour-active .app-layout .content{scroll-behavior:smooth}
+body.product-tour-active .app-layout.density-compact .territorial-map-shell,body.product-tour-active .app-layout.density-compact .territorial-map{min-height:clamp(360px,50dvh,470px)!important}
+body.product-tour-active .app-layout.density-compact .page-stack{gap:9px}
+body.product-tour-active .app-layout.density-compact .panel{padding:12px}
+
+@media(max-height:900px) and (min-width:761px){
+  .app-layout.density-auto.density-compact{--topbar:58px}
+  .app-layout.density-auto.density-compact .content{padding-top:10px;padding-bottom:10px}
+  .app-layout.density-auto.density-compact .territorial-map-shell,.app-layout.density-auto.density-compact .territorial-map{min-height:clamp(330px,48dvh,430px)!important}
+  .app-layout.density-auto.density-compact .panel{padding:11px}
+  .app-layout.density-auto.density-compact .page-stack{gap:9px}
+}
+
+@media(max-width:760px){.view-density-options{grid-template-columns:1fr}.view-density-options button{min-height:36px}.app-layout.density-compact .content{padding:12px}.app-layout.density-compact .territorial-map-shell,.app-layout.density-compact .territorial-map{min-height:360px!important}}
