@@ -123,7 +123,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
 
   const cardStyle=useMemo(()=>{
     const cardWidth=Math.min(step?.id==='ordering'?390:430,window.innerWidth-32),cardHeight=330,gap=22
-    if(step?.id==='ordering'&&window.innerWidth>900)return{left:Math.max(16,window.innerWidth-cardWidth-20),top:Math.max(16,window.innerHeight-cardHeight-20),width:cardWidth}
+    if(step?.id==='ordering'&&window.innerWidth>900)return{left:Math.max(16,window.innerWidth-cardWidth-20),top:Math.max(82,window.innerHeight-cardHeight-130),width:cardWidth}
     if(!rect)return{left:Math.max(16,(window.innerWidth-cardWidth)/2),top:Math.max(16,(window.innerHeight-cardHeight)/2),width:cardWidth}
     let left=rect.left+rect.width+gap,top=rect.top
     if(left+cardWidth>window.innerWidth-16)left=rect.left-cardWidth-gap
