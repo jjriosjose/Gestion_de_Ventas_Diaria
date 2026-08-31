@@ -6,6 +6,7 @@ import './styles.css'
 import './styles/v058.css'
 import './styles/v062.css'
 import './styles/v063.css'
+import './styles/adaptive-layout.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AuthProvider><App/></AuthProvider></React.StrictMode>)
 
