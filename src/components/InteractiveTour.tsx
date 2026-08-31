@@ -47,9 +47,11 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
     const element=document.querySelector(step?.target||'') as HTMLElement|null
     if(!element){setRect(null);setTargetReady(false);return false}
     const box=element.getBoundingClientRect();const pad=10
-    setRect({top:clamp(box.top-pad,8,window.innerHeight-24),left:clamp(box.left-pad,8,window.innerWidth-24),width:Math.max(42,Math.min(box.width+pad*2,window.innerWidth-16)),height:Math.max(42,Math.min(box.height+pad*2,window.innerHeight-16))})
-    setTargetReady(true)
-    return true
+    const left=clamp(box.left-pad,8,Math.max(8,window.innerWidth-50))
+    const top=clamp(box.top-pad,8,Math.max(8,window.innerHeight-50))
+    const width=Math.max(42,Math.min(box.width+pad*2,window.innerWidth-left-8))
+    const height=Math.max(42,Math.min(box.height+pad*2,window.innerHeight-top-8))
+    setRect({top,left,width,height});setTargetReady(true);return true
   }
 
   useEffect(()=>{
@@ -61,8 +63,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
     timerRef.current=window.setTimeout(seek,step.path&&location.pathname!==step.path?180:30)
     const sync=()=>locateTarget()
     window.addEventListener('resize',sync);window.addEventListener('scroll',sync,true)
-    const observer=new MutationObserver(()=>locateTarget());observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style']})
-    return()=>{stopTimer();window.removeEventListener('resize',sync);window.removeEventListener('scroll',sync,true);observer.disconnect()}
+    return()=>{stopTimer();window.removeEventListener('resize',sync);window.removeEventListener('scroll',sync,true)}
   },[active,index,step?.id,step?.path,step?.target,location.pathname,navigate])
 
   useEffect(()=>()=>{document.body.classList.remove('product-tour-active')},[])
@@ -74,7 +75,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   const runSafeAction=()=>{
     if(!step.safeActionSelector)return
     const element=document.querySelector(step.safeActionSelector) as HTMLButtonElement|null
-    if(element&&!element.disabled){element.click();window.setTimeout(()=>locateTarget(),120)}
+    if(element&&!element.disabled){element.click();window.setTimeout(()=>locateTarget(),180)}
   }
 
   const cardStyle=useMemo(()=>{
