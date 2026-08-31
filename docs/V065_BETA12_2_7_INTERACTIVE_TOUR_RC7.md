@@ -37,3 +37,6 @@ Los pasos con múltiples bloques funcionales usaban un `box-shadow` de gran exte
 4. Confirmar que el exterior queda atenuado, pero los bloques destacados permanecen claros y legibles.
 5. Verificar que múltiples focos no oscurecen entre sí.
 6. Completar el tour hasta Finalizar.
+
+## Resultado esperado
+El recorrido debe conservar jerarquía visual sin convertir la pantalla en una capa oscura: el fondo se atenúa una sola vez y cada ventana funcional permanece legible con su brillo normal.
