@@ -1,7 +1,7 @@
 # V0.6.5-beta.12.2.7-rc.7 — Interactive Tour Spotlight Mask
 
 ## Estado
-TEST / release candidate. No desplegar a producción todavía.
+TEST / release candidate. **No desplegar a producción todavía.**
 
 ## Problema observado en RC6
 Los pasos con múltiples bloques funcionales usaban un `box-shadow` de gran extensión por cada foco. Al existir dos o más focos simultáneos, el oscurecimiento se acumulaba y reducía excesivamente la legibilidad de Inicio, Jornadas, Calidad geográfica y Reportes.
