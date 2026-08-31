@@ -79,8 +79,8 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   }
 
   const cardStyle=useMemo(()=>{
-    if(!rect)return undefined
     const cardWidth=Math.min(430,window.innerWidth-32),cardHeight=330,gap=22
+    if(!rect)return{left:Math.max(16,(window.innerWidth-cardWidth)/2),top:Math.max(16,(window.innerHeight-cardHeight)/2),width:cardWidth}
     let left=rect.left+rect.width+gap,top=rect.top
     if(left+cardWidth>window.innerWidth-16)left=rect.left-cardWidth-gap
     if(left<16){left=clamp(window.innerWidth-cardWidth-20,16,window.innerWidth-cardWidth-16);top=rect.top+rect.height+gap}
@@ -89,7 +89,7 @@ export function InteractiveTour({availablePaths,onStart}:{availablePaths:string[
   },[rect])
 
   const overlay=active&&step?createPortal(<div className="product-tour-root" role="dialog" aria-modal="true" aria-label="Recorrido interactivo del sistema">
-    <div className="product-tour-shield"/>
+    <div className={`product-tour-shield ${rect?'has-target':'no-target'}`}/>
     {rect&&<button type="button" className={`product-tour-focus ${step.safeActionSelector?'clickable':''}`} style={{top:rect.top,left:rect.left,width:rect.width,height:rect.height}} onClick={step.safeActionSelector?runSafeAction:undefined} aria-label={step.safeActionLabel||'Elemento destacado'}/>} 
     <section className="product-tour-card" style={cardStyle}>
       <div className="product-tour-card-head"><span>{step.eyebrow}</span><button type="button" onClick={close} aria-label="Salir del recorrido"><X size={18}/></button></div>
