@@ -14,7 +14,9 @@ import packageInfo from '../../package.json'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon, permission: PermissionKey | 'ADMIN_ANY']
 type NavGroup = { label: string; items: NavItem[] }
+type ViewDensity = 'auto' | 'comfortable' | 'compact'
 const APP_VERSION=packageInfo.version
+const VIEW_DENSITY_KEY='karaka-view-density'
 
 const groups: NavGroup[] = [
   { label: 'Operación', items: [
@@ -29,23 +31,38 @@ const groups: NavGroup[] = [
   { label: 'Sistema', items: [['/administracion', 'Administración', UserRoundCog, 'ADMIN_ANY'], ['/configuracion', 'Configuración', Settings, 'settings.view']] },
 ]
 
+function initialDensity():ViewDensity{
+  const saved=window.localStorage.getItem(VIEW_DENSITY_KEY)
+  return saved==='comfortable'||saved==='compact'||saved==='auto'?saved:'auto'
+}
+
 export function AppShell() {
   const { employee, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(() => window.localStorage.getItem('karaka-sidebar-collapsed') === '1')
-  const [dense, setDense] = useState(() => window.localStorage.getItem('karaka-density') === 'compact')
+  const [densityMode,setDensityMode]=useState<ViewDensity>(initialDensity)
+  const [viewport,setViewport]=useState(()=>({width:window.innerWidth,height:window.innerHeight}))
   const [drawer, setDrawer] = useState(false)
   const [viewOpen, setViewOpen] = useState(false)
   const loc = useLocation()
   const navigate = useNavigate()
   const allItems: NavItem[] = groups.flatMap((group) => group.items)
   const title = allItems.find((item) => item[0] === loc.pathname)?.[1] || 'Gestion de Ventas Diaria'
+  const autoCompact=viewport.height<1180||viewport.width<1680
+  const dense=densityMode==='compact'||(densityMode==='auto'&&autoCompact)
 
   useEffect(() => { window.localStorage.setItem('karaka-sidebar-collapsed', collapsed ? '1' : '0') }, [collapsed])
-  useEffect(() => { window.localStorage.setItem('karaka-density', dense ? 'compact' : 'comfortable') }, [dense])
+  useEffect(() => { window.localStorage.setItem(VIEW_DENSITY_KEY,densityMode) }, [densityMode])
+  useEffect(()=>{
+    let frame=0
+    const sync=()=>{window.cancelAnimationFrame(frame);frame=window.requestAnimationFrame(()=>setViewport({width:window.innerWidth,height:window.innerHeight}))}
+    window.addEventListener('resize',sync)
+    return()=>{window.cancelAnimationFrame(frame);window.removeEventListener('resize',sync)}
+  },[])
 
   const allowed = (permission: PermissionKey | 'ADMIN_ANY') => permission === 'ADMIN_ANY' ? hasAnyAdminPermission(employee) : hasPermission(employee, permission)
   const availableTourPaths = allItems.filter((item) => allowed(item[3])).map((item) => item[0])
   const prepareTour = () => { setCollapsed(false); setDrawer(false); setViewOpen(false) }
+  const densityDescription=densityMode==='auto'?`Automática · ${dense?'compacta':'cómoda'} para ${viewport.width}×${viewport.height}`:densityMode==='compact'?'Compacta · máxima área de trabajo':'Cómoda · mayor separación visual'
 
   const sidebar = <>
     <div className="brand-block"><img src="/logo-karaka.png" /><div className="brand-copy"><b>Gestion de Ventas</b><span>Diaria</span></div></div>
@@ -57,7 +74,7 @@ export function AppShell() {
     <button className="logout nav-item" onClick={() => void logout()}><LogOut size={19}/><span>Cerrar sesión</span></button>
   </>
 
-  return <div className={`app-layout ${collapsed ? 'collapsed' : ''} ${dense ? 'density-compact' : ''}`}>
+  return <div className={`app-layout ${collapsed ? 'collapsed' : ''} ${dense ? 'density-compact' : 'density-comfortable'} ${densityMode==='auto'?'density-auto':''}`} data-view-density={densityMode}>
     <aside className="sidebar">{sidebar}<button className="collapse-btn" title={collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'} aria-label={collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronRight/> : <ChevronLeft/>}</button></aside>
     <div className={`mobile-drawer ${drawer ? 'open' : ''}`}><div className="drawer-panel"><button className="drawer-close" onClick={() => setDrawer(false)}><X/></button>{sidebar}</div><button className="drawer-backdrop" onClick={() => setDrawer(false)} aria-label="Cerrar menú"/></div>
     <main className="main-area">
@@ -65,7 +82,7 @@ export function AppShell() {
         <InteractiveTour availablePaths={availableTourPaths} onStart={prepareTour}/>
         <NotificationCenterBell onOpen={() => setViewOpen(false)}/>
         <button className={`icon-btn ${viewOpen ? 'active' : ''}`} title="Controles de vista" aria-label="Controles de vista" onClick={() => setViewOpen(v => !v)}><SlidersHorizontal size={19}/></button>
-        {viewOpen && <div className="panel top-popover view-popover"><div className="panel-head"><div><b>Vista rápida</b><span>{profileForEmployee(employee)} · personaliza esta sesión</span></div></div><button className="view-option" onClick={() => setCollapsed(v => !v)}>{collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}<div><b>{collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'}</b><span>Gana o recupera espacio de trabajo</span></div></button><label className="view-option toggle-option"><input type="checkbox" checked={dense} onChange={(event) => setDense(event.target.checked)}/><div><b>Vista compacta</b><span>Reduce espacios en tablas y paneles</span></div></label>{hasPermission(employee,'settings.view') && <button className="view-option" onClick={() => { setViewOpen(false); navigate('/configuracion') }}><Settings size={17}/><div><b>Configuración</b><span>Tema y preferencias personales</span></div></button>}</div>}
+        {viewOpen && <div className="panel top-popover view-popover"><div className="panel-head"><div><b>Vista rápida</b><span>{profileForEmployee(employee)} · personaliza esta sesión</span></div></div><button className="view-option" onClick={() => setCollapsed(v => !v)}>{collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}<div><b>{collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'}</b><span>Gana o recupera espacio de trabajo</span></div></button><div className="view-density-block"><div className="view-density-copy"><b>Densidad de pantalla</b><span>{densityDescription}</span></div><div className="view-density-options" role="group" aria-label="Densidad de pantalla"><button type="button" className={densityMode==='auto'?'active':''} onClick={()=>setDensityMode('auto')}>Automática</button><button type="button" className={densityMode==='comfortable'?'active':''} onClick={()=>setDensityMode('comfortable')}>Cómoda</button><button type="button" className={densityMode==='compact'?'active':''} onClick={()=>setDensityMode('compact')}>Compacta</button></div></div>{hasPermission(employee,'settings.view') && <button className="view-option" onClick={() => { setViewOpen(false); navigate('/configuracion') }}><Settings size={17}/><div><b>Configuración</b><span>Tema y preferencias personales</span></div></button>}</div>}
         <div className="user-chip"><div className="avatar">{employee?.full_name?.slice(0,1) || 'K'}</div><div><b>{employee?.full_name}</b><span>{employee?.job_title}</span></div></div>
       </div></header>
       <section className="content"><Outlet/></section>
