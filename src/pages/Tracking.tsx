@@ -33,29 +33,31 @@ export function Tracking(){
  const[viewMode,setViewMode]=useState<TrackingMapMode>('LIVE'),[isolateSelected,setIsolateSelected]=useState(false),[selectedEventId,setSelectedEventId]=useState('')
  const[selectedPlan,setSelectedPlan]=useState(''),[playbackIndex,setPlaybackIndex]=useState(-1),[playing,setPlaying]=useState(false),[speed,setSpeed]=useState(1),[lastRefresh,setLastRefresh]=useState<Date|null>(null)
  const[mapLayout,setMapLayout]=useState<MapLayout>(()=>readLayout()),[filtersCollapsed,setFiltersCollapsed]=useState(false),[rosterCollapsed,setRosterCollapsed]=useState(false),[lastActiveDate,setLastActiveDate]=useState('')
- const loadInFlight=useRef(false)
+ const loadSequence=useRef(0)
 
  const resetSelection=()=>{setSelectedPlan('');setSelectedEventId('');setPlaybackIndex(-1);setPlaying(false);setIsolateSelected(false)}
  const goToDate=(value:string)=>{setDate(value);if(value!==today)setAutoRefresh(false);resetSelection()}
  const load=async()=>{
-  if(loadInFlight.current)return
-  loadInFlight.current=true;setLoading(true);setError('')
+  const requestId=++loadSequence.current,requestDate=date
+  setLoading(true);setError('')
   try{
    const[a,b,c]=await Promise.all([
-    supabase.from('executive_tracking_snapshot_v1').select('*').eq('route_date',date).order('full_name'),
-    supabase.from('executive_tracking_stops_v1').select('*').eq('route_date',date).order('employee_id').order('stop_order'),
-    supabase.from('executive_tracking_events_v1').select('*').eq('route_date',date).order('event_at',{ascending:true})
+    supabase.from('executive_tracking_snapshot_v1').select('*').eq('route_date',requestDate).order('full_name'),
+    supabase.from('executive_tracking_stops_v1').select('*').eq('route_date',requestDate).order('employee_id').order('stop_order'),
+    supabase.from('executive_tracking_events_v1').select('*').eq('route_date',requestDate).order('event_at',{ascending:true})
    ])
+   if(requestId!==loadSequence.current)return
    const err=a.error||b.error||c.error
    if(err){setError(err.message);return}
    const snapshotRows=(a.data||[]) as TrackingSnapshot[]
    setSnapshots(snapshotRows);setStops((b.data||[]) as TrackingStop[]);setEvents(((c.data||[]) as TrackingEvent[]).sort(eventSort));setLastRefresh(new Date())
    if(snapshotRows.length===0){
-    const previous=await supabase.from('executive_tracking_snapshot_v1').select('route_date').lt('route_date',date).order('route_date',{ascending:false}).limit(1)
+    const previous=await supabase.from('executive_tracking_snapshot_v1').select('route_date').lt('route_date',requestDate).order('route_date',{ascending:false}).limit(1)
+    if(requestId!==loadSequence.current)return
     setLastActiveDate((previous.data?.[0] as {route_date?:string}|undefined)?.route_date||'')
    }else setLastActiveDate('')
   }finally{
-   loadInFlight.current=false;setLoading(false)
+   if(requestId===loadSequence.current)setLoading(false)
   }
  }
  useEffect(()=>{void load()},[date])
