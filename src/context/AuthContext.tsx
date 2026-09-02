@@ -14,10 +14,10 @@ export function AuthProvider({children}:{children:ReactNode}){
  const [session,setSession]=useState<Session|null>(null); const [employee,setEmployee]=useState<Employee|null>(null); const [loading,setLoading]=useState(true)
  const loadEmployee=async(s:Session|null)=>{
   if(!s){setEmployee(null);return}
-  for(let attempt=0;attempt<retryDelays.length;attempt+=1){
+  for(let attempt=0;attempt<=retryDelays.length;attempt+=1){
    const {data,error,status}=await supabase.from('employees').select('*').eq('auth_user_id',s.user.id).maybeSingle()
    if(!error){setEmployee(data as Employee|null);return}
-   const canRetry=isTransientStatus(status)&&attempt<retryDelays.length-1
+   const canRetry=isTransientStatus(status)&&attempt<retryDelays.length
    if(!canRetry){
     console.warn('No fue posible validar el perfil del empleado.',{status,code:error.code})
     return
