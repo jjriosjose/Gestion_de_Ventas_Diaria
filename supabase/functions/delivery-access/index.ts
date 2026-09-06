@@ -14,10 +14,26 @@ const ALLOWED_INCIDENTS = new Set([
   'FALTANTE_MERCANCIA','PROBLEMA_DOCUMENTAL','PROBLEMA_VEHICULO','PROBLEMA_CHOFER','NO_LOCALIZA_DESTINO','OTRO',
 ])
 
+function isAllowedOrigin(origin: string) {
+  if (allowedOrigins.has(origin)) return true
+  try {
+    const url = new URL(origin)
+    if (url.protocol !== 'http:' || url.port !== '5173') return false
+    const host = url.hostname
+    if (/^10\./.test(host) || /^192\.168\./.test(host)) return true
+    const match = host.match(/^172\.(\d{1,2})\./)
+    if (match) {
+      const second = Number(match[1])
+      return second >= 16 && second <= 31
+    }
+  } catch { /* origen inválido */ }
+  return false
+}
+
 function corsHeaders(req: Request) {
   const origin = req.headers.get('origin') || ''
   return {
-    'Access-Control-Allow-Origin': allowedOrigins.has(origin) ? origin : 'https://gestion-de-ventas-diaria.jjriosjose.workers.dev',
+    'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin : 'https://gestion-de-ventas-diaria.jjriosjose.workers.dev',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json',
