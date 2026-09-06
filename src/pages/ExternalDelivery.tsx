@@ -42,6 +42,7 @@ function label(value: string) {
   return map[value] || value.replace(/_/g,' ')
 }
 
+function incidentLabel(value: string) { return value.replace(/_/g, ' ').toLocaleLowerCase('es').replace(/^./, letter => letter.toUpperCase()) }
 function terminal(status: string) { return ['DELIVERED','PARTIAL','NOT_DELIVERED','RESCHEDULED','CANCELLED'].includes(status) }
 
 async function getGeo(): Promise<Geo> {
@@ -87,6 +88,8 @@ export function ExternalDelivery() {
   const revisionRef = useRef<number | null>(null)
   const [incidentOpen, setIncidentOpen] = useState(false)
   const [incident, setIncident] = useState({ stopId:'', type:'NEUMATICO_PINCHADO', severity:'DELAY', description:'', stoppedTrip:false })
+  const [resolvingIncidentId, setResolvingIncidentId] = useState<string | null>(null)
+  const [resolutionNotes, setResolutionNotes] = useState('')
   const [deliveryStopId, setDeliveryStopId] = useState<string | null>(null)
   const [receiver, setReceiver] = useState({ name:'', document:'', phone:'', notes:'' })
   const [signature, setSignature] = useState<string | null>(null)
@@ -224,8 +227,20 @@ export function ExternalDelivery() {
     const geo = await getGeo()
     try {
       applyPayload(await call('incident', { stop_id: incident.stopId || null, incident_type: incident.type, severity: incident.severity, description: incident.description, stopped_trip: incident.stoppedTrip, ...(geo || {}) }), false)
-      setIncidentOpen(false); setIncident({ stopId:'', type:'NEUMATICO_PINCHADO', severity:'DELAY', description:'', stoppedTrip:false }); setMessage('Incidencia reportada a Torre de Control.')
+      setIncidentOpen(false); setIncident({ stopId:'', type:'NEUMATICO_PINCHADO', severity:'DELAY', description:'', stoppedTrip:false }); setMessage('Incidencia reportada. Podrás marcarla como resuelta desde esta misma ruta.')
     } catch (err) { setError(err instanceof Error ? err.message : 'No fue posible registrar la incidencia.') }
+    finally { setBusy(false) }
+  }
+
+  const submitIncidentResolution = async () => {
+    if (!resolvingIncidentId) return
+    if (!resolutionNotes.trim()) return setError('Describe brevemente cómo se resolvió la incidencia.')
+    setBusy(true); setError(''); setMessage('')
+    const geo = await getGeo()
+    try {
+      applyPayload(await call('resolve_incident', { incident_id: resolvingIncidentId, resolution_notes: resolutionNotes.trim(), ...(geo || {}) }), false)
+      setResolvingIncidentId(null); setResolutionNotes(''); setMessage(geo ? 'Incidencia resuelta con hora y GPS.' : 'Incidencia resuelta. GPS no estuvo disponible.')
+    } catch (err) { setError(err instanceof Error ? err.message : 'No fue posible resolver la incidencia.') }
     finally { setBusy(false) }
   }
 
@@ -237,6 +252,8 @@ export function ExternalDelivery() {
   if (!payload) return <main className="external-delivery-login"><div className="external-delivery-card"><img src="/logo-karaka.png"/><span className="eyebrow">ENTREGA SEGURA</span><h1>Acceso de chofer</h1><p>Este enlace permite únicamente ejecutar el viaje que te fue asignado.</p><label>PIN de seguridad<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={pin} onChange={event => setPin(event.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/></label>{error && <div className="driver-alert error"><AlertTriangle/>{error}</div>}<button className="primary full" disabled={loading || pin.length < 4} onClick={() => void validate()}>{loading ? <LoaderCircle className="spin"/> : <ShieldCheck/>}Abrir mi ruta</button><small>El acceso caduca automáticamente y no permite ver otras áreas de la aplicación.</small></div></main>
 
   const trip = payload.trip
+  const openIncidents = payload.incidents.filter(item => item.status === 'OPEN')
+  const resolvingIncident = resolvingIncidentId ? payload.incidents.find(item => item.id === resolvingIncidentId) || null : null
   const deliveryDocuments = deliveryStopId ? payload.documents.filter(doc => doc.stop_id === deliveryStopId) : []
   const deliveryLoaded = deliveryDocuments.reduce((sum, doc) => sum + Math.max(0, Math.trunc(Number(doc.packages_loaded) || 0)), 0)
   const deliveryDelivered = deliveryDocuments.reduce((sum, doc) => sum + clampPackages(packageValues[doc.id] ?? doc.packages_loaded, doc.packages_loaded), 0)
@@ -252,6 +269,8 @@ export function ExternalDelivery() {
       <div className="driver-trip-card"><div className="driver-trip-head"><div className="driver-vehicle"><Truck/><div><b>{trip.vehicle_plate_snapshot || 'Vehículo'}</b><span>{trip.vehicle_type_snapshot || ''} · {trip.carrier_name_snapshot || 'Operación propia'}</span></div></div><span className={`driver-status ${String(trip.status).toLowerCase()}`}>{label(trip.status)}</span></div><div className="driver-progress"><div><span>Entregas</span><b>{completedCount} / {stops.length}</b></div><div><span>Bultos</span><b>{trip.total_packages}</b></div><div><span>Monto carga</span><b>{currency(trip.total_amount)}</b></div></div><div className="driver-progress-bar"><i style={{ width:`${stops.length ? Math.round(completedCount/stops.length*100) : 0}%` }}/></div><small>Revisión de ruta {trip.route_revision} · actualización manual · {lastSyncedAt ? `última ${lastSyncedAt.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}` : 'sin actualizar'}</small></div>
 
       {['READY','LOADED','PREPARING'].includes(trip.status) && <button className="driver-main-action" disabled={busy} onClick={() => void event('trip_event',{event_type:'DEPARTED_ORIGIN'})}><Play/>Iniciar ruta · salir del centro de carga</button>}
+
+      {openIncidents.length > 0 && <div className="driver-trip-card"><div className="driver-section-head"><div><b>Incidencias abiertas</b><span>{openIncidents.length} pendiente(s) de confirmar como resuelta(s)</span></div></div>{openIncidents.map(item => <div key={item.id} className={item.severity === 'CRITICAL' || item.stopped_trip ? 'driver-alert error' : 'driver-route-update'}><CircleAlert/><div><b>{incidentLabel(item.incident_type)}</b><span>{item.description || 'Sin descripción'} · {item.severity === 'INFO' ? 'Informativa' : item.severity === 'DELAY' ? 'Demora' : 'Crítica'}{item.stopped_trip ? ' · viaje detenido' : ''}</span></div><button onClick={() => { setResolvingIncidentId(item.id); setResolutionNotes('') }}>Resolver</button></div>)}</div>}
 
       <div className="driver-section-head"><div><b>Paradas</b><span>{nextStop ? `Próxima: ${String(nextStop.stop_order).padStart(2,'0')} · ${nextStop.destination_name_snapshot}` : 'Todas tienen resultado'}</span></div><button onClick={() => setIncidentOpen(true)}><CircleAlert/>Incidencia</button></div>
 
@@ -279,6 +298,8 @@ export function ExternalDelivery() {
     </section>
 
     {incidentOpen && <div className="driver-modal-wrap"><button className="driver-modal-backdrop" onClick={() => setIncidentOpen(false)}/><div className="driver-modal"><div className="driver-modal-head"><div><b>Registrar incidencia</b><span>Se enviará a Torre de Control con hora y GPS si está disponible.</span></div><button onClick={() => setIncidentOpen(false)}><X/></button></div><label>Parada relacionada<select value={incident.stopId} onChange={event => setIncident(current => ({...current,stopId:event.target.value}))}><option value="">Incidencia general del viaje</option>{stops.filter(stop => !terminal(stop.status)).map(stop => <option key={stop.id} value={stop.id}>{stop.stop_order}. {stop.destination_name_snapshot}</option>)}</select></label><label>Tipo<select value={incident.type} onChange={event => setIncident(current => ({...current,type:event.target.value}))}>{INCIDENT_TYPES.map(type => <option key={type} value={type}>{type.replace(/_/g,' ')}</option>)}</select></label><label>Severidad<select value={incident.severity} onChange={event => setIncident(current => ({...current,severity:event.target.value}))}><option value="INFO">Informativa</option><option value="DELAY">Genera demora</option><option value="CRITICAL">Crítica</option></select></label><label>Descripción<textarea value={incident.description} onChange={event => setIncident(current => ({...current,description:event.target.value}))} placeholder="Ej. Se pinchó un neumático delantero…"/></label><label className="driver-check"><input type="checkbox" checked={incident.stoppedTrip} onChange={event => setIncident(current => ({...current,stoppedTrip:event.target.checked}))}/><span>El viaje quedó detenido por esta incidencia</span></label><button className="primary full" disabled={busy} onClick={() => void submitIncident()}>{busy ? <LoaderCircle className="spin"/> : <CircleAlert/>}Reportar incidencia</button></div></div>}
+
+    {resolvingIncident && <div className="driver-modal-wrap"><button className="driver-modal-backdrop" onClick={() => setResolvingIncidentId(null)}/><div className="driver-modal"><div className="driver-modal-head"><div><b>Resolver incidencia</b><span>{incidentLabel(resolvingIncident.incident_type)} · confirma qué ocurrió antes de continuar.</span></div><button onClick={() => setResolvingIncidentId(null)}><X/></button></div><div className={resolvingIncident.severity === 'CRITICAL' || resolvingIncident.stopped_trip ? 'driver-alert error' : 'driver-route-update'}><CircleAlert/><div><b>{resolvingIncident.description || 'Incidencia reportada'}</b><span>{resolvingIncident.stopped_trip ? 'Esta incidencia marcó el viaje como detenido.' : 'La ruta puede continuar mientras se mantiene el seguimiento.'}</span></div></div><label>¿Cómo se resolvió?<textarea value={resolutionNotes} onChange={event => setResolutionNotes(event.target.value)} placeholder="Ej. Se reemplazó el neumático y el vehículo quedó operativo."/></label><button className="primary full" disabled={busy || !resolutionNotes.trim()} onClick={() => void submitIncidentResolution()}>{busy ? <LoaderCircle className="spin"/> : <CheckCircle2/>}Confirmar incidencia resuelta</button></div></div>}
 
     {deliveryStopId && payload && <div className="driver-modal-wrap"><button className="driver-modal-backdrop" onClick={() => setDeliveryStopId(null)}/><div className="driver-modal delivery-proof-modal">
       <div className="driver-modal-head"><div><b>Confirmar entrega por documento</b><span>{stops.find(stop => stop.id === deliveryStopId)?.destination_name_snapshot} · {deliveryDocuments.length} documento(s)</span></div><button onClick={() => setDeliveryStopId(null)}><X/></button></div>
