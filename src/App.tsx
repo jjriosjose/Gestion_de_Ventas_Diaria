@@ -16,6 +16,7 @@ import { Calls } from './pages/Calls'
 import { Agenda } from './pages/Agenda'
 import { Reception } from './pages/Reception'
 import { Coverage } from './pages/Coverage'
+import { Logistics } from './pages/Logistics'
 import { ReportsV2 } from './pages/ReportsV2'
 import { Admin } from './pages/Admin'
 import { Settings } from './pages/Settings'
@@ -50,6 +51,7 @@ function Protected(){
     <Route path="llamadas" element={<RequirePermission permission="calls.view"><Calls/></RequirePermission>}/>
     <Route path="agenda" element={<RequirePermission permission="agenda.view"><Agenda/></RequirePermission>}/>
     <Route path="recepcion" element={<RequirePermission permission="reception.view"><Reception/></RequirePermission>}/>
+    <Route path="logistica" element={<RequirePermission permission="logistics.view"><Logistics/></RequirePermission>}/>
     <Route path="reportes" element={<RequirePermission permission="reports.view"><ReportsV2/></RequirePermission>}/>
     <Route path="calidad-datos" element={<RequirePermission permission="data_quality.view"><DataQuality/></RequirePermission>}/>
     <Route path="administracion" element={<RequireAdministration><Admin/></RequireAdministration>}/>
