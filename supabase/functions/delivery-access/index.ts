@@ -246,6 +246,43 @@ Deno.serve(async (req: Request) => {
       return json(req, await tripPayload(admin, link.trip_id))
     }
 
+    if (action === 'resolve_incident') {
+      const incidentId = String(body.incident_id || '').trim()
+      const resolutionNotes = String(body.resolution_notes || '').trim()
+      if (!incidentId) return json(req, { error: 'Incidencia requerida' }, 400)
+      if (!resolutionNotes) return json(req, { error: 'Describe brevemente cómo se resolvió la incidencia' }, 400)
+
+      const { data: incident, error: incidentError } = await admin.from('delivery_incidents')
+        .select('id,trip_id,stop_id,incident_type,severity,status,stopped_trip,reported_by_driver_id')
+        .eq('id', incidentId).eq('trip_id', link.trip_id).maybeSingle()
+      if (incidentError) throw incidentError
+      if (!incident) return json(req, { error: 'Incidencia no encontrada' }, 404)
+      if (incident.status !== 'OPEN') return json(req, await tripPayload(admin, link.trip_id))
+      if (incident.reported_by_driver_id && incident.reported_by_driver_id !== link.driver_id) return json(req, { error: 'Esta incidencia no fue reportada por el chofer asignado' }, 403)
+
+      const now = new Date().toISOString()
+      const { error: resolveError } = await admin.from('delivery_incidents').update({ status: 'RESOLVED', resolved_at: now, resolution_notes: resolutionNotes }).eq('id', incident.id)
+      if (resolveError) throw resolveError
+
+      const { data: remaining, error: remainingError } = await admin.from('delivery_incidents')
+        .select('id,severity,stopped_trip').eq('trip_id', link.trip_id).eq('status', 'OPEN').neq('id', incident.id)
+      if (remainingError) throw remainingError
+      const hasBlockingIncident = (remaining || []).some((item: any) => item.stopped_trip === true || item.severity === 'CRITICAL')
+      const { data: trip, error: tripError } = await admin.from('delivery_trips').select('id,status,started_at,departed_at').eq('id', link.trip_id).single()
+      if (tripError || !trip) throw tripError || new Error('Viaje no encontrado')
+      if (trip.status === 'WITH_INCIDENT' && !hasBlockingIncident) {
+        const newStatus = trip.started_at || trip.departed_at ? 'IN_ROUTE' : 'READY'
+        const { error: statusError } = await admin.from('delivery_trips').update({ status: newStatus }).eq('id', trip.id)
+        if (statusError) throw statusError
+      }
+
+      await insertEvent(admin, link, 'INCIDENT_RESOLVED', incident.stop_id || null, {
+        ...body,
+        payload: { incident_id: incident.id, incident_type: incident.incident_type, resolution_notes: resolutionNotes },
+      })
+      return json(req, await tripPayload(admin, link.trip_id))
+    }
+
     if (action === 'delivery_result') {
       const stopId = String(body.stop_id || '')
       const result = String(body.result || 'DELIVERED')
