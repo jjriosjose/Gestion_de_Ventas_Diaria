@@ -14,6 +14,9 @@ const ALLOWED_INCIDENTS = new Set([
   'RETRASO_CARGA','RETRASO_CLIENTE','CLIENTE_CERRADO','DIRECCION_INCORRECTA','RECHAZO_MERCANCIA','MERCANCIA_DANADA',
   'FALTANTE_MERCANCIA','PROBLEMA_DOCUMENTAL','PROBLEMA_VEHICULO','PROBLEMA_CHOFER','NO_LOCALIZA_DESTINO','OTRO',
 ])
+const ALLOWED_DELIVERY_EXCEPTIONS = new Set([
+  'FALTANTE_MERCANCIA','RECHAZO_CLIENTE','MERCANCIA_DANADA','NO_CARGADA','ERROR_DOCUMENTAL','OTRO',
+])
 
 function isAllowedOrigin(origin: string) {
   if (allowedOrigins.has(origin)) return true
@@ -71,6 +74,16 @@ function extensionFor(mime: string) {
 function validCoordinate(lat: unknown, lon: unknown) {
   const latitude = Number(lat); const longitude = Number(lon)
   return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
+}
+
+function mergeDeliveryExceptionNote(existing: unknown, reason: string, detail: string) {
+  const base = String(existing || '')
+    .split('\n')
+    .filter(line => !line.trim().startsWith('[ENTREGA_EXCEPTION]'))
+    .join('\n')
+    .trim()
+  const exception = reason ? `[ENTREGA_EXCEPTION] ${reason}${detail ? ` | ${detail}` : ''}` : ''
+  return [base, exception].filter(Boolean).join('\n') || null
 }
 
 async function resolveAccess(admin: any, token: string, pin: string) {
@@ -246,21 +259,55 @@ Deno.serve(async (req: Request) => {
       const coords = validCoordinate(body.latitude, body.longitude)
       if (result === 'NOT_DELIVERED' || result === 'RESCHEDULED') {
         await admin.from('delivery_stops').update({ status: result, delivered_at: now, ...(coords ? { actual_delivery_latitude: Number(body.latitude), actual_delivery_longitude: Number(body.longitude) } : {}), notes: String(body.notes || '').trim() || stop.notes }).eq('id', stopId)
-        await admin.from('delivery_documents').update({ status: result }).eq('stop_id', stopId)
+        for (const doc of docs || []) {
+          const loadedForDoc = Math.max(0, Number(doc.packages_loaded || 0))
+          await admin.from('delivery_documents').update({ status: result, packages_delivered: 0, packages_returned: loadedForDoc }).eq('id', doc.id)
+        }
         await admin.from('delivery_incidents').insert({ trip_id: link.trip_id, stop_id: stopId, incident_type: result === 'RESCHEDULED' ? 'ENTREGA_REPROGRAMADA' : 'ENTREGA_NO_REALIZADA', severity: 'DELAY', description: String(body.notes || '').trim() || null, latitude: coords ? Number(body.latitude) : null, longitude: coords ? Number(body.longitude) : null, reported_by_driver_id: link.driver_id || null })
         await insertEvent(admin, link, result, stopId, body)
         return json(req, await tripPayload(admin, link.trip_id))
       }
 
-      const deliveredById = new Map<string, number>((Array.isArray(body.documents) ? body.documents : []).map((item: any) => [String(item.id), Math.max(0, Number(item.packages_delivered) || 0)]))
-      let totalDelivered = 0
-      for (const doc of docs || []) {
-        const loadedForDoc = Number(doc.packages_loaded || 0)
-        const delivered = Math.min(loadedForDoc, deliveredById.has(doc.id) ? deliveredById.get(doc.id)! : loadedForDoc)
-        totalDelivered += delivered
-        const status = delivered >= loadedForDoc ? 'DELIVERED' : delivered > 0 ? 'PARTIAL' : 'NOT_DELIVERED'
-        await admin.from('delivery_documents').update({ packages_delivered: delivered, packages_returned: Math.max(0, loadedForDoc - delivered), status }).eq('id', doc.id)
+      const requested = new Map<string, { delivered: number; reason: string; note: string }>()
+      for (const item of Array.isArray(body.documents) ? body.documents : []) {
+        requested.set(String(item.id), {
+          delivered: Math.max(0, Math.trunc(Number(item.packages_delivered) || 0)),
+          reason: String(item.exception_reason || '').trim(),
+          note: String(item.exception_note || '').trim(),
+        })
       }
+
+      const reconciled: Array<{ doc: any; delivered: number; returned: number; reason: string; note: string; status: string }> = []
+      for (const doc of docs || []) {
+        const loadedForDoc = Math.max(0, Math.trunc(Number(doc.packages_loaded || 0)))
+        const item = requested.get(String(doc.id))
+        const delivered = Math.min(loadedForDoc, item ? item.delivered : loadedForDoc)
+        const returned = Math.max(0, loadedForDoc - delivered)
+        const reason = returned > 0 ? String(item?.reason || '') : ''
+        const note = returned > 0 ? String(item?.note || '') : ''
+        if (returned > 0 && !ALLOWED_DELIVERY_EXCEPTIONS.has(reason)) {
+          const documentLabel = doc.invoice_number ? `Factura ${doc.invoice_number}` : `Pedido ${doc.order_number}`
+          return json(req, { error: `Motivo de diferencia requerido para ${documentLabel}` }, 400)
+        }
+        if (reason === 'OTRO' && !note) {
+          const documentLabel = doc.invoice_number ? `Factura ${doc.invoice_number}` : `Pedido ${doc.order_number}`
+          return json(req, { error: `Describe el motivo de diferencia para ${documentLabel}` }, 400)
+        }
+        const status = delivered >= loadedForDoc ? 'DELIVERED' : delivered > 0 ? 'PARTIAL' : 'NOT_DELIVERED'
+        reconciled.push({ doc, delivered, returned, reason, note, status })
+      }
+
+      let totalDelivered = 0
+      for (const item of reconciled) {
+        totalDelivered += item.delivered
+        await admin.from('delivery_documents').update({
+          packages_delivered: item.delivered,
+          packages_returned: item.returned,
+          status: item.status,
+          notes: mergeDeliveryExceptionNote(item.doc.notes, item.reason, item.note),
+        }).eq('id', item.doc.id)
+      }
+
       const loaded = Number(stop.packages_loaded || 0)
       const stopStatus = totalDelivered >= loaded ? 'DELIVERED' : totalDelivered > 0 ? 'PARTIAL' : 'NOT_DELIVERED'
       const signature = await uploadEvidence(admin, link.trip_id, stopId, 'signature', body.signature_data_url)
@@ -273,7 +320,7 @@ Deno.serve(async (req: Request) => {
         proof_quality: quality, notes: String(body.notes || '').trim() || null, captured_by_driver_id: link.driver_id || null,
       }).select('id').single()
       if (proofError) throw proofError
-      const proofDocuments = (docs || []).filter((doc: any) => (deliveredById.has(doc.id) ? deliveredById.get(doc.id)! : Number(doc.packages_loaded || 0)) > 0).map((doc: any) => ({ proof_id: proof.id, document_id: doc.id }))
+      const proofDocuments = (docs || []).map((doc: any) => ({ proof_id: proof.id, document_id: doc.id }))
       if (proofDocuments.length) await admin.from('delivery_proof_documents').insert(proofDocuments)
       if (photo) await admin.from('delivery_evidence').insert({ trip_id: link.trip_id, stop_id: stopId, proof_id: proof.id, evidence_type: 'DELIVERY_PHOTO', object_path: photo.path, mime_type: photo.mime, latitude: coords ? Number(body.latitude) : null, longitude: coords ? Number(body.longitude) : null })
       await admin.from('delivery_stops').update({
@@ -281,7 +328,17 @@ Deno.serve(async (req: Request) => {
         amount_delivered: stopStatus === 'DELIVERED' ? Number(stop.amount_loaded || 0) : 0,
         delivered_at: now, ...(coords ? { actual_delivery_latitude: Number(body.latitude), actual_delivery_longitude: Number(body.longitude), geo_status: stop.geo_status === 'PENDING' ? 'CAPTURED_AT_DELIVERY' : stop.geo_status, geo_source: stop.geo_status === 'PENDING' ? 'DRIVER_DELIVERY_GPS' : stop.geo_source } : {}),
       }).eq('id', stopId)
-      await insertEvent(admin, link, stopStatus === 'DELIVERED' ? 'DELIVERY_CONFIRMED' : 'DELIVERY_PARTIAL', stopId, { ...body, signature_data_url: undefined, photo_data_url: undefined, payload: { proof_id: proof.id, proof_quality: quality, packages_delivered: totalDelivered } })
+      await insertEvent(admin, link, stopStatus === 'DELIVERED' ? 'DELIVERY_CONFIRMED' : 'DELIVERY_PARTIAL', stopId, {
+        ...body,
+        signature_data_url: undefined,
+        photo_data_url: undefined,
+        payload: {
+          proof_id: proof.id,
+          proof_quality: quality,
+          packages_delivered: totalDelivered,
+          document_reconciliation: reconciled.map(item => ({ document_id: item.doc.id, packages_delivered: item.delivered, packages_returned: item.returned, status: item.status, exception_reason: item.reason || null })),
+        },
+      })
       return json(req, await tripPayload(admin, link.trip_id))
     }
 
