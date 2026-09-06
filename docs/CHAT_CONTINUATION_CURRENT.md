@@ -151,22 +151,66 @@ Otros pendientes:
 - no describir como GPS continuo de fondo;
 - trayectoria = estimación entre eventos GPS registrados.
 
+## Nuevo dominio en diseño: Logistics & Delivery V1
+
+El 06/09/2026 se definió conceptualmente un nuevo módulo de **Logística / Despacho y Entregas**.
+
+Estado actual:
+
+> **DISEÑADO Y DOCUMENTADO, PERO NO IMPLEMENTADO.**
+
+No asumir que existen tablas, RLS, Edge Functions, Storage, menús o pantallas de Logística hasta verificarlos en servicios reales.
+
+Documentos obligatorios antes de trabajar este módulo:
+
+1. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md` — reglas completas.
+2. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` — orden de ejecución por fases.
+
+Decisiones centrales ya acordadas:
+
+- dominio logístico separado de rutas/visitas comerciales;
+- Excel como vía principal de carga y carga manual como complemento;
+- factura o pedido válidos aunque el cliente no exista en `clients`;
+- clientes externos no crean automáticamente clientes maestros;
+- Latitud/Longitud del Excel son opcionales;
+- si Excel no trae GPS y el cliente maestro sí, usar snapshot del GPS maestro;
+- si no existe GPS en ninguna fuente, importar igualmente como `UBICACION_PENDIENTE`;
+- una ruta puede iniciar con paradas sin GPS;
+- Torre de Control puede completar/corregir GPS durante un viaje ya iniciado;
+- el chofer debe recibir la actualización sin reiniciar la ruta;
+- cambios de secuencia durante ruta activa deben ser explícitos, auditables y afectar solo pendientes;
+- si Torre de Control no resuelve el GPS, capturarlo en llegada/entrega del chofer;
+- GPS capturado en entrega NO sobrescribe automáticamente el maestro comercial;
+- distinguir ubicación planificada vs ubicación real;
+- múltiples facturas del mismo destino pueden compartir una parada y un POD;
+- vehículos: propios, alquilados o terceros; también ocasionales;
+- choferes: internos, contratados o terceros;
+- chofer externo puede operar mediante link temporal seguro sin usuario permanente;
+- acceso externo recomendado mediante token hash + expiración/revocación + Edge Function, PIN opcional;
+- incidencias de viaje/parada son funcionalidad central (neumático, avería, tráfico, cliente cerrado, ubicación incorrecta, rechazo, daño, etc.);
+- firma digital, receptor, fotos, GPS y bultos forman Proof of Delivery;
+- bultos cargados, entregados y retornados deben conciliarse;
+- Tracking logístico será basado en eventos GPS, no telemetría continua de fondo;
+- KPI y reportes logísticos no deben contaminar KPI comerciales.
+
+Para implementar este dominio se recomienda crear una rama específica desde el `main` actualizado, por ejemplo `feature/logistics-delivery-v1`, NO programarlo directamente desde documentación ni mezclarlo con ramas antiguas/genéricas.
+
 ## Orden de ejecución desde este checkpoint
 
-1. Mantener feature freeze salvo P0.
-2. Cerrar/mergear este bloque documental.
-3. Generar backup/exportación antes de cualquier limpieza TEST.
-4. Definir limpieza exacta y dependency-safe.
-5. Obtener aprobación explícita del usuario antes de borrar TEST.
-6. Resolver planificaciones TEST antiguas.
-7. Probar/activar 4 Gestores pendientes de Auth.
-8. Crear rutas reales del lunes 07/09/2026.
-9. E2E Admin + Vendedor + Gestor.
-10. Revisar Supabase Usage nueva organización y Cloudflare.
-11. Decisión formal GO/NO-GO.
-12. Registrar hora de declaración de Go-Live; solo desde ese momento tratar nuevos registros como REALES.
+1. Mantener control de cambios; no mezclar Logística con fixes críticos sin necesidad.
+2. Generar backup/exportación antes de cualquier limpieza TEST.
+3. Definir limpieza exacta y dependency-safe.
+4. Obtener aprobación explícita del usuario antes de borrar TEST.
+5. Resolver planificaciones TEST antiguas.
+6. Probar/activar 4 Gestores pendientes de Auth.
+7. Crear rutas reales cuando corresponda.
+8. E2E Admin + Vendedor + Gestor.
+9. Revisar Supabase Usage nueva organización y Cloudflare.
+10. Decisión formal GO/NO-GO de la operación comercial actual.
+11. Para Logística, ejecutar primero Fase 0 del plan técnico y después implementar por releases separados.
+12. Registrar cada fase logística realmente mergeada/desplegada antes de avanzar.
 
-Ver checklist detallado en `docs/GO_LIVE_2026-09-07_CHECKLIST.md`.
+Ver checklist Go-Live actual en `docs/GO_LIVE_2026-09-07_CHECKLIST.md` y plan logístico en `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`.
 
 ## Limpieza TEST — preservar vs candidatos
 
@@ -211,16 +255,18 @@ En Windows del usuario `git` CLI no está en PATH; no dar instrucciones basadas 
 ## Documentos que debe leer un chat nuevo
 
 1. **`docs/CHAT_CONTINUATION_CURRENT.md`** — este documento.
-2. `docs/GO_LIVE_2026-09-07_CHECKLIST.md`.
-3. `docs/SUPABASE_TRANSFER_2026-09-06.md`.
-4. `docs/DOCUMENTATION_STATUS_2026-09-06.md`.
-5. GitHub `main` real.
-6. Supabase real.
-7. Cloudflare real.
-8. `PROJECT_HANDOFF.md` solo como contexto histórico.
+2. Si el trabajo es Logística: **`docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md` completo**.
+3. Si el trabajo es Logística: **`docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` completo**.
+4. `docs/GO_LIVE_2026-09-07_CHECKLIST.md`.
+5. `docs/SUPABASE_TRANSFER_2026-09-06.md`.
+6. `docs/DOCUMENTATION_STATUS_2026-09-06.md`.
+7. GitHub `main` real.
+8. Supabase real.
+9. Cloudflare real.
+10. `PROJECT_HANDOFF.md` solo como contexto histórico.
 
 Los documentos antiguos `CHAT_CONTINUATION_2026-08-30.md`, `REQUIREMENTS_STATUS.md`, `IMPLEMENTATION_STATUS.md` y parte de `DEPLOYMENT_CHECKLIST.md` contienen información útil, pero sus cabeceras/baselines están desactualizados. No deben prevalecer sobre este checkpoint y los servicios reales.
 
 ## Regla final
 
-> Si existe discrepancia, verificar primero. GitHub `main` + Supabase + Cloudflare prevalecen. No repetir migraciones, no limpiar datos y no modificar seguridad solo por memoria del chat.
+> Si existe discrepancia, verificar primero. GitHub `main` + Supabase + Cloudflare prevalecen. No repetir migraciones, no limpiar datos y no modificar seguridad solo por memoria del chat. Para Logistics & Delivery V1, documentación de diseño NO equivale a implementación real.
