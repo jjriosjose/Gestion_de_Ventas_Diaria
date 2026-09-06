@@ -17,6 +17,8 @@ import { Agenda } from './pages/Agenda'
 import { Reception } from './pages/Reception'
 import { Coverage } from './pages/Coverage'
 import { Logistics } from './pages/Logistics'
+import { DeliveryAccessAdmin } from './pages/DeliveryAccessAdmin'
+import { ExternalDelivery } from './pages/ExternalDelivery'
 import { ReportsV2 } from './pages/ReportsV2'
 import { Admin } from './pages/Admin'
 import { Settings } from './pages/Settings'
@@ -52,6 +54,7 @@ function Protected(){
     <Route path="agenda" element={<RequirePermission permission="agenda.view"><Agenda/></RequirePermission>}/>
     <Route path="recepcion" element={<RequirePermission permission="reception.view"><Reception/></RequirePermission>}/>
     <Route path="logistica" element={<RequirePermission permission="logistics.view"><Logistics/></RequirePermission>}/>
+    <Route path="logistica/accesos" element={<RequirePermission permission="logistics.manage"><DeliveryAccessAdmin/></RequirePermission>}/>
     <Route path="reportes" element={<RequirePermission permission="reports.view"><ReportsV2/></RequirePermission>}/>
     <Route path="calidad-datos" element={<RequirePermission permission="data_quality.view"><DataQuality/></RequirePermission>}/>
     <Route path="administracion" element={<RequireAdministration><Admin/></RequireAdministration>}/>
@@ -59,4 +62,10 @@ function Protected(){
     <Route path="*" element={<Navigate to="/" replace/>}/>
   </Route></Routes></ThemeProvider>
 }
-export default function App(){return <BrowserRouter><Protected/></BrowserRouter>}
+
+export default function App(){
+  return <BrowserRouter><Routes>
+    <Route path="/entrega/:token" element={<ThemeProvider><ExternalDelivery/></ThemeProvider>}/>
+    <Route path="/*" element={<Protected/>}/>
+  </Routes></BrowserRouter>
+}
