@@ -17,7 +17,10 @@ function randomToken() {
   bytes.forEach(value => { binary += String.fromCharCode(value) })
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
-function randomPin() { return String(Math.floor(100000 + Math.random() * 900000)) }
+function randomPin() {
+  const value = crypto.getRandomValues(new Uint32Array(1))[0] % 900000
+  return String(100000 + value)
+}
 
 export function DeliveryAccessAdmin() {
   const { employee } = useAuth()
