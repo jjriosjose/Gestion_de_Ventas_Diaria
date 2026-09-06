@@ -4,6 +4,7 @@ const allowedOrigins = new Set([
   'https://gestion-de-ventas-diaria.jjriosjose.workers.dev',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'https://monroe-clarity-calvin-day.trycloudflare.com',
 ])
 const encoder = new TextEncoder()
 const TERMINAL_STOP_STATUSES = new Set(['DELIVERED','PARTIAL','NOT_DELIVERED','RESCHEDULED','CANCELLED'])
