@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   AlertTriangle, Camera, CheckCircle2, ChevronRight, CircleAlert, Clock3, LoaderCircle, MapPin, Navigation, PackageCheck,
@@ -67,6 +67,7 @@ export function ExternalDelivery() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
   const [revisionNotice, setRevisionNotice] = useState(false)
   const revisionRef = useRef<number | null>(null)
   const [incidentOpen, setIncidentOpen] = useState(false)
@@ -89,6 +90,7 @@ export function ExternalDelivery() {
     if (announce && revisionRef.current != null && nextRevision > revisionRef.current) setRevisionNotice(true)
     revisionRef.current = nextRevision
     setPayload(next)
+    setLastSyncedAt(new Date())
   }
 
   const validate = async () => {
@@ -102,21 +104,15 @@ export function ExternalDelivery() {
     finally { setLoading(false) }
   }
 
-  const refresh = async (silent = false) => {
+  const refresh = async () => {
     if (!payload) return
-    if (!silent) setBusy(true)
-    try { applyPayload(await call('refresh')) }
-    catch (err) { if (!silent) setError(err instanceof Error ? err.message : 'No fue posible actualizar.') }
-    finally { if (!silent) setBusy(false) }
+    setBusy(true); setError(''); setMessage('')
+    try {
+      applyPayload(await call('refresh'))
+      setMessage('Ruta actualizada manualmente.')
+    } catch (err) { setError(err instanceof Error ? err.message : 'No fue posible actualizar.') }
+    finally { setBusy(false) }
   }
-
-  useEffect(() => {
-    if (!payload) return
-    const interval = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(true) }, 15000)
-    const visibility = () => { if (document.visibilityState === 'visible') void refresh(true) }
-    document.addEventListener('visibilitychange', visibility)
-    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', visibility) }
-  }, [payload?.trip?.id, pin])
 
   const stops = useMemo(() => [...(payload?.stops || [])].sort((a,b) => a.stop_order-b.stop_order), [payload])
   const completedCount = stops.filter(stop => terminal(stop.status)).length
@@ -190,13 +186,13 @@ export function ExternalDelivery() {
 
   const trip = payload.trip
   return <main className="external-delivery-shell">
-    <header className="driver-topbar"><div><span>ENTREGA · {trip.trip_code}</span><b>{trip.driver_name_snapshot || 'Chofer'}</b></div><button onClick={() => void refresh()} disabled={busy}><RefreshCw className={busy ? 'spin' : ''}/></button></header>
+    <header className="driver-topbar"><div><span>ENTREGA · {trip.trip_code}</span><b>{trip.driver_name_snapshot || 'Chofer'}</b></div><button title="Actualizar ruta manualmente" aria-label="Actualizar ruta manualmente" onClick={() => void refresh()} disabled={busy}><RefreshCw className={busy ? 'spin' : ''}/></button></header>
     <section className="driver-content">
       {revisionNotice && <div className="driver-route-update"><MapPin/><div><b>Ruta actualizada por Despacho</b><span>Hay nuevos datos o ubicaciones disponibles. No necesitas reiniciar la ruta.</span></div><button onClick={() => void acknowledgeRevision()}>Entendido</button></div>}
       {error && <div className="driver-alert error"><AlertTriangle/>{error}<button onClick={() => setError('')}><X/></button></div>}
       {message && <div className="driver-alert success"><CheckCircle2/>{message}<button onClick={() => setMessage('')}><X/></button></div>}
 
-      <div className="driver-trip-card"><div className="driver-trip-head"><div className="driver-vehicle"><Truck/><div><b>{trip.vehicle_plate_snapshot || 'Vehículo'}</b><span>{trip.vehicle_type_snapshot || ''} · {trip.carrier_name_snapshot || 'Operación propia'}</span></div></div><span className={`driver-status ${String(trip.status).toLowerCase()}`}>{label(trip.status)}</span></div><div className="driver-progress"><div><span>Entregas</span><b>{completedCount} / {stops.length}</b></div><div><span>Bultos</span><b>{trip.total_packages}</b></div><div><span>Monto carga</span><b>{currency(trip.total_amount)}</b></div></div><div className="driver-progress-bar"><i style={{ width:`${stops.length ? Math.round(completedCount/stops.length*100) : 0}%` }}/></div><small>Revisión de ruta {trip.route_revision}</small></div>
+      <div className="driver-trip-card"><div className="driver-trip-head"><div className="driver-vehicle"><Truck/><div><b>{trip.vehicle_plate_snapshot || 'Vehículo'}</b><span>{trip.vehicle_type_snapshot || ''} · {trip.carrier_name_snapshot || 'Operación propia'}</span></div></div><span className={`driver-status ${String(trip.status).toLowerCase()}`}>{label(trip.status)}</span></div><div className="driver-progress"><div><span>Entregas</span><b>{completedCount} / {stops.length}</b></div><div><span>Bultos</span><b>{trip.total_packages}</b></div><div><span>Monto carga</span><b>{currency(trip.total_amount)}</b></div></div><div className="driver-progress-bar"><i style={{ width:`${stops.length ? Math.round(completedCount/stops.length*100) : 0}%` }}/></div><small>Revisión de ruta {trip.route_revision} · actualización manual · {lastSyncedAt ? `última ${lastSyncedAt.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}` : 'sin actualizar'}</small></div>
 
       {['READY','LOADED','PREPARING'].includes(trip.status) && <button className="driver-main-action" disabled={busy} onClick={() => void event('trip_event',{event_type:'DEPARTED_ORIGIN'})}><Play/>Iniciar ruta · salir del centro de carga</button>}
 
