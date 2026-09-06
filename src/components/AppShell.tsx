@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  BarChart3,CalendarDays,CalendarRange,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,
+  BarChart3,CalendarDays,CalendarRange,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,KeyRound,
   ListChecks,LogOut,Map as MapIcon,MapPinned,Menu,PackageCheck,PanelLeftClose,PanelLeftOpen,PhoneCall,Radar,Route,Settings,ShieldCheck,
   SlidersHorizontal,UserRoundCog,Users,X,
 } from 'lucide-react'
@@ -27,7 +27,10 @@ const groups: NavGroup[] = [
     ['/cobertura', 'Cobertura cartera', ListChecks, 'coverage.view'], ['/visitas', 'Visitas', ContactRound, 'visits.view'],
     ['/llamadas', 'Llamadas', PhoneCall, 'calls.view'], ['/agenda', 'Agenda / Showroom', CalendarDays, 'agenda.view'], ['/recepcion', 'Recepción', DoorOpen, 'reception.view'],
   ] },
-  { label: 'Logística', items: [['/logistica', 'Despacho y entregas', PackageCheck, 'logistics.view']] },
+  { label: 'Logística', items: [
+    ['/logistica', 'Despacho y entregas', PackageCheck, 'logistics.view'],
+    ['/logistica/accesos', 'Acceso de chofer', KeyRound, 'logistics.manage'],
+  ] },
   { label: 'Inteligencia', items: [['/reportes', 'Reportes', BarChart3, 'reports.view'], ['/calidad-datos', 'Calidad geográfica', ShieldCheck, 'data_quality.view']] },
   { label: 'Sistema', items: [['/administracion', 'Administración', UserRoundCog, 'ADMIN_ANY'], ['/configuracion', 'Configuración', Settings, 'settings.view']] },
 ]
