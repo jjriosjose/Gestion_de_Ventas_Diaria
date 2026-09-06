@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle,BarChart3,CalendarDays,CalendarRange,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,KeyRound,
+  AlertTriangle,BarChart3,CalendarDays,CalendarRange,Captions,ChevronLeft,ChevronRight,ClipboardList,ContactRound,DoorOpen,Gauge,History,KeyRound,
   ListChecks,LogOut,Map as MapIcon,MapPinned,Menu,PackageCheck,PanelLeftClose,PanelLeftOpen,PhoneCall,Radar,Route,Settings,ShieldCheck,
   SlidersHorizontal,UserRoundCog,Users,X,
 } from 'lucide-react'
@@ -29,6 +29,7 @@ const groups: NavGroup[] = [
   ] },
   { label: 'Logística', items: [
     ['/logistica', 'Despacho y entregas', PackageCheck, 'logistics.view'],
+    ['/logistica/historial', 'Historial / POD', History, 'logistics.view'],
     ['/logistica/incidencias', 'Incidencias', AlertTriangle, 'logistics.tracking'],
     ['/logistica/accesos', 'Acceso de chofer', KeyRound, 'logistics.manage'],
   ] },
