@@ -8,7 +8,7 @@ Evitar que un chat nuevo o una persona que retome el proyecto use como baseline 
 
 Leer primero:
 
-1. `docs/CHAT_CONTINUATION_2026-09-06.md`.
+1. `docs/CHAT_CONTINUATION_CURRENT.md`.
 2. GitHub `main` real.
 3. Supabase real.
 4. Cloudflare real.
@@ -23,7 +23,7 @@ Contiene decisiones arquitectónicas y reglas de negocio valiosas, pero su cabec
 
 ### `docs/CHAT_CONTINUATION_2026-08-30.md`
 
-Fue el checkpoint prioritario anterior y refleja beta.12.2.6. Queda supersedido para continuidad por `docs/CHAT_CONTINUATION_2026-09-06.md`.
+Fue el checkpoint prioritario anterior y refleja beta.12.2.6. Queda supersedido para continuidad por `docs/CHAT_CONTINUATION_CURRENT.md`.
 
 ### `docs/REQUIREMENTS_STATUS.md`
 
@@ -48,7 +48,7 @@ Puede contener estado de versiones anteriores. Usarlo como registro histórico h
 
 ## Política documental temporal
 
-Para reducir riesgo justo antes del Go-Live, este bloque documental **no reescribe masivamente documentos históricos**. En vez de ello crea un checkpoint nuevo y documentos de corte específicos.
+Para reducir riesgo justo antes del Go-Live, este bloque documental **no reescribe masivamente documentos históricos**. En vez de ello crea un checkpoint canónico nuevo y documentos de corte específicos.
 
 Después del Go-Live, cuando el estado real esté estabilizado, se recomienda una tarea separada de consolidación documental para:
 
