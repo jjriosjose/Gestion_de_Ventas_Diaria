@@ -18,6 +18,7 @@ import { Reception } from './pages/Reception'
 import { Coverage } from './pages/Coverage'
 import { Logistics } from './pages/Logistics'
 import { DeliveryAccessAdmin } from './pages/DeliveryAccessAdmin'
+import { DeliveryIncidents } from './pages/DeliveryIncidents'
 import { ExternalDelivery } from './pages/ExternalDelivery'
 import { ReportsV2 } from './pages/ReportsV2'
 import { Admin } from './pages/Admin'
@@ -55,6 +56,7 @@ function Protected(){
     <Route path="recepcion" element={<RequirePermission permission="reception.view"><Reception/></RequirePermission>}/>
     <Route path="logistica" element={<RequirePermission permission="logistics.view"><Logistics/></RequirePermission>}/>
     <Route path="logistica/accesos" element={<RequirePermission permission="logistics.manage"><DeliveryAccessAdmin/></RequirePermission>}/>
+    <Route path="logistica/incidencias" element={<RequirePermission permission="logistics.tracking"><DeliveryIncidents/></RequirePermission>}/>
     <Route path="reportes" element={<RequirePermission permission="reports.view"><ReportsV2/></RequirePermission>}/>
     <Route path="calidad-datos" element={<RequirePermission permission="data_quality.view"><DataQuality/></RequirePermission>}/>
     <Route path="administracion" element={<RequireAdministration><Admin/></RequireAdministration>}/>
