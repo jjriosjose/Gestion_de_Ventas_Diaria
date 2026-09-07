@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import ExcelJS from 'exceljs'
 import {
-  AlertTriangle, BadgeDollarSign, Building2, CheckCircle2, ClipboardCheck, Clock3, Copy, FileSpreadsheet, FileText,
+  AlertTriangle, BadgeDollarSign, Building2, CheckCircle2, ClipboardCheck, Clock3, Copy, Download, FileSpreadsheet, FileText,
   Link2, LoaderCircle, MapPin, MapPinned, PackageCheck, Plus, RefreshCw, Route as RouteIcon, Save, Search, Truck,
   Upload, UserRound, UsersRound, X,
 } from 'lucide-react'
@@ -56,6 +57,17 @@ function geoSourceLabel(source: string) {
     DRIVER_ARRIVAL_GPS: 'Chofer · llegada', DRIVER_DELIVERY_GPS: 'Chofer · entrega', NO_GPS: 'Pendiente',
   }
   return labels[source] || source
+}
+
+function friendlyExcelError(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+  const businessMessages = [
+    'El archivo Excel no contiene hojas.',
+    'No pude identificar encabezados.',
+    'El Excel no contiene documentos válidos',
+  ]
+  if (businessMessages.some(prefix => message.startsWith(prefix)) || /^Fila \d+:/.test(message)) return message
+  return 'No fue posible leer este archivo Excel. Utiliza la plantilla oficial “entregas.xlsx” o guarda el archivo como Libro de Excel (.xlsx) desde Microsoft Excel.'
 }
 
 export function Logistics() {
@@ -145,6 +157,79 @@ export function Logistics() {
 
   const chooseTab = (next: DeliveryTab) => { setTab(next); setNotice(null) }
 
+  const downloadTemplate = async () => {
+    if (!canManage) return
+    setSaving(true); setNotice(null)
+    try {
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'Gestión de Ventas Diaria'
+      workbook.created = new Date()
+
+      const sheet = workbook.addWorksheet('Entregas', { views: [{ state: 'frozen', ySplit: 1 }] })
+      sheet.columns = [
+        { header: 'Empresa', key: 'empresa', width: 16 },
+        { header: 'Factura', key: 'factura', width: 18 },
+        { header: 'Pedido', key: 'pedido', width: 18 },
+        { header: 'Codigo Cliente', key: 'codigoCliente', width: 20 },
+        { header: 'Cliente', key: 'cliente', width: 34 },
+        { header: 'Monto', key: 'monto', width: 16 },
+        { header: 'Bultos', key: 'bultos', width: 12 },
+        { header: 'Latitud', key: 'latitud', width: 15 },
+        { header: 'Longitud', key: 'longitud', width: 15 },
+        { header: 'Telefono', key: 'telefono', width: 18 },
+        { header: 'Observaciones', key: 'observaciones', width: 44 },
+      ]
+      const header = sheet.getRow(1)
+      header.height = 24
+      header.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF17233A' } }
+        cell.alignment = { vertical: 'middle', horizontal: 'center' }
+      })
+      sheet.autoFilter = { from: 'A1', to: 'K1' }
+      sheet.getColumn(6).numFmt = '#,##0.00'
+      sheet.getColumn(7).numFmt = '0'
+      sheet.getColumn(8).numFmt = '0.000000'
+      sheet.getColumn(9).numFmt = '0.000000'
+
+      const guide = workbook.addWorksheet('Instrucciones')
+      guide.columns = [{ width: 28 }, { width: 82 }]
+      guide.addRows([
+        ['Campo', 'Uso'],
+        ['Empresa', 'Código o nombre de la empresa. Opcional si tu operación no lo requiere.'],
+        ['Factura', 'Número de factura. Debe existir Factura o Pedido.'],
+        ['Pedido', 'Número de pedido. Debe existir Factura o Pedido.'],
+        ['Codigo Cliente', 'Código del cliente en el maestro. Ayuda a asociarlo automáticamente.'],
+        ['Cliente', 'Nombre del cliente o destino. Obligatorio.'],
+        ['Monto', 'Monto total del documento.'],
+        ['Bultos', 'Cantidad de bultos/cajas cargados para ese documento.'],
+        ['Latitud / Longitud', 'Opcionales. Si están vacías y el cliente existe en el maestro, la app usa el GPS del maestro. Si tampoco existe GPS maestro, queda Ubicación pendiente.'],
+        ['Telefono', 'Teléfono de contacto del destino. Opcional.'],
+        ['Observaciones', 'Notas operativas del documento. Opcional.'],
+        ['Varias facturas del mismo cliente', 'Coloca una fila por factura/pedido. La app las agrupa en una sola parada cuando pertenecen al mismo cliente y ubicación.'],
+      ])
+      guide.getRow(1).eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF17233A' } }
+      })
+      guide.eachRow(row => { row.alignment = { vertical: 'top', wrapText: true } })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([new Uint8Array(buffer as unknown as ArrayBuffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'entregas.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      setNotice({ kind: 'success', text: 'Plantilla oficial “entregas.xlsx” descargada.' })
+    } catch {
+      setNotice({ kind: 'error', text: 'No fue posible generar la plantilla de entregas.' })
+    } finally { setSaving(false) }
+  }
+
   const handleExcel = async (file?: File) => {
     if (!file) return
     setSaving(true); setNotice(null)
@@ -155,7 +240,7 @@ export function Logistics() {
       setNotice({ kind: 'success', text: `${data.total} documentos cargados. ${data.gpsPending} requieren ubicación y no bloquean el despacho.` })
     } catch (error) {
       setDrafts([]); setFileName('')
-      setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'No fue posible leer el Excel.' })
+      setNotice({ kind: 'error', text: friendlyExcelError(error) })
     } finally { setSaving(false); if (fileRef.current) fileRef.current.value = '' }
   }
 
@@ -366,7 +451,7 @@ export function Logistics() {
             <span>Cliente + Factura o Pedido. Latitud/Longitud son opcionales.</span>
             <small>Si no hay GPS, el documento se carga igualmente y queda Ubicación pendiente.</small>
           </div>
-          <div className="button-row logistics-upload-actions"><button className="secondary" disabled={!canManage || saving} onClick={() => fileRef.current?.click()}><FileSpreadsheet size={16}/>Seleccionar Excel</button><button className="secondary" disabled={!canManage} onClick={() => setManualOpen(true)}><Plus size={16}/>Agregar manual</button>{drafts.length > 0 && <button className="link-btn" onClick={clearDraft}>Limpiar carga</button>}</div>
+          <div className="button-row logistics-upload-actions"><button className="secondary" disabled={!canManage || saving} onClick={() => fileRef.current?.click()}><FileSpreadsheet size={16}/>Seleccionar Excel</button><button className="secondary" disabled={!canManage || saving} onClick={() => void downloadTemplate()}><Download size={16}/>Descargar plantilla</button><button className="secondary" disabled={!canManage} onClick={() => setManualOpen(true)}><Plus size={16}/>Agregar manual</button>{drafts.length > 0 && <button className="link-btn" onClick={clearDraft}>Limpiar carga</button>}</div>
         </div>
         <div className="panel">
           <div className="panel-head"><div><b>2. Preparar viaje</b><span>Asigna fecha, chofer y vehículo antes de publicar el despacho.</span></div></div>
