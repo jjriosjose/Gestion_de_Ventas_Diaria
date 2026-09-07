@@ -16,6 +16,7 @@ import {
   type ClientLite, type DeliveryDocument, type DeliveryDraftDocument, type DeliveryDriver, type DeliveryProvider,
   type DeliveryStop, type DeliveryTab, type DeliveryTrip, type DeliveryVehicle, type DriverType, type OwnershipType,
 } from '../lib/logistics'
+import { classifyDeliveryDraftRetries, type DeliveryRetryDecisionMap } from '../lib/logisticsRetry'
 import type { Employee } from '../types'
 import '../styles/logistics.css'
 
@@ -88,6 +89,7 @@ export function Logistics() {
   const [stops, setStops] = useState<DeliveryStop[]>([])
   const [documents, setDocuments] = useState<DeliveryDocument[]>([])
   const [drafts, setDrafts] = useState<DeliveryDraftDocument[]>([])
+  const [retryDecisions, setRetryDecisions] = useState<DeliveryRetryDecisionMap>({})
   const [fileName, setFileName] = useState('')
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
   const [manualOpen, setManualOpen] = useState(false)
@@ -148,6 +150,8 @@ export function Logistics() {
   const driverMap = useMemo(() => new Map(drivers.map(driver => [driver.id, driver])), [drivers])
   const vehicleMap = useMemo(() => new Map(vehicles.map(vehicle => [vehicle.id, vehicle])), [vehicles])
   const summary = useMemo(() => summarizeDrafts(drafts), [drafts])
+  const allowedRetries = useMemo(() => Object.values(retryDecisions).filter(item => item.kind === 'RETRY').length, [retryDecisions])
+  const blockedRetries = useMemo(() => Object.values(retryDecisions).filter(item => item.kind === 'BLOCKED').length, [retryDecisions])
   const activeTrips = useMemo(() => trips.filter(trip => !['COMPLETED', 'CANCELLED'].includes(trip.status)), [trips])
   const deliveredStops = useMemo(() => stops.filter(stop => stop.status === 'DELIVERED').length, [stops])
   const pendingGeo = useMemo(() => stops.filter(stop => stop.geo_status === 'PENDING' && !['DELIVERED', 'CANCELLED'].includes(stop.status)), [stops])
@@ -235,16 +239,22 @@ export function Logistics() {
     setSaving(true); setNotice(null)
     try {
       const parsed = await parseDeliveryExcel(file, clients)
-      setDrafts(parsed); setFileName(file.name)
+      const decisions = await classifyDeliveryDraftRetries(supabase, parsed)
+      setDrafts(parsed); setRetryDecisions(decisions); setFileName(file.name)
       const data = summarizeDrafts(parsed)
-      setNotice({ kind: 'success', text: `${data.total} documentos cargados. ${data.gpsPending} requieren ubicación y no bloquean el despacho.` })
+      const retryCount = Object.values(decisions).filter(item => item.kind === 'RETRY').length
+      const blockedCount = Object.values(decisions).filter(item => item.kind === 'BLOCKED').length
+      setNotice({
+        kind: blockedCount ? 'warning' : 'success',
+        text: `${data.total} documentos cargados. ${retryCount} reintento(s) permitido(s). ${blockedCount ? `${blockedCount} bloqueado(s): revisa la vista previa.` : `${data.gpsPending} requieren ubicación y no bloquean el despacho.`}`,
+      })
     } catch (error) {
-      setDrafts([]); setFileName('')
+      setDrafts([]); setRetryDecisions({}); setFileName('')
       setNotice({ kind: 'error', text: friendlyExcelError(error) })
     } finally { setSaving(false); if (fileRef.current) fileRef.current.value = '' }
   }
 
-  const addManualDraft = () => {
+  const addManualDraft = async () => {
     if (!manual.clientName.trim()) return setNotice({ kind: 'warning', text: 'Indica el nombre del cliente o destino.' })
     if (!manual.invoiceNumber.trim() && !manual.orderNumber.trim()) return setNotice({ kind: 'warning', text: 'Indica Factura o Pedido.' })
     const lat = parseCoordinate(manual.latitude); const lon = parseCoordinate(manual.longitude)
@@ -257,8 +267,21 @@ export function Logistics() {
       externalClientCode: manual.externalClientCode.trim(), clientName: manual.clientName.trim(), amount: Math.max(0, parseNumber(manual.amount)),
       packages: Math.max(0, parseNumber(manual.packages)), excelLatitude: lat, excelLongitude: lon, phone: manual.phone.trim(), notes: manual.notes.trim(),
     }
-    setDrafts(current => [...current, resolveDraftClient(base, clients)])
-    setManual(EMPTY_MANUAL); setManualOpen(false); setNotice({ kind: 'success', text: 'Documento agregado manualmente al despacho.' })
+    setSaving(true); setNotice(null)
+    try {
+      const nextDraft = resolveDraftClient(base, clients)
+      const nextDrafts = [...drafts, nextDraft]
+      const decisions = await classifyDeliveryDraftRetries(supabase, nextDrafts)
+      setDrafts(nextDrafts); setRetryDecisions(decisions)
+      setManual(EMPTY_MANUAL); setManualOpen(false)
+      const decision = decisions[nextDraft.tempId]
+      setNotice({
+        kind: decision?.kind === 'BLOCKED' ? 'warning' : 'success',
+        text: decision?.kind === 'RETRY' ? decision.message : decision?.kind === 'BLOCKED' ? decision.message : 'Documento agregado manualmente al despacho.',
+      })
+    } catch (error) {
+      setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'No fue posible validar el documento.' })
+    } finally { setSaving(false) }
   }
 
   const applySuggested = (row: DeliveryDraftDocument) => {
@@ -266,25 +289,13 @@ export function Logistics() {
     setDrafts(current => current.map(item => item.tempId === row.tempId ? assignDraftClient(item, client) : item))
   }
   const keepExternal = (row: DeliveryDraftDocument) => setDrafts(current => current.map(item => item.tempId === row.tempId ? assignDraftClient(item, null) : item))
-  const removeDraft = (tempId: string) => setDrafts(current => current.filter(item => item.tempId !== tempId))
-  const clearDraft = () => { setDrafts([]); setFileName(''); setNotice(null) }
-
-  const duplicateCheck = async () => {
-    const invoices = Array.from(new Set(drafts.map(row => row.invoiceNumber.trim()).filter(Boolean)))
-    const orders = Array.from(new Set(drafts.map(row => row.orderNumber.trim()).filter(Boolean)))
-    const duplicates: string[] = []
-    if (invoices.length) {
-      const { data, error } = await supabase.from('delivery_documents').select('invoice_number,trip_id').in('invoice_number', invoices).neq('status', 'CANCELLED')
-      if (error) throw error
-      ;(data || []).forEach(row => { if (row.invoice_number) duplicates.push(`Factura ${row.invoice_number}`) })
-    }
-    if (orders.length) {
-      const { data, error } = await supabase.from('delivery_documents').select('order_number,trip_id').in('order_number', orders).neq('status', 'CANCELLED')
-      if (error) throw error
-      ;(data || []).forEach(row => { if (row.order_number) duplicates.push(`Pedido ${row.order_number}`) })
-    }
-    return Array.from(new Set(duplicates))
+  const removeDraft = async (tempId: string) => {
+    const nextDrafts = drafts.filter(item => item.tempId !== tempId)
+    setDrafts(nextDrafts)
+    try { setRetryDecisions(await classifyDeliveryDraftRetries(supabase, nextDrafts)) }
+    catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'No fue posible revalidar la carga.' }) }
   }
+  const clearDraft = () => { setDrafts([]); setRetryDecisions({}); setFileName(''); setNotice(null) }
 
   const createTrip = async () => {
     if (!canManage) return
@@ -295,8 +306,10 @@ export function Logistics() {
     setSaving(true); setNotice(null)
     let tripId = ''; let batchId = ''
     try {
-      const duplicates = await duplicateCheck()
-      if (duplicates.length) throw new Error(`Ya existen documentos activos en Logística: ${duplicates.slice(0, 6).join(', ')}${duplicates.length > 6 ? '…' : ''}`)
+      const retryCheck = await classifyDeliveryDraftRetries(supabase, drafts)
+      setRetryDecisions(retryCheck)
+      const blocked = Object.values(retryCheck).filter(item => item.kind === 'BLOCKED')
+      if (blocked.length) throw new Error(`${blocked.length} documento(s) están bloqueados. Corrige la carga antes de crear el viaje.`)
       const selectedDriver = driverMap.get(tripDriver)!
       const selectedVehicle = vehicleMap.get(tripVehicle)!
       const selectedProvider = providers.find(provider => provider.id === (tripProvider || selectedDriver.provider_id || selectedVehicle.provider_id)) || null
@@ -340,6 +353,8 @@ export function Logistics() {
         trip_id: tripId, stop_id: stopIdByOrder.get(groupIndex + 1)!, import_batch_id: batchId, company_code: row.companyCode || null,
         invoice_number: row.invoiceNumber || null, order_number: row.orderNumber || null, external_client_code: row.externalClientCode || null,
         client_id: row.clientId, client_name_snapshot: row.clientName, amount: row.amount, packages_loaded: row.packages, status: 'LOADED',
+        retry_of_document_id: retryCheck[row.tempId]?.kind === 'RETRY' ? retryCheck[row.tempId].retryOfDocumentId : null,
+        attempt_number: retryCheck[row.tempId]?.kind === 'RETRY' ? retryCheck[row.tempId].attemptNumber : 1,
         source_type: row.sourceType, source_row: row.sourceRow || null, notes: row.notes || null,
       })))
       const { error: docError } = await supabase.from('delivery_documents').insert(docRows)
@@ -463,18 +478,19 @@ export function Logistics() {
             <label className="span-2">Título / referencia<input value={tripTitle} onChange={event => setTripTitle(event.target.value)} placeholder="Ej. Despacho Santo Domingo AM"/></label>
             <label className="span-2">Observación<textarea value={tripNotes} onChange={event => setTripNotes(event.target.value)} placeholder="Notas operativas del viaje"/></label>
           </div>
-          <button className="primary full" disabled={!canManage || saving || !drafts.length} onClick={() => void createTrip()}>{saving ? <LoaderCircle className="spin"/> : <ClipboardCheck/>}Crear viaje con {drafts.length || 0} documento(s)</button>
+          <button className="primary full" disabled={!canManage || saving || !drafts.length || blockedRetries > 0} onClick={() => void createTrip()}>{saving ? <LoaderCircle className="spin"/> : <ClipboardCheck/>}{blockedRetries ? `Resolver ${blockedRetries} documento(s) bloqueado(s)` : `Crear viaje con ${drafts.length || 0} documento(s)`}</button>
         </div>
       </div>
 
       {drafts.length > 0 && <div className="panel table-panel logistics-preview">
         <div className="logistics-preview-summary">
-          <div><b>{summary.total}</b><span>Documentos</span></div><div><b>{summary.matched}</b><span>Asociados</span></div><div><b>{summary.suggested}</b><span>Posibles</span></div><div><b>{summary.external}</b><span>Externos</span></div><div><b>{summary.gpsReady}</b><span>Con GPS</span></div><div className={summary.gpsPending ? 'warn' : ''}><b>{summary.gpsPending}</b><span>GPS pendiente</span></div><div><b>{summary.totalPackages}</b><span>Bultos</span></div><div><b>{currency(summary.totalAmount)}</b><span>Monto</span></div>
+          <div><b>{summary.total}</b><span>Documentos</span></div><div><b>{summary.matched}</b><span>Asociados</span></div><div><b>{summary.suggested}</b><span>Posibles</span></div><div><b>{summary.external}</b><span>Externos</span></div><div className={allowedRetries ? 'warn' : ''}><b>{allowedRetries}</b><span>Reintentos</span></div><div className={blockedRetries ? 'warn' : ''}><b>{blockedRetries}</b><span>Bloqueados</span></div><div><b>{summary.gpsReady}</b><span>Con GPS</span></div><div className={summary.gpsPending ? 'warn' : ''}><b>{summary.gpsPending}</b><span>GPS pendiente</span></div><div><b>{summary.totalPackages}</b><span>Bultos</span></div><div><b>{currency(summary.totalAmount)}</b><span>Monto</span></div>
         </div>
         <div className="responsive-table"><table><thead><tr><th>#</th><th>Factura / Pedido</th><th>Cliente / asociación</th><th>Monto</th><th>Bultos</th><th>Ubicación</th><th>Acción</th></tr></thead><tbody>{drafts.map((row, index) => {
           const suggested = row.suggestedClientId ? clientMap.get(row.suggestedClientId) : null
           const matched = row.clientId ? clientMap.get(row.clientId) : null
-          return <tr key={row.tempId}><td>{index + 1}</td><td><b>{row.invoiceNumber || 'Sin factura'}</b><small>{row.orderNumber ? `Pedido ${row.orderNumber}` : row.companyCode || '—'}</small></td><td><b>{row.clientName}</b>{row.matchStatus === 'MATCHED' ? <small className="text-success">✓ {matched?.legal_name || 'Cliente maestro'}</small> : row.matchStatus === 'SUGGESTED' ? <small className="text-warning">Posible: {suggested?.legal_name}</small> : <small>Destino externo · no crea cliente maestro</small>}</td><td>{currency(row.amount)}</td><td>{row.packages}</td><td>{row.geoStatus === 'READY' ? <span className="badge success"><MapPin size={12}/>{geoSourceLabel(row.geoSource)}</span> : <span className="badge logistics-pending"><AlertTriangle size={12}/>Pendiente</span>}</td><td><div className="row-actions">{row.matchStatus === 'SUGGESTED' && <><button className="success-btn compact" onClick={() => applySuggested(row)}>Usar sugerido</button><button className="secondary compact" onClick={() => keepExternal(row)}>Dejar externo</button></>}<button className="icon-btn compact-icon" title="Quitar" onClick={() => removeDraft(row.tempId)}><X size={14}/></button></div></td></tr>
+          const retryDecision = retryDecisions[row.tempId] || null
+          return <tr key={row.tempId}><td>{index + 1}</td><td><b>{row.invoiceNumber || 'Sin factura'}</b><small>{row.orderNumber ? `Pedido ${row.orderNumber}` : row.companyCode || '—'}</small>{retryDecision?.kind === 'RETRY' && <small className="text-warning">↻ {retryDecision.message}</small>}{retryDecision?.kind === 'BLOCKED' && <small className="text-warning">⚠ {retryDecision.message}</small>}</td><td><b>{row.clientName}</b>{row.matchStatus === 'MATCHED' ? <small className="text-success">✓ {matched?.legal_name || 'Cliente maestro'}</small> : row.matchStatus === 'SUGGESTED' ? <small className="text-warning">Posible: {suggested?.legal_name}</small> : <small>Destino externo · no crea cliente maestro</small>}</td><td>{currency(row.amount)}</td><td>{row.packages}{retryDecision?.kind === 'RETRY' && <small>Saldo pendiente completo</small>}</td><td>{row.geoStatus === 'READY' ? <span className="badge success"><MapPin size={12}/>{geoSourceLabel(row.geoSource)}</span> : <span className="badge logistics-pending"><AlertTriangle size={12}/>Pendiente</span>}</td><td><div className="row-actions">{row.matchStatus === 'SUGGESTED' && <><button className="success-btn compact" onClick={() => applySuggested(row)}>Usar sugerido</button><button className="secondary compact" onClick={() => keepExternal(row)}>Dejar externo</button></>}<button className="icon-btn compact-icon" title="Quitar" onClick={() => void removeDraft(row.tempId)}><X size={14}/></button></div></td></tr>
         })}</tbody></table></div>
       </div>}
     </>}
@@ -495,7 +511,7 @@ export function Logistics() {
 
     {tab === 'PROVIDERS' && <div className="logistics-master-grid"><div className="panel"><div className="panel-head"><div><b>Registrar transportista</b><span>Empresa externa para choferes y vehículos alquilados/terceros.</span></div></div><div className="form-grid"><label>Nombre<input value={providerForm.name} onChange={event => setProviderForm(current => ({ ...current, name: event.target.value }))}/></label><label>RNC / identificación<input value={providerForm.taxId} onChange={event => setProviderForm(current => ({ ...current, taxId: event.target.value }))}/></label><label>Contacto<input value={providerForm.contactName} onChange={event => setProviderForm(current => ({ ...current, contactName: event.target.value }))}/></label><label>Teléfono<input value={providerForm.phone} onChange={event => setProviderForm(current => ({ ...current, phone: event.target.value }))}/></label><label className="span-2">Email<input value={providerForm.email} onChange={event => setProviderForm(current => ({ ...current, email: event.target.value }))}/></label><label className="span-2">Notas<textarea value={providerForm.notes} onChange={event => setProviderForm(current => ({ ...current, notes: event.target.value }))}/></label></div><button className="primary full" disabled={!canManage || saving} onClick={() => void saveProvider()}><Save size={16}/>Guardar transportista</button></div><div className="panel table-panel"><div className="table-meta"><span>{providers.length} transportistas</span><span>Proveedores logísticos</span></div><div className="responsive-table"><table><thead><tr><th>Empresa</th><th>RNC</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Estado</th></tr></thead><tbody>{providers.map(provider => <tr key={provider.id}><td><b>{provider.name}</b></td><td>{provider.tax_id || '—'}</td><td>{provider.contact_name || '—'}</td><td>{provider.phone || '—'}</td><td>{provider.email || '—'}</td><td><span className={`badge ${provider.active ? 'success' : ''}`}>{provider.active ? 'Activo' : 'Inactivo'}</span></td></tr>)}</tbody></table></div></div></div>}
 
-    {manualOpen && <div className="modal-wrap"><button className="modal-backdrop" onClick={() => setManualOpen(false)} aria-label="Cerrar"/><div className="modal large"><div className="modal-head"><div><h3>Carga manual</h3><p>El cliente puede estar o no en la base maestra. GPS es opcional.</p></div><button className="icon-btn" onClick={() => setManualOpen(false)}><X/></button></div><div className="form-grid"><label>Empresa<input value={manual.companyCode} onChange={event => setManual(current => ({ ...current, companyCode: event.target.value }))}/></label><label>Código cliente<input value={manual.externalClientCode} onChange={event => setManual(current => ({ ...current, externalClientCode: event.target.value }))}/></label><label>Factura<input value={manual.invoiceNumber} onChange={event => setManual(current => ({ ...current, invoiceNumber: event.target.value }))}/></label><label>Pedido<input value={manual.orderNumber} onChange={event => setManual(current => ({ ...current, orderNumber: event.target.value }))}/></label><label className="span-2">Cliente / destino<input value={manual.clientName} onChange={event => setManual(current => ({ ...current, clientName: event.target.value }))}/></label><label>Monto<input inputMode="decimal" value={manual.amount} onChange={event => setManual(current => ({ ...current, amount: event.target.value }))}/></label><label>Bultos / cajas<input inputMode="decimal" value={manual.packages} onChange={event => setManual(current => ({ ...current, packages: event.target.value }))}/></label><label>Latitud opcional<input inputMode="decimal" value={manual.latitude} onChange={event => setManual(current => ({ ...current, latitude: event.target.value }))}/></label><label>Longitud opcional<input inputMode="decimal" value={manual.longitude} onChange={event => setManual(current => ({ ...current, longitude: event.target.value }))}/></label><label className="span-2">Teléfono<input value={manual.phone} onChange={event => setManual(current => ({ ...current, phone: event.target.value }))}/></label><label className="span-2">Observación<textarea value={manual.notes} onChange={event => setManual(current => ({ ...current, notes: event.target.value }))}/></label></div><div className="modal-actions"><button className="secondary" onClick={() => setManualOpen(false)}>Cancelar</button><button className="primary" onClick={addManualDraft}><Plus size={16}/>Agregar documento</button></div></div></div>}
+    {manualOpen && <div className="modal-wrap"><button className="modal-backdrop" onClick={() => setManualOpen(false)} aria-label="Cerrar"/><div className="modal large"><div className="modal-head"><div><h3>Carga manual</h3><p>El cliente puede estar o no en la base maestra. GPS es opcional.</p></div><button className="icon-btn" onClick={() => setManualOpen(false)}><X/></button></div><div className="form-grid"><label>Empresa<input value={manual.companyCode} onChange={event => setManual(current => ({ ...current, companyCode: event.target.value }))}/></label><label>Código cliente<input value={manual.externalClientCode} onChange={event => setManual(current => ({ ...current, externalClientCode: event.target.value }))}/></label><label>Factura<input value={manual.invoiceNumber} onChange={event => setManual(current => ({ ...current, invoiceNumber: event.target.value }))}/></label><label>Pedido<input value={manual.orderNumber} onChange={event => setManual(current => ({ ...current, orderNumber: event.target.value }))}/></label><label className="span-2">Cliente / destino<input value={manual.clientName} onChange={event => setManual(current => ({ ...current, clientName: event.target.value }))}/></label><label>Monto<input inputMode="decimal" value={manual.amount} onChange={event => setManual(current => ({ ...current, amount: event.target.value }))}/></label><label>Bultos / cajas<input inputMode="decimal" value={manual.packages} onChange={event => setManual(current => ({ ...current, packages: event.target.value }))}/></label><label>Latitud opcional<input inputMode="decimal" value={manual.latitude} onChange={event => setManual(current => ({ ...current, latitude: event.target.value }))}/></label><label>Longitud opcional<input inputMode="decimal" value={manual.longitude} onChange={event => setManual(current => ({ ...current, longitude: event.target.value }))}/></label><label className="span-2">Teléfono<input value={manual.phone} onChange={event => setManual(current => ({ ...current, phone: event.target.value }))}/></label><label className="span-2">Observación<textarea value={manual.notes} onChange={event => setManual(current => ({ ...current, notes: event.target.value }))}/></label></div><div className="modal-actions"><button className="secondary" onClick={() => setManualOpen(false)}>Cancelar</button><button className="primary" disabled={saving} onClick={() => void addManualDraft()}><Plus size={16}/>Agregar documento</button></div></div></div>}
 
     {geoEditStop && <div className="modal-wrap"><button className="modal-backdrop" onClick={() => setGeoEditStop(null)} aria-label="Cerrar"/><div className="modal"><div className="modal-head"><div><h3>Asignar ubicación</h3><p>{geoEditStop.destination_name_snapshot} · Parada {geoEditStop.stop_order}</p></div><button className="icon-btn" onClick={() => setGeoEditStop(null)}><X/></button></div><div className="form-grid"><label>Latitud<input inputMode="decimal" value={geoLat} onChange={event => setGeoLat(event.target.value)}/></label><label>Longitud<input inputMode="decimal" value={geoLon} onChange={event => setGeoLon(event.target.value)}/></label></div><div className="logistics-geo-note"><MapPin/><span>Puede guardarse aun con el viaje iniciado. La ruta incrementará su revisión para que el dispositivo del chofer detecte el cambio.</span></div><div className="modal-actions"><button className="secondary" onClick={() => setGeoEditStop(null)}>Cancelar</button><button className="primary" disabled={saving} onClick={() => void saveGeo()}>{saving ? <LoaderCircle className="spin"/> : <Save/>}Guardar ubicación</button></div></div></div>}
   </div>
