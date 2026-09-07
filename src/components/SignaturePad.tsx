@@ -7,6 +7,7 @@ export function SignaturePad({ onChange, disabled = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const drawingRef = useRef(false)
   const lastRef = useRef<{ x: number; y: number } | null>(null)
+  const inkRef = useRef(false)
   const [hasInk, setHasInk] = useState(false)
 
   const resize = () => {
@@ -14,7 +15,7 @@ export function SignaturePad({ onChange, disabled = false }: Props) {
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
     const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
-    const snapshot = hasInk ? canvas.toDataURL('image/png') : null
+    const snapshot = inkRef.current ? canvas.toDataURL('image/png') : null
     canvas.width = Math.max(1, Math.round(rect.width * ratio))
     canvas.height = Math.max(1, Math.round(rect.height * ratio))
     const ctx = canvas.getContext('2d')
@@ -61,6 +62,7 @@ export function SignaturePad({ onChange, disabled = false }: Props) {
     if (!ctx || !previous) return
     ctx.beginPath(); ctx.moveTo(previous.x, previous.y); ctx.lineTo(next.x, next.y); ctx.stroke()
     lastRef.current = next
+    inkRef.current = true
     if (!hasInk) setHasInk(true)
   }
 
@@ -70,18 +72,15 @@ export function SignaturePad({ onChange, disabled = false }: Props) {
     drawingRef.current = false
     lastRef.current = null
     const canvas = canvasRef.current
-    if (canvas && hasInk) onChange(canvas.toDataURL('image/png'))
-    else if (canvas) {
-      const data = canvas.toDataURL('image/png')
-      setHasInk(true); onChange(data)
-    }
+    if (canvas && inkRef.current) onChange(canvas.toDataURL('image/png'))
+    else onChange(null)
   }
 
   const clear = () => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
-    setHasInk(false); onChange(null)
+    inkRef.current = false; setHasInk(false); onChange(null)
   }
 
   return <div className="signature-pad">

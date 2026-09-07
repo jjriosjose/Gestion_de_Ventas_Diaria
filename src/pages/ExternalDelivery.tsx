@@ -92,6 +92,7 @@ export function ExternalDelivery() {
   const [resolvingIncidentId, setResolvingIncidentId] = useState<string | null>(null)
   const [resolutionNotes, setResolutionNotes] = useState('')
   const [deliveryStopId, setDeliveryStopId] = useState<string | null>(null)
+  const [deliveryStage, setDeliveryStage] = useState<'DETAILS'|'SIGNATURE'>('DETAILS')
   const [receiver, setReceiver] = useState({ name:'', document:'', phone:'', notes:'' })
   const [signature, setSignature] = useState<string | null>(null)
   const [photo, setPhoto] = useState<string | null>(null)
@@ -172,15 +173,14 @@ export function ExternalDelivery() {
     setDocumentReasons({})
     setDocumentNotes({})
     setExpandedDocumentId(null)
+    setDeliveryStage('DETAILS')
     setReceiver({ name:'', document:'', phone:'', notes:'' }); setSignature(null); setPhoto(null); setDeliveryStopId(stop.id)
   }
 
-  const submitDelivery = async () => {
-    if (!deliveryStopId || !payload) return
-    if (payload.trip?.status === 'COMPLETED') return setError('El viaje ya fue finalizado y no acepta nuevas entregas.')
-    if (!receiver.name.trim()) return setError('Indica el nombre de quien recibe.')
+  const buildDeliveryDocumentPayload = () => {
+    if (!deliveryStopId || !payload) return []
     const docs = payload.documents.filter(doc => doc.stop_id === deliveryStopId)
-    const documentPayload = docs.map(doc => {
+    return docs.map(doc => {
       const delivered = clampPackages(packageValues[doc.id] ?? doc.packages_loaded, doc.packages_loaded)
       const loaded = Math.max(0, Math.trunc(Number(doc.packages_loaded) || 0))
       const selectedReason = delivered < loaded ? String(documentReasons[doc.id] || '').trim() : ''
@@ -196,16 +196,43 @@ export function ExternalDelivery() {
         loaded,
       }
     })
+  }
+
+  const validateDeliveryDetails = () => {
+    if (!receiver.name.trim()) { setError('Indica el nombre de quien recibe.'); return null }
+    const documentPayload = buildDeliveryDocumentPayload()
     const missingReason = documentPayload.find(item => item.packages_delivered < item.loaded && !item.ui_reason)
     if (missingReason) {
       setExpandedDocumentId(missingReason.id)
-      return setError(`Selecciona el motivo de diferencia para ${missingReason.label}.`)
+      setError(`Selecciona el motivo de diferencia para ${missingReason.label}.`)
+      return null
     }
     const missingOtherDetail = documentPayload.find(item => item.ui_reason === 'OTRO' && !item.exception_note)
     if (missingOtherDetail) {
       setExpandedDocumentId(missingOtherDetail.id)
-      return setError(`Describe el motivo para ${missingOtherDetail.label}.`)
+      setError(`Describe el motivo para ${missingOtherDetail.label}.`)
+      return null
     }
+    return documentPayload
+  }
+
+  const continueToSignature = () => {
+    if (!deliveryStopId || !payload) return
+    if (payload.trip?.status === 'COMPLETED') return setError('El viaje ya fue finalizado y no acepta nuevas entregas.')
+    setError('')
+    const documentPayload = validateDeliveryDetails()
+    if (!documentPayload) return
+    setSignature(null)
+    setDeliveryStage('SIGNATURE')
+  }
+
+  const submitDelivery = async () => {
+    if (!deliveryStopId || !payload) return
+    if (payload.trip?.status === 'COMPLETED') return setError('El viaje ya fue finalizado y no acepta nuevas entregas.')
+    if (deliveryStage !== 'SIGNATURE') return setError('Completa primero los datos de entrega y continúa a firma.')
+    const documentPayload = validateDeliveryDetails()
+    if (!documentPayload) { setDeliveryStage('DETAILS'); return }
+    if (!signature) return setError('Solicita la firma de quien recibe antes de confirmar la entrega.')
     setBusy(true); setError(''); setMessage('')
     const geo = await getGeo()
     try {
@@ -214,7 +241,7 @@ export function ExternalDelivery() {
         receiver_phone: receiver.phone, notes: receiver.notes, signature_data_url: signature, photo_data_url: photo,
         documents: documentPayload.map(({ label: _label, loaded: _loaded, ui_reason: _uiReason, ...item }) => item),
       })
-      applyPayload(data, false); setDeliveryStopId(null); setMessage('Entrega registrada con conciliación por documento.')
+      applyPayload(data, false); setDeliveryStage('DETAILS'); setDeliveryStopId(null); setMessage('Entrega registrada con conciliación por documento y firma.')
     } catch (err) { setError(err instanceof Error ? err.message : 'No fue posible confirmar la entrega.') }
     finally { setBusy(false) }
   }
@@ -310,36 +337,45 @@ export function ExternalDelivery() {
 
     {resolvingIncident && canOperate && <div className="driver-modal-wrap"><button className="driver-modal-backdrop" onClick={() => setResolvingIncidentId(null)}/><div className="driver-modal"><div className="driver-modal-head"><div><b>Resolver incidencia</b><span>{incidentLabel(resolvingIncident.incident_type)} · confirma qué ocurrió antes de continuar.</span></div><button onClick={() => setResolvingIncidentId(null)}><X/></button></div><div className={resolvingIncident.severity === 'CRITICAL' || resolvingIncident.stopped_trip ? 'driver-alert error' : 'driver-route-update'}><CircleAlert/><div><b>{resolvingIncident.description || 'Incidencia reportada'}</b><span>{resolvingIncident.stopped_trip ? 'Esta incidencia marcó el viaje como detenido.' : 'La ruta puede continuar mientras se mantiene el seguimiento.'}</span></div></div><label>¿Cómo se resolvió?<textarea value={resolutionNotes} onChange={event => setResolutionNotes(event.target.value)} placeholder="Ej. Se reemplazó el neumático y el vehículo quedó operativo."/></label><button className="primary full" disabled={busy || !resolutionNotes.trim()} onClick={() => void submitIncidentResolution()}>{busy ? <LoaderCircle className="spin"/> : <CheckCircle2/>}Confirmar incidencia resuelta</button></div></div>}
 
-    {deliveryStopId && payload && canOperate && <div className="driver-modal-wrap"><button className="driver-modal-backdrop" onClick={() => setDeliveryStopId(null)}/><div className="driver-modal delivery-proof-modal">
-      <div className="driver-modal-head"><div><b>Confirmar entrega por documento</b><span>{stops.find(stop => stop.id === deliveryStopId)?.destination_name_snapshot} · {deliveryDocuments.length} documento(s)</span></div><button onClick={() => setDeliveryStopId(null)}><X/></button></div>
-      <div className="driver-proof-summary"><div><span>Cargados</span><b>{deliveryLoaded}</b></div><div><span>Entregados</span><b>{deliveryDelivered}</b></div><div className={deliveryReturned > 0 ? 'has-return' : ''}><span>Retorno</span><b>{deliveryReturned}</b></div></div>
-      <div className="driver-proof-docs">{deliveryDocuments.map(doc => {
-        const loaded = Math.max(0, Math.trunc(Number(doc.packages_loaded) || 0))
-        const delivered = clampPackages(packageValues[doc.id] ?? loaded, loaded)
-        const returned = Math.max(0, loaded - delivered)
-        const status = returned === 0 ? 'Completa' : delivered > 0 ? 'Parcial' : 'No entregada'
-        const expanded = expandedDocumentId === doc.id
-        return <div key={doc.id} className={`driver-proof-doc ${returned > 0 ? 'has-exception' : ''}`}>
-          <button type="button" className="driver-proof-doc-head" onClick={() => setExpandedDocumentId(expanded ? null : doc.id)}>
-            <ChevronRight className={expanded ? 'expanded' : ''}/><div><b>{doc.invoice_number ? `Factura ${doc.invoice_number}` : `Pedido ${doc.order_number}`}</b><span>{loaded} bultos cargados · {delivered} entregados</span></div><em className={returned === 0 ? 'complete' : delivered > 0 ? 'partial' : 'none'}>{status}</em>
-          </button>
-          {expanded && <div className="driver-proof-doc-body">
-            <div className="driver-package-reconcile">
-              <div><span>Cargados</span><b>{loaded}</b></div>
-              <div className="driver-package-stepper"><span>Entregados</span><div><button type="button" onClick={() => setDeliveredPackages(doc, delivered - 1)} disabled={delivered <= 0}><Minus/></button><input inputMode="numeric" type="number" min="0" max={loaded} step="1" value={delivered} onChange={event => setDeliveredPackages(doc, event.target.value)}/><button type="button" onClick={() => setDeliveredPackages(doc, delivered + 1)} disabled={delivered >= loaded}><Plus/></button></div></div>
-              <div className={returned > 0 ? 'has-return' : ''}><span>Retorno</span><b>{returned}</b></div>
-            </div>
-            {returned > 0 && <div className="driver-document-exception"><label>Motivo de la diferencia<select value={documentReasons[doc.id] || ''} onChange={event => setDocumentReasons(current => ({...current,[doc.id]:event.target.value}))}><option value="">Seleccionar motivo...</option>{DELIVERY_EXCEPTION_REASONS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>{documentReasons[doc.id] === 'OTRO' && <label>Detalle obligatorio<input value={documentNotes[doc.id] || ''} onChange={event => setDocumentNotes(current => ({...current,[doc.id]:event.target.value}))} placeholder="Describe qué ocurrió con el bulto restante..."/></label>}</div>}
-          </div>}
-        </div>
-      })}</div>
-      {deliveryReturned > 0 && <div className="driver-reconcile-warning"><AlertTriangle/><span>La parada quedará como entrega parcial. Cada diferencia debe tener un motivo antes de guardar.</span></div>}
-      <label>Nombre de quien recibe<input value={receiver.name} onChange={event => setReceiver(current => ({...current,name:event.target.value}))}/></label>
-      <div className="driver-form-two"><label>Documento opcional<input value={receiver.document} onChange={event => setReceiver(current => ({...current,document:event.target.value}))}/></label><label>Teléfono opcional<input value={receiver.phone} onChange={event => setReceiver(current => ({...current,phone:event.target.value}))}/></label></div>
-      <SignaturePad onChange={setSignature} disabled={busy}/>
-      <label className={`driver-photo-field ${photo ? 'ready' : ''}`}><Camera/><span>{photo ? 'Fotografía lista · tocar para cambiar' : 'Tomar foto de la entrega'}</span><input hidden type="file" accept="image/*" capture="environment" onChange={async event => { const file=event.target.files?.[0]; if(file)setPhoto(await imageToDataUrl(file)); event.target.value='' }}/></label>{photo && <img className="driver-photo-preview" src={photo} alt="Evidencia de entrega"/>}
-      <label>Observación general de la entrega<textarea value={receiver.notes} onChange={event => setReceiver(current => ({...current,notes:event.target.value}))}/></label>
-      <button className="primary full" disabled={busy || !receiver.name.trim()} onClick={() => void submitDelivery()}>{busy ? <LoaderCircle className="spin"/> : <CheckCircle2/>}Guardar entrega y POD</button>
+    {deliveryStopId && payload && canOperate && <div className="driver-modal-wrap"><button className="driver-modal-backdrop" onClick={() => { if (!busy) { setDeliveryStage('DETAILS'); setDeliveryStopId(null) } }}/><div className={`driver-modal delivery-proof-modal ${deliveryStage === 'SIGNATURE' ? 'delivery-signature-stage' : ''}`}>
+      {deliveryStage === 'DETAILS' ? <>
+        <div className="driver-modal-head"><div><b>Confirmar entrega por documento</b><span>{stops.find(stop => stop.id === deliveryStopId)?.destination_name_snapshot} · {deliveryDocuments.length} documento(s)</span></div><button disabled={busy} onClick={() => setDeliveryStopId(null)}><X/></button></div>
+        {error && <div className="driver-alert error"><AlertTriangle/>{error}</div>}
+        <div className="driver-proof-summary"><div><span>Cargados</span><b>{deliveryLoaded}</b></div><div><span>Entregados</span><b>{deliveryDelivered}</b></div><div className={deliveryReturned > 0 ? 'has-return' : ''}><span>Retorno</span><b>{deliveryReturned}</b></div></div>
+        <div className="driver-proof-docs">{deliveryDocuments.map(doc => {
+          const loaded = Math.max(0, Math.trunc(Number(doc.packages_loaded) || 0))
+          const delivered = clampPackages(packageValues[doc.id] ?? loaded, loaded)
+          const returned = Math.max(0, loaded - delivered)
+          const status = returned === 0 ? 'Completa' : delivered > 0 ? 'Parcial' : 'No entregada'
+          const expanded = expandedDocumentId === doc.id
+          return <div key={doc.id} className={`driver-proof-doc ${returned > 0 ? 'has-exception' : ''}`}>
+            <button type="button" className="driver-proof-doc-head" onClick={() => setExpandedDocumentId(expanded ? null : doc.id)}>
+              <ChevronRight className={expanded ? 'expanded' : ''}/><div><b>{doc.invoice_number ? `Factura ${doc.invoice_number}` : `Pedido ${doc.order_number}`}</b><span>{loaded} bultos cargados · {delivered} entregados</span></div><em className={returned === 0 ? 'complete' : delivered > 0 ? 'partial' : 'none'}>{status}</em>
+            </button>
+            {expanded && <div className="driver-proof-doc-body">
+              <div className="driver-package-reconcile">
+                <div><span>Cargados</span><b>{loaded}</b></div>
+                <div className="driver-package-stepper"><span>Entregados</span><div><button type="button" onClick={() => setDeliveredPackages(doc, delivered - 1)} disabled={delivered <= 0}><Minus/></button><input inputMode="numeric" type="number" min="0" max={loaded} step="1" value={delivered} onChange={event => setDeliveredPackages(doc, event.target.value)}/><button type="button" onClick={() => setDeliveredPackages(doc, delivered + 1)} disabled={delivered >= loaded}><Plus/></button></div></div>
+                <div className={returned > 0 ? 'has-return' : ''}><span>Retorno</span><b>{returned}</b></div>
+              </div>
+              {returned > 0 && <div className="driver-document-exception"><label>Motivo de la diferencia<select value={documentReasons[doc.id] || ''} onChange={event => setDocumentReasons(current => ({...current,[doc.id]:event.target.value}))}><option value="">Seleccionar motivo...</option>{DELIVERY_EXCEPTION_REASONS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>{documentReasons[doc.id] === 'OTRO' && <label>Detalle obligatorio<input value={documentNotes[doc.id] || ''} onChange={event => setDocumentNotes(current => ({...current,[doc.id]:event.target.value}))} placeholder="Describe qué ocurrió con el bulto restante..."/></label>}</div>}
+            </div>}
+          </div>
+        })}</div>
+        {deliveryReturned > 0 && <div className="driver-reconcile-warning"><AlertTriangle/><span>La parada quedará como entrega parcial. Cada diferencia debe tener un motivo antes de continuar.</span></div>}
+        <label>Nombre de quien recibe<input value={receiver.name} onChange={event => setReceiver(current => ({...current,name:event.target.value}))}/></label>
+        <div className="driver-form-two"><label>Documento opcional<input value={receiver.document} onChange={event => setReceiver(current => ({...current,document:event.target.value}))}/></label><label>Teléfono opcional<input value={receiver.phone} onChange={event => setReceiver(current => ({...current,phone:event.target.value}))}/></label></div>
+        <label className={`driver-photo-field ${photo ? 'ready' : ''}`}><Camera/><span>{photo ? 'Fotografía lista · tocar para cambiar' : 'Tomar foto de la entrega'}</span><input hidden type="file" accept="image/*" capture="environment" onChange={async event => { const file=event.target.files?.[0]; if(file)setPhoto(await imageToDataUrl(file)); event.target.value='' }}/></label>{photo && <img className="driver-photo-preview" src={photo} alt="Evidencia de entrega"/>}
+        <label>Observación general de la entrega<textarea value={receiver.notes} onChange={event => setReceiver(current => ({...current,notes:event.target.value}))}/></label>
+        <button className="primary full" disabled={busy || !receiver.name.trim()} onClick={continueToSignature}><ChevronRight/>Continuar a firma</button>
+      </> : <>
+        <div className="driver-modal-head"><div><b>Firma de recepción</b><span>{receiver.name} · {stops.find(stop => stop.id === deliveryStopId)?.destination_name_snapshot}</span></div><button disabled={busy} onClick={() => { setSignature(null); setDeliveryStage('DETAILS') }}><X/></button></div>
+        {error && <div className="driver-alert error"><AlertTriangle/>{error}</div>}
+        <div className="driver-signature-context"><div><span>Documentos</span><b>{deliveryDocuments.length}</b></div><div><span>Entregados</span><b>{deliveryDelivered}</b></div><div className={deliveryReturned > 0 ? 'has-return' : ''}><span>Retorno</span><b>{deliveryReturned}</b></div></div>
+        <div className="driver-signature-instruction"><ShieldCheck/><div><b>Firma final del receptor</b><span>La entrega todavía no se ha guardado. Solicita la firma dentro del recuadro y confirma únicamente cuando termine.</span></div></div>
+        <SignaturePad onChange={setSignature} disabled={busy}/>
+        <div className="driver-signature-actions"><button className="secondary" disabled={busy} onClick={() => { setSignature(null); setError(''); setDeliveryStage('DETAILS') }}>Volver</button><button className="primary" disabled={busy || !signature} onClick={() => void submitDelivery()}>{busy ? <LoaderCircle className="spin"/> : <CheckCircle2/>}Confirmar firma y entrega</button></div>
+      </>}
     </div></div>}
   </main>
 }
