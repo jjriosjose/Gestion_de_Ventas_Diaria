@@ -1,272 +1,158 @@
 # Continuación actual — Gestión de Ventas Diaria
 
-Fecha del checkpoint: **06/09/2026 (RD)**
+Fecha del checkpoint: **07/09/2026 (RD)**
 
-> **LEER PRIMERO EN UN CHAT NUEVO.** GitHub `main`, Supabase y Cloudflare son la fuente de verdad. No asumir estado por conversaciones anteriores si contradice los servicios reales.
+> **LEER PRIMERO EN UN CHAT NUEVO.** GitHub `main`, Supabase y Cloudflare son la fuente de verdad. Si este documento contradice el estado real de los servicios, verificar y usar el estado real.
 
-## Estado productivo
+## Documento detallado prioritario
+
+El checkpoint operativo completo actual está en:
+
+**`docs/CHAT_CONTINUATION_2026-09-07.md`**
+
+Debe leerse completo antes de continuar trabajo de Logística.
+
+## Producción estable
 
 - Repo: `jjriosjose/Gestion_de_Ventas_Diaria`.
 - Rama estable: `main`.
-- Versión desplegada y validada: **0.6.5-beta.12.2.8**.
-- Merge funcional PR #55: `247c7a6d9c749f33f5045b2388d0947f3c8efabd`.
-- Cloudflare URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
-- Cloudflare Version ID: `b9ee7e19-4428-4e75-81a4-39318ebc7f02`.
-- Producción fue validada en incógnito después de transferir Supabase; Login e Inicio cargaron correctamente y mostraron 1,997 clientes.
+- Producción validada: **0.6.5-beta.12.2.8**.
+- Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
+- Cloudflare Version ID conocido: `b9ee7e19-4428-4e75-81a4-39318ebc7f02`.
+- Datos actuales: **TEST** hasta declaración explícita de Go-Live.
 
 ## Supabase
 
-El 06/09/2026 el **mismo proyecto** `Gestion de Ventas Diaria` fue transferido administrativamente a una organización Supabase separada para aislarlo del Egress de otro proyecto.
-
-No fue clonado ni recreado.
-
-Datos que permanecen iguales:
-
 - Project Ref: `ccvzosnhxitfeochnflr`.
-- API URL: `https://ccvzosnhxitfeochnflr.supabase.co`.
-- Región: AWS `ca-central-1`.
-- Base de datos, Auth, RLS, Storage y Edge Functions permanecen en el mismo proyecto.
-- Cloudflare no fue movido ni requiere cambio por esta transferencia.
+- Mismo proyecto transferido administrativamente el 06/09/2026 a una organización separada.
+- No fue clonado/recreado.
+- API, DB, Auth, RLS, Storage y project ref permanecieron iguales.
+- Cloudflare permanece independiente y no fue movido.
 
-Integridad PRE/POST validada con conteos idénticos:
+## Logística / Despacho y Entregas — estado actual
 
-- clients 1,997;
-- employees 12;
-- auth users 8;
-- route_plans 16;
-- route_stops 160;
-- route_sessions 4;
-- visits 11;
-- calls 28;
-- appointments 7;
-- follow_ups 11;
-- showroom_sessions 1;
-- reception_entries 1;
-- prospects 1;
-- audit_log 4,733;
-- storage objects 2;
-- database size `167865491` bytes.
+La frase anterior **“diseñado pero no implementado” ya NO es válida**.
 
-Edge Functions confirmadas ACTIVE:
+Estado real al 07/09/2026:
 
-- `login-by-username` v2;
-- `master-import` v3;
-- `admin-users` v3;
-- `request-password-reset` v1;
-- `verify-password-reset` v2.
+- rama: **`feature/logistics-delivery-v1`**;
+- PR: **#58**;
+- PR continúa **OPEN + DRAFT + NO MERGE**;
+- dominio `delivery_*` implementado en Supabase;
+- bucket privado de evidencia implementado;
+- Edge Function `delivery-access` implementada y desplegada para QA;
+- frontend Logística implementado en la feature branch;
+- QA E2E avanzado realizado con datos TEST.
 
-Ver detalle completo en `docs/SUPABASE_TRANSFER_2026-09-06.md`.
+Ya se han probado, entre otros:
 
-## Usage / Egress
+- Transportistas / Choferes / Vehículos;
+- Excel + plantilla oficial `entregas.xlsx` + carga manual;
+- cliente maestro y cliente externo;
+- GPS desde Excel / maestro / Torre de Control / chofer;
+- ubicación pendiente sin bloquear;
+- viaje, paradas y documentos;
+- varias facturas en una misma parada;
+- acceso temporal por link + PIN;
+- ruta del chofer;
+- llegada, descarga y entrega;
+- conciliación por factura/documento;
+- entregas completas/parciales/no entregadas;
+- POD/foto/firma base;
+- incidencias y resolución por chofer;
+- retorno a base separado del cierre;
+- GPS de retorno/cierre;
+- viaje `COMPLETED` en modo solo lectura;
+- bloqueo de nuevas incidencias/acciones después de cierre.
 
-Antes de la transferencia la organización antigua mostraba aproximadamente `10.494 GB / 5 GB` de Egress.
+## NO promover Logística todavía
 
-Desglose confirmado:
+Antes de merge/deploy quedan como mínimo:
 
-- Gestión de Ventas Diaria: ~`0.166 GB`.
-- Otro proyecto: ~`10.328 GB`.
+1. **P0 Reintentos/saldos pendientes**:
+   - activos bloquean;
+   - entregados bloquean;
+   - no entregados/reprogramados/cancelados pueden reintentarse;
+   - parciales solo por bultos retornados;
+   - trazabilidad de intento.
+2. **P0 Firma/POD mejorada**:
+   - conciliación primero;
+   - pantalla grande dedicada a firma antes del guardado final.
+3. **P0/P1 Performance portal del chofer**:
+   - hoy `getGeo()` puede esperar hasta 9 s antes de cada acción;
+   - la Edge Function realiza varias operaciones/lecturas antes de devolver payload completo;
+   - optimizar sin polling ni Realtime.
+4. **P1 Historial por viaje**:
+   - `Documentos | Viajes`;
+   - mapa grande + timeline de eventos GPS;
+   - trayectoria estimada entre eventos, NO GPS continuo.
+5. QA E2E final + auditoría PR #58 + CI + smoke móvil.
 
-Por tanto Gestión de Ventas no era el origen del exceso. En la nueva organización el panel mostró inicialmente Egress `0 / 5 GB` y Database Size ~`183 / 500 MB`. Monitorear Usage durante operación real.
+## Hallazgo de rendimiento prioritario
 
-## Datos siguen siendo TEST
+En `ExternalDelivery.tsx`, casi cada transición operativa llama a geolocalización con:
 
-**No se ha declarado todavía Go-Live de negocio.**
+- `enableHighAccuracy: true`;
+- `timeout: 9000`;
+- `maximumAge: 30000`.
 
-Hasta declaración explícita del usuario:
+Esto puede introducir varios segundos de espera **antes** de llamar Supabase.
 
-- no limpiar datos operativos;
-- no borrar histórico;
-- no asumir que nuevos registros son reales;
-- no modificar RLS/Auth por inferencia.
+Luego `delivery-access` valida acceso, consulta/actualiza datos, registra el evento y devuelve viaje + paradas + documentos + incidencias.
 
-Último snapshot operativo conocido:
+Optimización recomendada:
 
-- 12 empleados activos;
-- 8 con Auth;
-- 4 Gestores todavía sin `auth_user_id`, con bootstrap válido no usado;
-- 0 route sessions abiertas;
-- 0 visitas abiertas;
-- 12 planificaciones pasadas todavía `PLANIFICADA`;
-- 0 planificaciones para 07/09/2026 en la última auditoría;
-- 0 citas para 07/09/2026;
-- 0 follow-ups para 07/09/2026.
+- cache del último GPS exitoso con timestamp;
+- GPS fresco solo en eventos geográficamente críticos;
+- reutilizar GPS reciente en inicio/fin de descarga;
+- timeout de GPS menor con fallback seguro;
+- no segundo refresh después de una acción;
+- paralelizar operaciones seguras del backend;
+- reducir updates innecesarios de `last_used_at`;
+- medir tiempo GPS vs Edge Function vs total.
 
-## Cartera
+**No introducir polling automático ni Realtime para resolver esta latencia.**
 
-- 1,997 clientes.
-- 135 CADENA.
-- 1,862 REGULAR.
-- 929 con GPS.
-- 1,068 sin GPS.
-- 640 con Vendedor asignado.
-- 1,357 sin Vendedor asignado.
-- 956 con Gestor asignado.
-- 1,041 sin Gestor asignado.
-- 555 con Vendedor asignado + GPS; es la base de mayor calidad para rutas iniciales de Vendedor.
+## Política de consumo
 
-No presentar toda la cartera como completamente distribuida si las asignaciones reales no están completas.
+Preservar durante validación Supabase Free:
 
-## Seguridad / RLS
+- sin polling periódico;
+- sin Realtime por defecto;
+- actualización manual o respuesta de acción;
+- fotos comprimidas;
+- históricos bajo demanda;
+- mapa histórico consulta solo el viaje seleccionado.
 
-Hallazgo pendiente de decisión:
+## Orden de trabajo recomendado
 
-- frontend controla módulos mediante `access_profile` y permisos;
-- escrituras críticas principales están protegidas en backend;
-- varias tablas base permiten SELECT amplio a `authenticated` mediante `qual = true`.
+1. leer `docs/CHAT_CONTINUATION_2026-09-07.md`;
+2. optimizar rendimiento del portal del chofer;
+3. implementar reintentos/saldo pendiente con trazabilidad;
+4. mejorar firma/POD;
+5. implementar Historial por Viajes/mapa;
+6. QA E2E final;
+7. auditoría final PR #58;
+8. decidir GO/NO-GO de Logística.
 
-Decidir después de la salida inicial o antes si el negocio lo exige:
+## Documentos obligatorios para continuar Logística
 
-A. lectura global autenticada es aceptable y frontend organiza UX; o
-B. aislamiento backend por cartera/actividad es obligatorio, requiriendo migración incremental y QA completo.
-
-No hacer refactor masivo de RLS a última hora sin ventana y pruebas.
-
-Otros pendientes:
-
-- protección formal de `main`;
-- CORS Edge Functions;
-- hardening SECURITY DEFINER/grants;
-- Leaked Password Protection;
-- proceso administrativo de reset mientras recuperación automática esté deshabilitada.
-
-## Comportamiento de producto a preservar
-
-### Route ordering
-
-- `Cercanos primero` / `Lejanos primero`;
-- origen reproducible;
-- `route_stops.stop_order` conserva secuencia.
-
-### Tour interactivo
-
-- recorrido funcional no destructivo;
-- versión beta.12.2.7 quedó integrada antes de beta.12.2.8.
-
-### Tracking beta.12.2.8
-
-- Auto 30s OFF por defecto;
-- refresh manual;
-- auto opcional y controlado;
-- conserva datos ante error de refresh;
-- no describir como GPS continuo de fondo;
-- trayectoria = estimación entre eventos GPS registrados.
-
-## Nuevo dominio en diseño: Logistics & Delivery V1
-
-El 06/09/2026 se definió conceptualmente un nuevo módulo de **Logística / Despacho y Entregas**.
-
-Estado actual:
-
-> **DISEÑADO Y DOCUMENTADO, PERO NO IMPLEMENTADO.**
-
-No asumir que existen tablas, RLS, Edge Functions, Storage, menús o pantallas de Logística hasta verificarlos en servicios reales.
-
-Documentos obligatorios antes de trabajar este módulo:
-
-1. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md` — reglas completas.
-2. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` — orden de ejecución por fases.
-
-Decisiones centrales ya acordadas:
-
-- dominio logístico separado de rutas/visitas comerciales;
-- Excel como vía principal de carga y carga manual como complemento;
-- factura o pedido válidos aunque el cliente no exista en `clients`;
-- clientes externos no crean automáticamente clientes maestros;
-- Latitud/Longitud del Excel son opcionales;
-- si Excel no trae GPS y el cliente maestro sí, usar snapshot del GPS maestro;
-- si no existe GPS en ninguna fuente, importar igualmente como `UBICACION_PENDIENTE`;
-- una ruta puede iniciar con paradas sin GPS;
-- Torre de Control puede completar/corregir GPS durante un viaje ya iniciado;
-- el chofer debe recibir la actualización sin reiniciar la ruta;
-- cambios de secuencia durante ruta activa deben ser explícitos, auditables y afectar solo pendientes;
-- si Torre de Control no resuelve el GPS, capturarlo en llegada/entrega del chofer;
-- GPS capturado en entrega NO sobrescribe automáticamente el maestro comercial;
-- distinguir ubicación planificada vs ubicación real;
-- múltiples facturas del mismo destino pueden compartir una parada y un POD;
-- vehículos: propios, alquilados o terceros; también ocasionales;
-- choferes: internos, contratados o terceros;
-- chofer externo puede operar mediante link temporal seguro sin usuario permanente;
-- acceso externo recomendado mediante token hash + expiración/revocación + Edge Function, PIN opcional;
-- incidencias de viaje/parada son funcionalidad central (neumático, avería, tráfico, cliente cerrado, ubicación incorrecta, rechazo, daño, etc.);
-- firma digital, receptor, fotos, GPS y bultos forman Proof of Delivery;
-- bultos cargados, entregados y retornados deben conciliarse;
-- Tracking logístico será basado en eventos GPS, no telemetría continua de fondo;
-- KPI y reportes logísticos no deben contaminar KPI comerciales.
-
-Para implementar este dominio se recomienda crear una rama específica desde el `main` actualizado, por ejemplo `feature/logistics-delivery-v1`, NO programarlo directamente desde documentación ni mezclarlo con ramas antiguas/genéricas.
-
-## Orden de ejecución desde este checkpoint
-
-1. Mantener control de cambios; no mezclar Logística con fixes críticos sin necesidad.
-2. Generar backup/exportación antes de cualquier limpieza TEST.
-3. Definir limpieza exacta y dependency-safe.
-4. Obtener aprobación explícita del usuario antes de borrar TEST.
-5. Resolver planificaciones TEST antiguas.
-6. Probar/activar 4 Gestores pendientes de Auth.
-7. Crear rutas reales cuando corresponda.
-8. E2E Admin + Vendedor + Gestor.
-9. Revisar Supabase Usage nueva organización y Cloudflare.
-10. Decisión formal GO/NO-GO de la operación comercial actual.
-11. Para Logística, ejecutar primero Fase 0 del plan técnico y después implementar por releases separados.
-12. Registrar cada fase logística realmente mergeada/desplegada antes de avanzar.
-
-Ver checklist Go-Live actual en `docs/GO_LIVE_2026-09-07_CHECKLIST.md` y plan logístico en `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`.
-
-## Limpieza TEST — preservar vs candidatos
-
-Preservar por defecto:
-
-- clients;
-- employees;
-- companies;
-- geografía/catálogos;
-- settings;
-- portfolio mappings aprobados;
-- políticas de gestión aprobadas.
-
-Candidatos operativos a limpiar solo con backup + aprobación:
-
-- route_plans/stops/sessions;
-- visits;
-- calls;
-- appointments;
-- showroom/reception;
-- prospects TEST;
-- follow_ups TEST;
-- notifications;
-- operational_incidents TEST;
-- fotos/evidencias TEST.
-
-No purgar a ciegas `audit_log` ni `import_batches`.
+1. `docs/CHAT_CONTINUATION_CURRENT.md`.
+2. `docs/CHAT_CONTINUATION_2026-09-07.md`.
+3. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`.
+4. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`.
+5. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`.
+6. `docs/SUPABASE_TRANSFER_2026-09-06.md`.
+7. GitHub `main` real, PR #58, Supabase y Cloudflare reales.
 
 ## Workflow obligatorio
 
-- verificar `main` antes de cualquier escritura;
-- feature/docs branch;
-- PR;
-- revisar diff;
-- CI verde;
-- merge aprobado;
-- usuario usa GitHub Desktop para Fetch/Pull;
-- confirmar `main` y `0 changed files` antes de build/deploy.
+- verificar rama antes de escribir;
+- mantener Logística en `feature/logistics-delivery-v1` mientras PR #58 siga Draft;
+- no tocar `main` sin decisión explícita;
+- PR + diff + CI + QA;
+- usuario sincroniza con GitHub Desktop;
+- en Windows del usuario no depender de `git` CLI;
+- no limpiar datos TEST ni repetir migraciones por memoria.
 
-En Windows del usuario `git` CLI no está en PATH; no dar instrucciones basadas en `git` CLI.
-
-## Documentos que debe leer un chat nuevo
-
-1. **`docs/CHAT_CONTINUATION_CURRENT.md`** — este documento.
-2. Si el trabajo es Logística: **`docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md` completo**.
-3. Si el trabajo es Logística: **`docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` completo**.
-4. `docs/GO_LIVE_2026-09-07_CHECKLIST.md`.
-5. `docs/SUPABASE_TRANSFER_2026-09-06.md`.
-6. `docs/DOCUMENTATION_STATUS_2026-09-06.md`.
-7. GitHub `main` real.
-8. Supabase real.
-9. Cloudflare real.
-10. `PROJECT_HANDOFF.md` solo como contexto histórico.
-
-Los documentos antiguos `CHAT_CONTINUATION_2026-08-30.md`, `REQUIREMENTS_STATUS.md`, `IMPLEMENTATION_STATUS.md` y parte de `DEPLOYMENT_CHECKLIST.md` contienen información útil, pero sus cabeceras/baselines están desactualizados. No deben prevalecer sobre este checkpoint y los servicios reales.
-
-## Regla final
-
-> Si existe discrepancia, verificar primero. GitHub `main` + Supabase + Cloudflare prevalecen. No repetir migraciones, no limpiar datos y no modificar seguridad solo por memoria del chat. Para Logistics & Delivery V1, documentación de diseño NO equivale a implementación real.
+> Diseño/documentación no equivale a producción. Verificar servicios reales antes de cualquier cambio.
