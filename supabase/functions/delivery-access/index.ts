@@ -335,8 +335,10 @@ Deno.serve(async (req: Request) => {
       }
 
       let totalDelivered = 0
+      let confirmedDeliveredAmount = 0
       for (const item of reconciled) {
         totalDelivered += item.delivered
+        if (item.status === 'DELIVERED') confirmedDeliveredAmount += Math.max(0, Number(item.doc.amount || 0))
         await admin.from('delivery_documents').update({
           packages_delivered: item.delivered,
           packages_returned: item.returned,
@@ -362,7 +364,7 @@ Deno.serve(async (req: Request) => {
       if (photo) await admin.from('delivery_evidence').insert({ trip_id: link.trip_id, stop_id: stopId, proof_id: proof.id, evidence_type: 'DELIVERY_PHOTO', object_path: photo.path, mime_type: photo.mime, latitude: coords ? Number(body.latitude) : null, longitude: coords ? Number(body.longitude) : null })
       await admin.from('delivery_stops').update({
         status: stopStatus, packages_delivered: totalDelivered, packages_returned: Math.max(0, loaded - totalDelivered),
-        amount_delivered: stopStatus === 'DELIVERED' ? Number(stop.amount_loaded || 0) : 0,
+        amount_delivered: confirmedDeliveredAmount,
         delivered_at: now, ...(coords ? { actual_delivery_latitude: Number(body.latitude), actual_delivery_longitude: Number(body.longitude), geo_status: stop.geo_status === 'PENDING' ? 'CAPTURED_AT_DELIVERY' : stop.geo_status, geo_source: stop.geo_status === 'PENDING' ? 'DRIVER_DELIVERY_GPS' : stop.geo_source } : {}),
       }).eq('id', stopId)
       await insertEvent(admin, link, stopStatus === 'DELIVERED' ? 'DELIVERY_CONFIRMED' : 'DELIVERY_PARTIAL', stopId, {
@@ -373,7 +375,15 @@ Deno.serve(async (req: Request) => {
           proof_id: proof.id,
           proof_quality: quality,
           packages_delivered: totalDelivered,
-          document_reconciliation: reconciled.map(item => ({ document_id: item.doc.id, packages_delivered: item.delivered, packages_returned: item.returned, status: item.status, exception_reason: item.reason || null })),
+          confirmed_delivered_amount: confirmedDeliveredAmount,
+          document_reconciliation: reconciled.map(item => ({
+            document_id: item.doc.id,
+            packages_delivered: item.delivered,
+            packages_returned: item.returned,
+            status: item.status,
+            exception_reason: item.reason || null,
+            confirmed_delivered_amount: item.status === 'DELIVERED' ? Math.max(0, Number(item.doc.amount || 0)) : 0,
+          })),
         },
       })
       return json(req, await tripPayload(admin, link.trip_id))
