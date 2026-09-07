@@ -1,0 +1,114 @@
+name: Apply logistics retry patch
+
+on:
+  push:
+    branches:
+      - feature/logistics-delivery-v1
+    paths:
+      - .github/workflows/apply-logistics-retry-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/logistics-delivery-v1
+          fetch-depth: 0
+
+      - name: Apply retry UI integration
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/pages/Logistics.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+          """} from '../lib/logistics'\nimport type { Employee } from '../types'""",
+          """} from '../lib/logistics'\nimport { classifyDeliveryDraftRetries, type DeliveryRetryDecisionMap } from '../lib/logisticsRetry'\nimport type { Employee } from '../types'""",
+          'retry import')
+
+          replace_once(
+          """  const [documents, setDocuments] = useState<DeliveryDocument[]>([])\n  const [drafts, setDrafts] = useState<DeliveryDraftDocument[]>([])\n  const [fileName, setFileName] = useState('')""",
+          """  const [documents, setDocuments] = useState<DeliveryDocument[]>([])\n  const [drafts, setDrafts] = useState<DeliveryDraftDocument[]>([])\n  const [retryDecisions, setRetryDecisions] = useState<DeliveryRetryDecisionMap>({})\n  const [fileName, setFileName] = useState('')""",
+          'retry state')
+
+          replace_once(
+          """  const summary = useMemo(() => summarizeDrafts(drafts), [drafts])\n  const activeTrips = useMemo(() => trips.filter(trip => !['COMPLETED', 'CANCELLED'].includes(trip.status)), [trips])""",
+          """  const summary = useMemo(() => summarizeDrafts(drafts), [drafts])\n  const allowedRetries = useMemo(() => Object.values(retryDecisions).filter(item => item.kind === 'RETRY').length, [retryDecisions])\n  const blockedRetries = useMemo(() => Object.values(retryDecisions).filter(item => item.kind === 'BLOCKED').length, [retryDecisions])\n  const activeTrips = useMemo(() => trips.filter(trip => !['COMPLETED', 'CANCELLED'].includes(trip.status)), [trips])""",
+          'retry counters')
+
+          replace_once(
+          """  const handleExcel = async (file?: File) => {\n    if (!file) return\n    setSaving(true); setNotice(null)\n    try {\n      const parsed = await parseDeliveryExcel(file, clients)\n      setDrafts(parsed); setFileName(file.name)\n      const data = summarizeDrafts(parsed)\n      setNotice({ kind: 'success', text: `${data.total} documentos cargados. ${data.gpsPending} requieren ubicación y no bloquean el despacho.` })\n    } catch (error) {\n      setDrafts([]); setFileName('')\n      setNotice({ kind: 'error', text: friendlyExcelError(error) })\n    } finally { setSaving(false); if (fileRef.current) fileRef.current.value = '' }\n  }""",
+          """  const handleExcel = async (file?: File) => {\n    if (!file) return\n    setSaving(true); setNotice(null)\n    try {\n      const parsed = await parseDeliveryExcel(file, clients)\n      const decisions = await classifyDeliveryDraftRetries(supabase, parsed)\n      setDrafts(parsed); setRetryDecisions(decisions); setFileName(file.name)\n      const data = summarizeDrafts(parsed)\n      const retryCount = Object.values(decisions).filter(item => item.kind === 'RETRY').length\n      const blockedCount = Object.values(decisions).filter(item => item.kind === 'BLOCKED').length\n      setNotice({\n        kind: blockedCount ? 'warning' : 'success',\n        text: `${data.total} documentos cargados. ${retryCount} reintento(s) permitido(s). ${blockedCount ? `${blockedCount} bloqueado(s): revisa la vista previa.` : `${data.gpsPending} requieren ubicación y no bloquean el despacho.`}`,\n      })\n    } catch (error) {\n      setDrafts([]); setRetryDecisions({}); setFileName('')\n      setNotice({ kind: 'error', text: friendlyExcelError(error) })\n    } finally { setSaving(false); if (fileRef.current) fileRef.current.value = '' }\n  }""",
+          'excel retry classification')
+
+          replace_once(
+          """  const addManualDraft = () => {\n    if (!manual.clientName.trim()) return setNotice({ kind: 'warning', text: 'Indica el nombre del cliente o destino.' })\n    if (!manual.invoiceNumber.trim() && !manual.orderNumber.trim()) return setNotice({ kind: 'warning', text: 'Indica Factura o Pedido.' })\n    const lat = parseCoordinate(manual.latitude); const lon = parseCoordinate(manual.longitude)\n    if ((manual.latitude.trim() || manual.longitude.trim()) && !validCoordinates(lat, lon)) {\n      setNotice({ kind: 'warning', text: 'Latitud/Longitud están incompletas o fuera de rango. Puedes dejarlas ambas vacías.' }); return\n    }\n    const base = {\n      tempId: `manual-${crypto.randomUUID()}`, sourceType: 'MANUAL' as const,\n      companyCode: manual.companyCode.trim(), invoiceNumber: manual.invoiceNumber.trim(), orderNumber: manual.orderNumber.trim(),\n      externalClientCode: manual.externalClientCode.trim(), clientName: manual.clientName.trim(), amount: Math.max(0, parseNumber(manual.amount)),\n      packages: Math.max(0, parseNumber(manual.packages)), excelLatitude: lat, excelLongitude: lon, phone: manual.phone.trim(), notes: manual.notes.trim(),\n    }\n    setDrafts(current => [...current, resolveDraftClient(base, clients)])\n    setManual(EMPTY_MANUAL); setManualOpen(false); setNotice({ kind: 'success', text: 'Documento agregado manualmente al despacho.' })\n  }""",
+          """  const addManualDraft = async () => {\n    if (!manual.clientName.trim()) return setNotice({ kind: 'warning', text: 'Indica el nombre del cliente o destino.' })\n    if (!manual.invoiceNumber.trim() && !manual.orderNumber.trim()) return setNotice({ kind: 'warning', text: 'Indica Factura o Pedido.' })\n    const lat = parseCoordinate(manual.latitude); const lon = parseCoordinate(manual.longitude)\n    if ((manual.latitude.trim() || manual.longitude.trim()) && !validCoordinates(lat, lon)) {\n      setNotice({ kind: 'warning', text: 'Latitud/Longitud están incompletas o fuera de rango. Puedes dejarlas ambas vacías.' }); return\n    }\n    const base = {\n      tempId: `manual-${crypto.randomUUID()}`, sourceType: 'MANUAL' as const,\n      companyCode: manual.companyCode.trim(), invoiceNumber: manual.invoiceNumber.trim(), orderNumber: manual.orderNumber.trim(),\n      externalClientCode: manual.externalClientCode.trim(), clientName: manual.clientName.trim(), amount: Math.max(0, parseNumber(manual.amount)),\n      packages: Math.max(0, parseNumber(manual.packages)), excelLatitude: lat, excelLongitude: lon, phone: manual.phone.trim(), notes: manual.notes.trim(),\n    }\n    setSaving(true); setNotice(null)\n    try {\n      const nextDraft = resolveDraftClient(base, clients)\n      const nextDrafts = [...drafts, nextDraft]\n      const decisions = await classifyDeliveryDraftRetries(supabase, nextDrafts)\n      setDrafts(nextDrafts); setRetryDecisions(decisions)\n      setManual(EMPTY_MANUAL); setManualOpen(false)\n      const decision = decisions[nextDraft.tempId]\n      setNotice({\n        kind: decision?.kind === 'BLOCKED' ? 'warning' : 'success',\n        text: decision?.kind === 'RETRY' ? decision.message : decision?.kind === 'BLOCKED' ? decision.message : 'Documento agregado manualmente al despacho.',\n      })\n    } catch (error) {\n      setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'No fue posible validar el documento.' })\n    } finally { setSaving(false) }\n  }""",
+          'manual retry classification')
+
+          replace_once(
+          """  const keepExternal = (row: DeliveryDraftDocument) => setDrafts(current => current.map(item => item.tempId === row.tempId ? assignDraftClient(item, null) : item))\n  const removeDraft = (tempId: string) => setDrafts(current => current.filter(item => item.tempId !== tempId))\n  const clearDraft = () => { setDrafts([]); setFileName(''); setNotice(null) }\n\n  const duplicateCheck = async () => {\n    const invoices = Array.from(new Set(drafts.map(row => row.invoiceNumber.trim()).filter(Boolean)))\n    const orders = Array.from(new Set(drafts.map(row => row.orderNumber.trim()).filter(Boolean)))\n    const duplicates: string[] = []\n    if (invoices.length) {\n      const { data, error } = await supabase.from('delivery_documents').select('invoice_number,trip_id').in('invoice_number', invoices).neq('status', 'CANCELLED')\n      if (error) throw error\n      ;(data || []).forEach(row => { if (row.invoice_number) duplicates.push(`Factura ${row.invoice_number}`) })\n    }\n    if (orders.length) {\n      const { data, error } = await supabase.from('delivery_documents').select('order_number,trip_id').in('order_number', orders).neq('status', 'CANCELLED')\n      if (error) throw error\n      ;(data || []).forEach(row => { if (row.order_number) duplicates.push(`Pedido ${row.order_number}`) })\n    }\n    return Array.from(new Set(duplicates))\n  }""",
+          """  const keepExternal = (row: DeliveryDraftDocument) => setDrafts(current => current.map(item => item.tempId === row.tempId ? assignDraftClient(item, null) : item))\n  const removeDraft = async (tempId: string) => {\n    const nextDrafts = drafts.filter(item => item.tempId !== tempId)\n    setDrafts(nextDrafts)\n    try { setRetryDecisions(await classifyDeliveryDraftRetries(supabase, nextDrafts)) }\n    catch (error) { setNotice({ kind: 'error', text: error instanceof Error ? error.message : 'No fue posible revalidar la carga.' }) }\n  }\n  const clearDraft = () => { setDrafts([]); setRetryDecisions({}); setFileName(''); setNotice(null) }""",
+          'replace duplicate check')
+
+          replace_once(
+          """    try {\n      const duplicates = await duplicateCheck()\n      if (duplicates.length) throw new Error(`Ya existen documentos activos en Logística: ${duplicates.slice(0, 6).join(', ')}${duplicates.length > 6 ? '…' : ''}`)\n      const selectedDriver = driverMap.get(tripDriver)!""",
+          """    try {\n      const retryCheck = await classifyDeliveryDraftRetries(supabase, drafts)\n      setRetryDecisions(retryCheck)\n      const blocked = Object.values(retryCheck).filter(item => item.kind === 'BLOCKED')\n      if (blocked.length) throw new Error(`${blocked.length} documento(s) están bloqueados. Corrige la carga antes de crear el viaje.`)\n      const selectedDriver = driverMap.get(tripDriver)!""",
+          'create trip preflight')
+
+          replace_once(
+          """        client_id: row.clientId, client_name_snapshot: row.clientName, amount: row.amount, packages_loaded: row.packages, status: 'LOADED',\n        source_type: row.sourceType, source_row: row.sourceRow || null, notes: row.notes || null,""",
+          """        client_id: row.clientId, client_name_snapshot: row.clientName, amount: row.amount, packages_loaded: row.packages, status: 'LOADED',\n        retry_of_document_id: retryCheck[row.tempId]?.kind === 'RETRY' ? retryCheck[row.tempId].retryOfDocumentId : null,\n        attempt_number: retryCheck[row.tempId]?.kind === 'RETRY' ? retryCheck[row.tempId].attemptNumber : 1,\n        source_type: row.sourceType, source_row: row.sourceRow || null, notes: row.notes || null,""",
+          'retry metadata insert')
+
+          replace_once(
+          """          <button className=\"primary full\" disabled={!canManage || saving || !drafts.length} onClick={() => void createTrip()}>{saving ? <LoaderCircle className=\"spin\"/> : <ClipboardCheck/>}Crear viaje con {drafts.length || 0} documento(s)</button>""",
+          """          <button className=\"primary full\" disabled={!canManage || saving || !drafts.length || blockedRetries > 0} onClick={() => void createTrip()}>{saving ? <LoaderCircle className=\"spin\"/> : <ClipboardCheck/>}{blockedRetries ? `Resolver ${blockedRetries} documento(s) bloqueado(s)` : `Crear viaje con ${drafts.length || 0} documento(s)`}</button>""",
+          'create button guard')
+
+          replace_once(
+          """          <div><b>{summary.total}</b><span>Documentos</span></div><div><b>{summary.matched}</b><span>Asociados</span></div><div><b>{summary.suggested}</b><span>Posibles</span></div><div><b>{summary.external}</b><span>Externos</span></div><div><b>{summary.gpsReady}</b><span>Con GPS</span></div><div className={summary.gpsPending ? 'warn' : ''}><b>{summary.gpsPending}</b><span>GPS pendiente</span></div><div><b>{summary.totalPackages}</b><span>Bultos</span></div><div><b>{currency(summary.totalAmount)}</b><span>Monto</span></div>""",
+          """          <div><b>{summary.total}</b><span>Documentos</span></div><div><b>{summary.matched}</b><span>Asociados</span></div><div><b>{summary.suggested}</b><span>Posibles</span></div><div><b>{summary.external}</b><span>Externos</span></div><div className={allowedRetries ? 'warn' : ''}><b>{allowedRetries}</b><span>Reintentos</span></div><div className={blockedRetries ? 'warn' : ''}><b>{blockedRetries}</b><span>Bloqueados</span></div><div><b>{summary.gpsReady}</b><span>Con GPS</span></div><div className={summary.gpsPending ? 'warn' : ''}><b>{summary.gpsPending}</b><span>GPS pendiente</span></div><div><b>{summary.totalPackages}</b><span>Bultos</span></div><div><b>{currency(summary.totalAmount)}</b><span>Monto</span></div>""",
+          'preview summary')
+
+          replace_once(
+          """          const suggested = row.suggestedClientId ? clientMap.get(row.suggestedClientId) : null\n          const matched = row.clientId ? clientMap.get(row.clientId) : null\n          return <tr key={row.tempId}><td>{index + 1}</td><td><b>{row.invoiceNumber || 'Sin factura'}</b><small>{row.orderNumber ? `Pedido ${row.orderNumber}` : row.companyCode || '—'}</small></td><td><b>{row.clientName}</b>{row.matchStatus === 'MATCHED' ? <small className=\"text-success\">✓ {matched?.legal_name || 'Cliente maestro'}</small> : row.matchStatus === 'SUGGESTED' ? <small className=\"text-warning\">Posible: {suggested?.legal_name}</small> : <small>Destino externo · no crea cliente maestro</small>}</td><td>{currency(row.amount)}</td><td>{row.packages}</td><td>{row.geoStatus === 'READY' ? <span className=\"badge success\"><MapPin size={12}/>{geoSourceLabel(row.geoSource)}</span> : <span className=\"badge logistics-pending\"><AlertTriangle size={12}/>Pendiente</span>}</td><td><div className=\"row-actions\">{row.matchStatus === 'SUGGESTED' && <><button className=\"success-btn compact\" onClick={() => applySuggested(row)}>Usar sugerido</button><button className=\"secondary compact\" onClick={() => keepExternal(row)}>Dejar externo</button></>}<button className=\"icon-btn compact-icon\" title=\"Quitar\" onClick={() => removeDraft(row.tempId)}><X size={14}/></button></div></td></tr>""",
+          """          const suggested = row.suggestedClientId ? clientMap.get(row.suggestedClientId) : null\n          const matched = row.clientId ? clientMap.get(row.clientId) : null\n          const retryDecision = retryDecisions[row.tempId] || null\n          return <tr key={row.tempId}><td>{index + 1}</td><td><b>{row.invoiceNumber || 'Sin factura'}</b><small>{row.orderNumber ? `Pedido ${row.orderNumber}` : row.companyCode || '—'}</small>{retryDecision?.kind === 'RETRY' && <small className=\"text-warning\">↻ {retryDecision.message}</small>}{retryDecision?.kind === 'BLOCKED' && <small className=\"text-warning\">⚠ {retryDecision.message}</small>}</td><td><b>{row.clientName}</b>{row.matchStatus === 'MATCHED' ? <small className=\"text-success\">✓ {matched?.legal_name || 'Cliente maestro'}</small> : row.matchStatus === 'SUGGESTED' ? <small className=\"text-warning\">Posible: {suggested?.legal_name}</small> : <small>Destino externo · no crea cliente maestro</small>}</td><td>{currency(row.amount)}</td><td>{row.packages}{retryDecision?.kind === 'RETRY' && <small>Saldo pendiente completo</small>}</td><td>{row.geoStatus === 'READY' ? <span className=\"badge success\"><MapPin size={12}/>{geoSourceLabel(row.geoSource)}</span> : <span className=\"badge logistics-pending\"><AlertTriangle size={12}/>Pendiente</span>}</td><td><div className=\"row-actions\">{row.matchStatus === 'SUGGESTED' && <><button className=\"success-btn compact\" onClick={() => applySuggested(row)}>Usar sugerido</button><button className=\"secondary compact\" onClick={() => keepExternal(row)}>Dejar externo</button></>}<button className=\"icon-btn compact-icon\" title=\"Quitar\" onClick={() => void removeDraft(row.tempId)}><X size={14}/></button></div></td></tr>""",
+          'preview retry status')
+
+          replace_once(
+          """<button className=\"primary\" onClick={addManualDraft}><Plus size={16}/>Agregar documento</button>""",
+          """<button className=\"primary\" disabled={saving} onClick={() => void addManualDraft()}><Plus size={16}/>Agregar documento</button>""",
+          'manual action')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/Logistics.tsx
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No changes produced"
+            exit 0
+          fi
+          git commit -m "feat(logistics): integrate traceable retry preview"
+          git push origin HEAD:feature/logistics-delivery-v1
