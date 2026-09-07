@@ -1,158 +1,134 @@
 # Continuación actual — Gestión de Ventas Diaria
 
-Fecha del checkpoint: **07/09/2026 (RD)**
+Fecha: **07/09/2026 (RD)**
 
-> **LEER PRIMERO EN UN CHAT NUEVO.** GitHub `main`, Supabase y Cloudflare son la fuente de verdad. Si este documento contradice el estado real de los servicios, verificar y usar el estado real.
+> **LEER PRIMERO EN EL PRÓXIMO CHAT.** GitHub `main`, Supabase y Cloudflare son la fuente de verdad. Verificar estado real antes de escribir o desplegar.
 
-## Documento detallado prioritario
+## Documento prioritario
 
-El checkpoint operativo completo actual está en:
+Leer completo:
 
-**`docs/CHAT_CONTINUATION_2026-09-07.md`**
+**`docs/CHAT_CONTINUATION_2026-09-07_FINAL.md`**
 
-Debe leerse completo antes de continuar trabajo de Logística.
+Después leer:
+
+**`docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`**
 
 ## Producción estable
 
-- Repo: `jjriosjose/Gestion_de_Ventas_Diaria`.
-- Rama estable: `main`.
-- Producción validada: **0.6.5-beta.12.2.8**.
-- Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
-- Cloudflare Version ID conocido: `b9ee7e19-4428-4e75-81a4-39318ebc7f02`.
-- Datos actuales: **TEST** hasta declaración explícita de Go-Live.
+- `main` sigue en **0.6.5-beta.12.2.8**.
+- Producción: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
+- Logística NO ha sido mergeada ni desplegada a producción.
+- Datos siguen siendo **TEST** hasta declaración explícita de Go-Live.
 
-## Supabase
+## Rama de Logística
 
-- Project Ref: `ccvzosnhxitfeochnflr`.
-- Mismo proyecto transferido administrativamente el 06/09/2026 a una organización separada.
-- No fue clonado/recreado.
-- API, DB, Auth, RLS, Storage y project ref permanecieron iguales.
-- Cloudflare permanece independiente y no fue movido.
+Trabajar únicamente en:
 
-## Logística / Despacho y Entregas — estado actual
+**`feature/logistics-delivery-v1`**
 
-La frase anterior **“diseñado pero no implementado” ya NO es válida**.
+PR:
 
-Estado real al 07/09/2026:
+**#58 — OPEN + DRAFT + NO MERGE**.
 
-- rama: **`feature/logistics-delivery-v1`**;
-- PR: **#58**;
-- PR continúa **OPEN + DRAFT + NO MERGE**;
-- dominio `delivery_*` implementado en Supabase;
-- bucket privado de evidencia implementado;
-- Edge Function `delivery-access` implementada y desplegada para QA;
-- frontend Logística implementado en la feature branch;
-- QA E2E avanzado realizado con datos TEST.
+Verificar el head actual al comenzar el próximo chat, porque los commits finales de documentación modifican el SHA de la rama sin cambiar la lógica funcional.
 
-Ya se han probado, entre otros:
+## Estado funcional
+
+Logística está implementada y con QA E2E avanzado:
 
 - Transportistas / Choferes / Vehículos;
-- Excel + plantilla oficial `entregas.xlsx` + carga manual;
-- cliente maestro y cliente externo;
-- GPS desde Excel / maestro / Torre de Control / chofer;
-- ubicación pendiente sin bloquear;
-- viaje, paradas y documentos;
-- varias facturas en una misma parada;
-- acceso temporal por link + PIN;
-- ruta del chofer;
-- llegada, descarga y entrega;
-- conciliación por factura/documento;
-- entregas completas/parciales/no entregadas;
+- Excel + `entregas.xlsx` + carga manual;
+- viajes, paradas, documentos y múltiples facturas por parada;
+- Torre de Control / mapas / división territorial;
+- acceso temporal de chofer link + PIN;
+- llegada, descarga, entrega y conciliación por documento;
 - POD/foto/firma base;
 - incidencias y resolución por chofer;
 - retorno a base separado del cierre;
-- GPS de retorno/cierre;
-- viaje `COMPLETED` en modo solo lectura;
-- bloqueo de nuevas incidencias/acciones después de cierre.
+- cierre con GPS/hora;
+- viaje finalizado en solo lectura.
 
-## NO promover Logística todavía
+## Performance — Fase 1 YA aplicada
 
-Antes de merge/deploy quedan como mínimo:
+No repetir esta implementación.
 
-1. **P0 Reintentos/saldos pendientes**:
-   - activos bloquean;
-   - entregados bloquean;
-   - no entregados/reprogramados/cancelados pueden reintentarse;
-   - parciales solo por bultos retornados;
-   - trazabilidad de intento.
-2. **P0 Firma/POD mejorada**:
+Existe:
+
+`public/delivery-geo-optimizer.js`
+
+cargado desde `index.html` antes de la app y limitado a `/entrega/`.
+
+Hace:
+
+- cache GPS para eventos intermedios;
+- timeout ~1.8 s para intento intermedio;
+- timeout máximo ~3.5 s para GPS fresco crítico;
+- sin polling;
+- sin Realtime;
+- sin GPS continuo;
+- sin llamadas Supabase adicionales.
+
+Aunque `ExternalDelivery.tsx` conserve el `getGeo()` original con `timeout: 9000`, el optimizador intercepta la geolocalización en el portal del chofer. No concluir que la Fase 1 falta solo por ver ese código original.
+
+Build validation de la Fase 1 y head funcional posterior: **verde** (#804 y #806 conocidos).
+
+### Siguiente prueba
+
+Realizar **QA móvil comparativo de latencia**. Si sigue lento, Fase 2 backend:
+
+- throttle de `last_used_at`;
+- paralelización segura de updates por documento;
+- paralelización segura de evidencia;
+- medir GPS vs Edge Function vs tiempo total.
+
+## P0 pendientes antes de producción
+
+1. **Reintentos / saldos pendientes con trazabilidad**:
+   - activo bloquea;
+   - `DELIVERED` bloquea;
+   - `NOT_DELIVERED`, `RESCHEDULED`, `CANCELLED` permiten reintento;
+   - `PARTIAL` solo reintenta bultos retornados;
+   - mantener intento #N / referencia al documento anterior.
+2. **Firma/POD en dos etapas**:
    - conciliación primero;
-   - pantalla grande dedicada a firma antes del guardado final.
-3. **P0/P1 Performance portal del chofer**:
-   - hoy `getGeo()` puede esperar hasta 9 s antes de cada acción;
-   - la Edge Function realiza varias operaciones/lecturas antes de devolver payload completo;
-   - optimizar sin polling ni Realtime.
-4. **P1 Historial por viaje**:
-   - `Documentos | Viajes`;
-   - mapa grande + timeline de eventos GPS;
-   - trayectoria estimada entre eventos, NO GPS continuo.
-5. QA E2E final + auditoría PR #58 + CI + smoke móvil.
+   - después pantalla grande dedicada a firma;
+   - no guardar definitivamente antes de confirmar la firma.
+3. **QA móvil de Performance Fase 1**.
 
-## Hallazgo de rendimiento prioritario
+## P1 pendiente
 
-En `ExternalDelivery.tsx`, casi cada transición operativa llama a geolocalización con:
+**Historial por Viaje**:
 
-- `enableHighAccuracy: true`;
-- `timeout: 9000`;
-- `maximumAge: 30000`.
+- `Documentos | Viajes`;
+- mapa grande;
+- timeline de eventos;
+- tiempos de salida/llegada/descarga/entrega/retorno/cierre;
+- trayectoria estimada entre eventos;
+- NO tracking continuo de fondo.
 
-Esto puede introducir varios segundos de espera **antes** de llamar Supabase.
+## Orden exacto del próximo chat
 
-Luego `delivery-access` valida acceso, consulta/actualiza datos, registra el evento y devuelve viaje + paradas + documentos + incidencias.
+1. Leer `docs/CHAT_CONTINUATION_2026-09-07_FINAL.md`.
+2. Verificar PR #58, rama y CI reales.
+3. Verificar Supabase/Edge Function antes de cambios.
+4. QA móvil Performance Fase 1.
+5. Fase 2 backend solo si hace falta.
+6. Reintentos/saldo pendiente.
+7. Firma/POD dos etapas.
+8. Historial por Viajes.
+9. QA E2E final.
+10. Auditoría final y decidir GO/NO-GO.
 
-Optimización recomendada:
+## Reglas
 
-- cache del último GPS exitoso con timestamp;
-- GPS fresco solo en eventos geográficamente críticos;
-- reutilizar GPS reciente en inicio/fin de descarga;
-- timeout de GPS menor con fallback seguro;
-- no segundo refresh después de una acción;
-- paralelizar operaciones seguras del backend;
-- reducir updates innecesarios de `last_used_at`;
-- medir tiempo GPS vs Edge Function vs total.
+- NO tocar `main` todavía.
+- NO mergear PR #58 todavía.
+- NO deploy de Logística todavía.
+- NO repetir migraciones.
+- NO limpiar TEST.
+- NO introducir polling/Reatime.
+- En Windows del usuario usar GitHub Desktop + CMD/PowerShell; no depender de `git` CLI.
+- Dar pasos sensibles de uno en uno.
 
-**No introducir polling automático ni Realtime para resolver esta latencia.**
-
-## Política de consumo
-
-Preservar durante validación Supabase Free:
-
-- sin polling periódico;
-- sin Realtime por defecto;
-- actualización manual o respuesta de acción;
-- fotos comprimidas;
-- históricos bajo demanda;
-- mapa histórico consulta solo el viaje seleccionado.
-
-## Orden de trabajo recomendado
-
-1. leer `docs/CHAT_CONTINUATION_2026-09-07.md`;
-2. optimizar rendimiento del portal del chofer;
-3. implementar reintentos/saldo pendiente con trazabilidad;
-4. mejorar firma/POD;
-5. implementar Historial por Viajes/mapa;
-6. QA E2E final;
-7. auditoría final PR #58;
-8. decidir GO/NO-GO de Logística.
-
-## Documentos obligatorios para continuar Logística
-
-1. `docs/CHAT_CONTINUATION_CURRENT.md`.
-2. `docs/CHAT_CONTINUATION_2026-09-07.md`.
-3. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`.
-4. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`.
-5. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`.
-6. `docs/SUPABASE_TRANSFER_2026-09-06.md`.
-7. GitHub `main` real, PR #58, Supabase y Cloudflare reales.
-
-## Workflow obligatorio
-
-- verificar rama antes de escribir;
-- mantener Logística en `feature/logistics-delivery-v1` mientras PR #58 siga Draft;
-- no tocar `main` sin decisión explícita;
-- PR + diff + CI + QA;
-- usuario sincroniza con GitHub Desktop;
-- en Windows del usuario no depender de `git` CLI;
-- no limpiar datos TEST ni repetir migraciones por memoria.
-
-> Diseño/documentación no equivale a producción. Verificar servicios reales antes de cualquier cambio.
+> El próximo chat debe continuar desde este checkpoint, no reconstruir Logística desde cero.
