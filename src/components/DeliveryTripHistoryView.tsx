@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Clock3, Download, FileText, LoaderCircle, 
 import { supabase } from '../lib/supabase'
 import { currency, type DeliveryDocument, type DeliveryStop, type DeliveryTrip } from '../lib/logistics'
 import { exportTripHistoryExcel } from '../lib/logisticsHistoryExport'
+import { estimateOperationalDistance, formatOperationalDistance, operationalDistanceDescription } from '../lib/logisticsTripDistance'
 import { DeliveryTripJourneyMap } from './DeliveryTripJourneyMap'
 
 type JourneyTrip = DeliveryTrip & {
@@ -190,12 +191,7 @@ export function DeliveryTripHistoryView({ trips, stops, documents, fromDate, toD
     if (!selectedTrip) return null
     const gpsEvents = events.filter(event => event.latitude != null && event.longitude != null)
     const gpsCoverage = events.length ? gpsEvents.length / events.length * 100 : 0
-    let minimumGpsMeters = 0
-    for (let index = 1; index < gpsEvents.length; index += 1) {
-      const prev = gpsEvents[index - 1]
-      const next = gpsEvents[index]
-      minimumGpsMeters += haversineMeters(prev.latitude!, prev.longitude!, next.latitude!, next.longitude!)
-    }
+    const operationalDistance = estimateOperationalDistance(selectedTrip, selectedStops, events)
     const serviceMinutes = selectedStops.map(stop => minutesBetween(stop.arrived_at, stop.delivered_at || stop.unload_finished_at)).filter((value): value is number => value != null)
     const avgService = serviceMinutes.length ? serviceMinutes.reduce((sum, value) => sum + value, 0) / serviceMinutes.length : null
     const deliveredStops = selectedStops.filter(stop => stop.status === 'DELIVERED').length
@@ -219,7 +215,7 @@ export function DeliveryTripHistoryView({ trips, stops, documents, fromDate, toD
       const gap = minutesBetween(orderedGps[index - 1].occurred_at, orderedGps[index].occurred_at) || 0
       maxGapMinutes = Math.max(maxGapMinutes, gap)
     }
-    return { gpsCoverage, minimumGpsMeters, avgService, deliveredStops, partialStops, failedStops, packagesLoaded, packagesDelivered, packagesReturned, sequenceCompliance, maxDeviation, totalDuration, maxGapMinutes }
+    return { gpsCoverage, operationalDistance, avgService, deliveredStops, partialStops, failedStops, packagesLoaded, packagesDelivered, packagesReturned, sequenceCompliance, maxDeviation, totalDuration, maxGapMinutes }
   }, [selectedTrip, selectedStops, selectedDocuments, events])
 
   const insights = useMemo(() => {
@@ -228,6 +224,7 @@ export function DeliveryTripHistoryView({ trips, stops, documents, fromDate, toD
     if (metrics.gpsCoverage >= 80) items.push({ tone: 'success', title: 'Trazabilidad GPS alta', text: `${Math.round(metrics.gpsCoverage)}% de los eventos del viaje tienen coordenadas.` })
     else if (metrics.gpsCoverage >= 50) items.push({ tone: 'warning', title: 'Trazabilidad GPS parcial', text: `${Math.round(metrics.gpsCoverage)}% de cobertura. Interpreta los segmentos sin GPS como estimados.` })
     else items.push({ tone: 'danger', title: 'Trazabilidad GPS limitada', text: `${Math.round(metrics.gpsCoverage)}% de cobertura. El mapa no representa todas las transiciones del viaje.` })
+    if (metrics.operationalDistance.plannedStopPoints) items.push({ tone: 'neutral', title: 'Distancia parcialmente estimada', text: `${metrics.operationalDistance.plannedStopPoints} parada(s) usan ubicación planificada porque no hubo GPS operativo disponible.` })
     if (incidents.length) items.push({ tone: 'danger', title: `${incidents.length} incidencia(s) registrada(s)`, text: 'Revisa el punto, severidad, hora y resolución dentro del timeline.' })
     if (metrics.partialStops || metrics.failedStops) items.push({ tone: 'warning', title: 'Resultado operativo con excepciones', text: `${metrics.partialStops} parcial(es) y ${metrics.failedStops} no entregada(s), reprogramada(s) o cancelada(s).` })
     if (metrics.sequenceCompliance != null && metrics.sequenceCompliance < 100) items.push({ tone: 'warning', title: 'Secuencia ejecutada diferente', text: `${Math.round(metrics.sequenceCompliance)}% de coincidencia posicional entre llegadas registradas y orden planificado.` })
@@ -274,7 +271,7 @@ export function DeliveryTripHistoryView({ trips, stops, documents, fromDate, toD
           <div className="journey-kpi"><Clock3/><span>Duración total</span><b>{formatDuration(metrics?.totalDuration ?? null)}</b><small>{formatTime(selectedTrip.departed_at)} → {formatTime(selectedTrip.completed_at || selectedTrip.returned_at)}</small></div>
           <div className="journey-kpi"><PackageCheck/><span>Entrega de bultos</span><b>{metrics ? `${metrics.packagesDelivered}/${metrics.packagesLoaded}` : '—'}</b><small>{metrics?.packagesReturned || 0} retorno</small></div>
           <div className="journey-kpi"><MapPin/><span>Cobertura GPS</span><b>{metrics ? `${Math.round(metrics.gpsCoverage)}%` : '—'}</b><small>{events.filter(event => event.latitude != null && event.longitude != null).length}/{events.length} eventos con GPS</small></div>
-          <div className="journey-kpi"><Navigation/><span>Trazado mínimo GPS</span><b>{metrics ? `${(metrics.minimumGpsMeters / 1000).toFixed(1)} km` : '—'}</b><small>Distancia recta acumulada entre puntos</small></div>
+          <div className="journey-kpi"><Navigation/><span>Distancia operativa estimada</span><b>{metrics ? formatOperationalDistance(metrics.operationalDistance.totalMeters) : '—'}</b><small>{metrics ? operationalDistanceDescription(metrics.operationalDistance) : 'Suma recta entre puntos disponibles'}</small></div>
           <div className="journey-kpi"><Clock3/><span>Permanencia media</span><b>{formatDuration(metrics?.avgService ?? null)}</b><small>Llegada → entrega/fin descarga</small></div>
           <div className="journey-kpi"><CheckCircle2/><span>Resultado paradas</span><b>{metrics ? `${metrics.deliveredStops} completas` : '—'}</b><small>{metrics?.partialStops || 0} parciales · {metrics?.failedStops || 0} excepciones</small></div>
         </section>
