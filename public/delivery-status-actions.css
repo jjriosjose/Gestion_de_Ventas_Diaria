@@ -1,0 +1,52 @@
+/* Logistics driver portal — status-aware action colors.
+   Scope is intentionally limited to /entrega/ markup. */
+
+.driver-stop-actions .primary {
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .08s ease;
+}
+
+/* PENDING -> Llegué */
+.driver-stop-actions .primary:has(svg.lucide-map-pin) {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, .22);
+}
+
+/* AT_CLIENT -> Iniciar descarga / Confirmar entrega */
+.driver-stop-actions .primary:has(svg.lucide-package-check) {
+  background: #168a55 !important;
+  border-color: #168a55 !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(22, 138, 85, .22);
+}
+
+/* UNLOADING -> Fin de descarga */
+.driver-stop-actions .primary:has(svg.lucide-circle-check),
+.driver-stop-actions .primary:has(svg.lucide-circle-check-big),
+.driver-stop-actions .primary:has(svg.lucide-check-circle-2) {
+  background: #7c3aed !important;
+  border-color: #7c3aed !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, .22);
+}
+
+.driver-stop-actions .primary:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.driver-stop-actions .primary:disabled {
+  opacity: .55;
+  box-shadow: none;
+}
+
+/* Secondary outcome actions */
+.driver-secondary-actions button:first-child {
+  color: #b4232d !important;
+  font-weight: 750;
+}
+
+.driver-secondary-actions button:nth-child(2) {
+  color: #a56608 !important;
+  font-weight: 750;
+}
