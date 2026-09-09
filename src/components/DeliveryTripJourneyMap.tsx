@@ -3,6 +3,13 @@ import L from 'leaflet'
 import { Crosshair, Layers3, Map, Maximize2, Minimize2, Route, Satellite } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import type { DeliveryStop, DeliveryTrip } from '../lib/logistics'
+import {
+  createLogisticsMap,
+  escapeMapHtml,
+  fitLogisticsPoints,
+  replaceLogisticsBaseLayer,
+  type LogisticsBaseMap,
+} from '../lib/logisticsMapCore'
 
 type JourneyTrip = DeliveryTrip & {
   origin_latitude?: number | null
@@ -43,15 +50,6 @@ type Props = {
   onSelectStop?: (stopId: string) => void
 }
 
-type BaseMap = 'STREETS' | 'LIGHT' | 'SATELLITE'
-
-const DR_CENTER: [number, number] = [18.7357, -70.1627]
-const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] || character))
-}
-
 function statusClass(status: string) {
   if (status === 'DELIVERED') return 'delivered'
   if (status === 'PARTIAL') return 'partial'
@@ -80,36 +78,12 @@ function eventLabel(value: string) {
   return labels[value] || value.replace(/_/g, ' ')
 }
 
-function tileDefinition(base: BaseMap) {
-  if (base === 'SATELLITE') return {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles © Esri',
-    maxZoom: 19,
-    opacity: 1,
-  }
-  if (base === 'LIGHT') return {
-    // Deliberately reuse the same no-key OSM infrastructure already used by the
-    // rest of the app. Lower opacity over the white map surface creates a clean
-    // light SaaS treatment without depending on an API-key basemap provider.
-    url: OSM_TILES,
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 20,
-    opacity: 0.72,
-  }
-  return {
-    url: OSM_TILES,
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 20,
-    opacity: 1,
-  }
-}
-
 export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selectedStopId = null, onSelectStop }: Props) {
   const host = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const tileRef = useRef<L.TileLayer | null>(null)
   const layersRef = useRef<L.LayerGroup | null>(null)
-  const [baseMap, setBaseMap] = useState<BaseMap>('LIGHT')
+  const [baseMap, setBaseMap] = useState<LogisticsBaseMap>('STANDARD')
   const [showPlanned, setShowPlanned] = useState(true)
   const [showGps, setShowGps] = useState(true)
   const [showDeviation, setShowDeviation] = useState(true)
@@ -123,16 +97,9 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
 
   useEffect(() => {
     if (!host.current || mapRef.current) return
-    const map = L.map(host.current, {
-      zoomControl: false,
-      preferCanvas: true,
-      zoomSnap: 0.25,
-      zoomDelta: 0.5,
-      minZoom: 6,
-    }).setView(DR_CENTER, 8)
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
-    L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map)
+    const map = createLogisticsMap(host.current, { initialZoom: 8.5, minZoom: 7, withScale: true })
     mapRef.current = map
+    tileRef.current = replaceLogisticsBaseLayer(map, null, baseMap)
     layersRef.current = L.layerGroup().addTo(map)
     const frame = window.requestAnimationFrame(() => map.invalidateSize({ animate: false }))
     return () => {
@@ -147,16 +114,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    if (tileRef.current) map.removeLayer(tileRef.current)
-    const definition = tileDefinition(baseMap)
-    tileRef.current = L.tileLayer(definition.url, {
-      maxZoom: definition.maxZoom,
-      maxNativeZoom: definition.maxZoom === 20 ? 19 : definition.maxZoom,
-      attribution: definition.attribution,
-      opacity: definition.opacity,
-      updateWhenIdle: true,
-      keepBuffer: 2,
-    }).addTo(map)
+    tileRef.current = replaceLogisticsBaseLayer(map, tileRef.current, baseMap)
   }, [baseMap])
 
   useEffect(() => {
@@ -164,7 +122,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
     const layer = layersRef.current
     if (!map || !layer) return
     layer.clearLayers()
-    const fitPoints: [number, number][] = []
+    const fitPoints: L.LatLngExpression[] = []
 
     const plannedPoints = orderedStops
       .filter(stop => stop.planned_latitude != null && stop.planned_longitude != null)
@@ -196,7 +154,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
         popupAnchor: [0, -20],
       })
       const marker = L.marker(planned, { icon, keyboard: true }).addTo(layer)
-      marker.bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">PARADA ${String(stop.stop_order).padStart(2, '0')}</span><b>${escapeHtml(stop.destination_name_snapshot)}</b><small>${escapeHtml(stop.status.replace(/_/g, ' '))}</small><small>${Number(stop.packages_delivered || 0)} / ${Number(stop.packages_loaded || 0)} bultos entregados</small></div>`)
+      marker.bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">PARADA ${String(stop.stop_order).padStart(2, '0')}</span><b>${escapeMapHtml(stop.destination_name_snapshot)}</b><small>${escapeMapHtml(stop.status.replace(/_/g, ' '))}</small><small>${Number(stop.packages_delivered || 0)} / ${Number(stop.packages_loaded || 0)} bultos entregados</small></div>`)
       marker.on('click', () => onSelectStop?.(stop.id))
 
       if (showDeviation && stop.actual_delivery_latitude != null && stop.actual_delivery_longitude != null) {
@@ -206,7 +164,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
           .bindTooltip('Diferencia entre ubicación esperada y ubicación registrada')
           .addTo(layer)
         L.circleMarker(actual, { radius: 7, color: '#ffffff', weight: 3, fillColor: '#f59e0b', fillOpacity: .95 })
-          .bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">GPS DE ENTREGA</span><b>${escapeHtml(stop.destination_name_snapshot)}</b><small>Ubicación capturada durante la operación</small></div>`)
+          .bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">GPS DE ENTREGA</span><b>${escapeMapHtml(stop.destination_name_snapshot)}</b><small>Ubicación capturada durante la operación</small></div>`)
           .addTo(layer)
       }
     })
@@ -216,7 +174,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
       fitPoints.push(point)
       const radius = event.event_type === 'DEPARTED_ORIGIN' || event.event_type === 'RETURNED_ORIGIN' || event.event_type === 'TRIP_COMPLETED' ? 6 : 4
       L.circleMarker(point, { radius, color: '#ffffff', weight: 2, fillColor: '#2563eb', fillOpacity: .92 })
-        .bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">GPS ${String(index + 1).padStart(2, '0')}</span><b>${escapeHtml(eventLabel(event.event_type))}</b><small>${new Date(event.occurred_at).toLocaleString('es-DO')}</small><small>Precisión: ${event.accuracy_m != null ? `${Math.round(event.accuracy_m)} m` : 'no disponible'}</small></div>`)
+        .bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">GPS ${String(index + 1).padStart(2, '0')}</span><b>${escapeMapHtml(eventLabel(event.event_type))}</b><small>${new Date(event.occurred_at).toLocaleString('es-DO')}</small><small>Precisión: ${event.accuracy_m != null ? `${Math.round(event.accuracy_m)} m` : 'no disponible'}</small></div>`)
         .addTo(layer)
     })
 
@@ -230,7 +188,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
         iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18],
       })
       L.marker(point, { icon })
-        .bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">INCIDENCIA</span><b>${escapeHtml(incident.incident_type.replace(/_/g, ' '))}</b><small>${escapeHtml(incident.description || 'Sin descripción')}</small><small>${new Date(incident.reported_at).toLocaleString('es-DO')}</small></div>`)
+        .bindPopup(`<div class="journey-map-popup"><span class="journey-map-popup-kicker">INCIDENCIA</span><b>${escapeMapHtml(incident.incident_type.replace(/_/g, ' '))}</b><small>${escapeMapHtml(incident.description || 'Sin descripción')}</small><small>${new Date(incident.reported_at).toLocaleString('es-DO')}</small></div>`)
         .addTo(layer)
     })
 
@@ -238,13 +196,10 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
       const origin: [number, number] = [trip.origin_latitude, trip.origin_longitude]
       fitPoints.push(origin)
       const icon = L.divIcon({ className: 'journey-origin-marker-wrap', html: '<div class="journey-origin-marker">S</div>', iconSize: [36, 36], iconAnchor: [18, 18] })
-      L.marker(origin, { icon }).bindTooltip(escapeHtml(trip.origin_name || 'Centro de carga')).addTo(layer)
+      L.marker(origin, { icon }).bindTooltip(escapeMapHtml(trip.origin_name || 'Centro de carga')).addTo(layer)
     }
 
-    if (fitPoints.length) {
-      const bounds = L.latLngBounds(fitPoints)
-      if (bounds.isValid()) map.fitBounds(bounds.pad(.12), { animate: false, maxZoom: 16 })
-    } else map.setView(DR_CENTER, 8, { animate: false })
+    fitLogisticsPoints(map, fitPoints, { pad: 0.12, maxZoom: 16, fallbackZoom: 8.5 })
     window.setTimeout(() => map.invalidateSize({ animate: false }), 0)
   }, [trip, orderedStops, gpsEvents, incidents, selectedStopId, showPlanned, showGps, showDeviation, showIncidents, onSelectStop])
 
@@ -265,17 +220,19 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
   }, [expanded])
 
   const fitAll = () => {
-    const points: [number, number][] = []
+    const map = mapRef.current
+    if (!map) return
+    const points: L.LatLngExpression[] = []
     orderedStops.forEach(stop => {
       if (stop.planned_latitude != null && stop.planned_longitude != null) points.push([stop.planned_latitude, stop.planned_longitude])
     })
     gpsEvents.forEach(event => points.push([event.latitude!, event.longitude!]))
-    if (points.length) mapRef.current?.fitBounds(L.latLngBounds(points).pad(.12), { maxZoom: 16 })
+    fitLogisticsPoints(map, points, { pad: 0.12, maxZoom: 16 })
   }
 
   return <section className={`journey-map-shell ${expanded ? 'expanded' : ''}`}>
     <div className="journey-map-toolbar">
-      <div className="journey-map-title"><div className="journey-map-title-icon"><Route size={18}/></div><div><b>Recorrido operativo</b><span>Trayectoria estimada entre eventos GPS · no tracking continuo</span></div></div>
+      <div className="journey-map-title"><div className="journey-map-title-icon"><Route size={18}/></div><div><b>Recorrido operativo</b><span>Mismo motor cartográfico de Operaciones · trayectoria estimada entre eventos GPS</span></div></div>
       <div className="journey-map-actions">
         <button className="secondary compact" onClick={fitAll}><Crosshair size={14}/>Encajar</button>
         <button className="secondary compact" onClick={() => setExpanded(value => !value)}>{expanded ? <Minimize2 size={14}/> : <Maximize2 size={14}/>} {expanded ? 'Restaurar' : 'Mapa grande'}</button>
@@ -290,8 +247,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
         <button className={showIncidents ? 'active red' : ''} onClick={() => setShowIncidents(value => !value)}>Incidencias</button>
       </div>
       <div className="journey-basemap-switch" aria-label="Mapa base">
-        <button className={baseMap === 'LIGHT' ? 'active' : ''} onClick={() => setBaseMap('LIGHT')}><Map size={13}/>Claro</button>
-        <button className={baseMap === 'STREETS' ? 'active' : ''} onClick={() => setBaseMap('STREETS')}><Layers3 size={13}/>Calles</button>
+        <button className={baseMap === 'STANDARD' ? 'active' : ''} onClick={() => setBaseMap('STANDARD')}><Map size={13}/>Mapa</button>
         <button className={baseMap === 'SATELLITE' ? 'active' : ''} onClick={() => setBaseMap('SATELLITE')}><Satellite size={13}/>Satélite</button>
       </div>
     </div>
