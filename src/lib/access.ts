@@ -6,7 +6,9 @@ export type PermissionKey =
   | 'journeys.view' | 'journeys.manage' | 'tracking.view'
   | 'capture.view' | 'capture.create' | 'coverage.view' | 'visits.view' | 'visits.execute'
   | 'calls.view' | 'calls.manage' | 'agenda.view' | 'agenda.manage'
-  | 'reception.view' | 'reception.manage' | 'reports.view' | 'data_quality.view'
+  | 'reception.view' | 'reception.manage'
+  | 'logistics.view' | 'logistics.manage' | 'logistics.execute' | 'logistics.tracking'
+  | 'reports.view' | 'data_quality.view'
   | 'admin.import' | 'admin.portfolio' | 'admin.users.manage' | 'settings.view'
 
 export const ACCESS_PROFILES: AccessProfile[] = ['Administrador', 'Supervisor', 'Gestor', 'Vendedor', 'Recepcion', 'SoloLectura']
@@ -23,6 +25,10 @@ export const PERMISSION_GROUPS: Array<{ label: string; items: Array<{ key: Permi
     { key: 'coverage.view', label: 'Cobertura de cartera' }, { key: 'visits.view', label: 'Ver visitas' }, { key: 'visits.execute', label: 'Registrar visitas' },
     { key: 'calls.view', label: 'Ver llamadas' }, { key: 'calls.manage', label: 'Gestionar llamadas' }, { key: 'agenda.view', label: 'Ver agenda / showroom' },
     { key: 'agenda.manage', label: 'Gestionar agenda / showroom' }, { key: 'reception.view', label: 'Ver recepción' }, { key: 'reception.manage', label: 'Gestionar recepción' },
+  ] },
+  { label: 'Logística', items: [
+    { key: 'logistics.view', label: 'Ver logística y entregas' }, { key: 'logistics.manage', label: 'Gestionar despacho, choferes y vehículos' },
+    { key: 'logistics.execute', label: 'Ejecutar entregas asignadas' }, { key: 'logistics.tracking', label: 'Torre de control logística' },
   ] },
   { label: 'Inteligencia', items: [
     { key: 'reports.view', label: 'Reportes' }, { key: 'data_quality.view', label: 'Calidad geográfica' },
@@ -41,7 +47,8 @@ const PROFILE_DEFAULTS: Record<AccessProfile, Set<PermissionKey>> = {
   Supervisor: enabled(
     'dashboard.view','clients.view','clients.edit','map.view','planning.view','planning.manage','routes.view','routes.execute','journeys.view','journeys.manage','tracking.view',
     'capture.view','capture.create','coverage.view','visits.view','visits.execute','calls.view','calls.manage','agenda.view','agenda.manage',
-    'reception.view','reception.manage','reports.view','data_quality.view','admin.import','admin.portfolio','settings.view'
+    'reception.view','reception.manage','logistics.view','logistics.manage','logistics.execute','logistics.tracking',
+    'reports.view','data_quality.view','admin.import','admin.portfolio','settings.view'
   ),
   Gestor: enabled(
     'dashboard.view','clients.view','map.view','planning.view','routes.view','journeys.view','capture.view','capture.create','coverage.view','visits.view','visits.execute',

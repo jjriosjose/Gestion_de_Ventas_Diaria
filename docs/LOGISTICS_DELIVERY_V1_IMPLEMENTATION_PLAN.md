@@ -2,11 +2,13 @@
 
 Fecha: **06/09/2026 (RD)**
 
-Estado: **PLAN / NO IMPLEMENTADO**
+Estado: **IMPLEMENTACIÓN EN PROGRESO EN `feature/logistics-delivery-v1` / NO PROMOVIDO A PRODUCCIÓN**
 
 Documento rector funcional: `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`.
 
-> Este plan divide el módulo en entregas pequeñas y controlables. No aplicar SQL, RLS, Auth, Edge Functions ni Storage solo por estar documentados aquí. Verificar siempre el estado real antes de cada fase.
+Política obligatoria de consumo durante validación Free: `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`.
+
+> Este plan divide el módulo en entregas pequeñas y controlables. Verificar siempre el estado real antes de cada fase. La existencia de código en la rama no implica que el módulo esté aprobado para `main` o producción.
 
 ---
 
@@ -17,9 +19,11 @@ Documento rector funcional: `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`.
 - Explicar DDL/RLS/Auth/Edge Function antes de aplicarlo.
 - Migraciones incrementales, nunca replay ciego.
 - PR + diff + CI + QA antes de merge.
-- No desplegar a producción hasta validar end-to-end.
+- No desplegar frontend a producción hasta validar end-to-end.
 - Mantener datos TEST hasta declaración explícita de uso real del nuevo módulo.
 - Reutilizar componentes visuales existentes cuando sea seguro, no duplicar lógica innecesariamente.
+- Durante validación en Supabase Free, priorizar consumo bajo y predecible sobre apariencia de tiempo real.
+- No introducir polling periódico, auto-refresh silencioso ni Realtime en Logística V1 sin nueva decisión explícita.
 
 ---
 
@@ -40,40 +44,33 @@ Antes de escribir código:
 
 Salida: diseño técnico final y lista exacta de objetos a crear/modificar.
 
+Estado: realizada para el primer bloque de implementación.
+
 ---
 
 # 3. Fase 1 — Núcleo de datos y permisos
 
-Objetivo: crear base segura del dominio sin UI operativa completa.
+Objetivo: crear base segura del dominio sin mezclarla con rutas/visitas comerciales.
 
-Candidatos:
+Implementado inicialmente:
 
+- `delivery_transport_providers`;
 - `delivery_drivers`;
 - `delivery_vehicles`;
-- `transport_providers`;
-- `delivery_locations`;
 - `delivery_trips`;
 - `delivery_stops`;
 - `delivery_documents`;
 - `delivery_events`;
 - `delivery_incidents`;
-- tablas de auditoría/relación necesarias.
+- `delivery_proofs`;
+- `delivery_proof_documents`;
+- `delivery_evidence`;
+- `delivery_import_batches`;
+- `delivery_access_links`;
+- RLS del dominio;
+- bucket privado `delivery-evidence`.
 
-Definir:
-
-- enums/check constraints;
-- FKs;
-- índices;
-- snapshots históricos;
-- RLS;
-- capability codes;
-- funciones backend estrictamente necesarias.
-
-QA:
-
-- Admin puede crear/leer;
-- usuarios no autorizados no acceden;
-- dominio comercial existente no cambia.
+Estado: migración aditiva aplicada en Supabase; pendiente QA integral antes de promover frontend.
 
 ---
 
@@ -83,8 +80,7 @@ UI:
 
 - Vehículos;
 - Choferes;
-- Transportistas;
-- puntos logísticos alternativos básicos si se incluyen desde V1.
+- Transportistas.
 
 Reglas:
 
@@ -94,7 +90,7 @@ Reglas:
 - chofer ocasional sin usuario;
 - snapshots al asignar un viaje.
 
-QA móvil/desktop y permisos.
+Estado: implementación base creada en rama; pendiente QA funcional/móvil.
 
 ---
 
@@ -104,7 +100,6 @@ Implementar Excel como vía principal.
 
 Incluye:
 
-- plantilla definida;
 - lector Excel;
 - normalización;
 - Preview;
@@ -120,7 +115,7 @@ Incluye:
 
 No crear clientes maestros automáticamente.
 
-QA con casos:
+QA requerido:
 
 - cliente existente con GPS;
 - cliente existente sin GPS;
@@ -130,6 +125,8 @@ QA con casos:
 - varias facturas mismo destino;
 - mismo cliente con destinos distintos;
 - duplicados.
+
+Estado: implementación base creada; pendiente QA con Excel representativo.
 
 ---
 
@@ -147,9 +144,9 @@ Implementar:
 - paradas sin GPS al final/orden manual;
 - totales de monto y bultos;
 - publicar viaje;
-- `route_revision`/`trip_revision`.
+- `route_revision`.
 
-QA de secuencia y snapshots.
+Estado: estructura base creada; pendiente QA de secuencia, snapshots y reglas de publicación.
 
 ---
 
@@ -157,29 +154,51 @@ QA de secuencia y snapshots.
 
 ## Interno
 
-- perfil/capability Chofer;
-- solo viajes asignados.
+- capability/permisos de Logística;
+- solo viajes permitidos por política del módulo.
 
 ## Externo
 
-Crear mecanismo seguro:
+Mecanismo diseñado/implementado en rama:
 
 - `delivery_access_links`;
 - token aleatorio;
 - hash en DB;
 - expiración;
 - revocación;
-- PIN opcional;
+- PIN;
 - Edge Function de acceso/acciones;
 - sin `service_role` en navegador;
 - experiencia móvil aislada.
+
+## Regla obligatoria de consumo
+
+La experiencia del chofer **NO consulta periódicamente**.
+
+No usar:
+
+- `setInterval` para refrescar;
+- refresh automático al volver la pestaña a primer plano;
+- Realtime solo para detectar cambios;
+- consultas periódicas de `route_revision`.
+
+El estado se consulta únicamente cuando:
+
+1. se valida inicialmente enlace + PIN;
+2. el chofer pulsa **Actualizar ruta** manualmente;
+3. el chofer registra una acción real y la respuesta de esa acción devuelve el estado actualizado.
+
+No hacer un segundo refresh redundante después de una acción exitosa.
 
 QA de seguridad:
 
 - token inválido/expirado/revocado;
 - no puede leer otro viaje;
 - no puede alterar monto/documentos/chofer/vehículo;
-- idempotencia básica.
+- idempotencia básica;
+- ausencia de polling.
+
+Estado: frontend y Edge Function escritos en rama; Edge Function aún no promovida como flujo validado.
 
 ---
 
@@ -200,6 +219,8 @@ Cada evento con hora + GPS cuando disponible.
 
 Calcular tiempos derivados sin confundirlos con telemetría continua.
 
+Estado: flujo base implementado en experiencia externa; pendiente QA end-to-end.
+
 ---
 
 # 9. Fase 7 — Incidencias
@@ -210,36 +231,36 @@ Implementar:
 - incidencia de viaje/parada;
 - severidad;
 - GPS;
-- foto opcional;
 - viaje detenido sí/no;
 - resolución;
 - tiempo afectado.
 
 Incluir casos de ubicación/destino no localizado.
 
+Estado: reporte desde chofer y gestión desde Torre de Control implementados en rama; pendiente QA.
+
 ---
 
 # 10. Fase 8 — POD: firma, receptor, fotos y conciliación
 
-Crear:
+Incluye:
 
 - `delivery_proofs`;
 - `delivery_proof_documents`;
 - `delivery_evidence`;
-- bucket/policies privadas si se requiere nuevo Storage.
-
-UI:
-
+- bucket privado;
 - receptor;
 - firma táctil;
 - bultos entregados/retornados;
-- fotos;
+- foto;
 - observación;
 - evidencia completa/parcial.
 
 Una firma puede cubrir varias facturas de la parada.
 
-QA en móvil real.
+Regla de recursos: comprimir fotografías antes de subir y evitar evidencias duplicadas.
+
+Estado: implementación base creada en rama; pendiente QA en móvil real.
 
 ---
 
@@ -249,20 +270,32 @@ Requisito prioritario:
 
 - viaje puede iniciar con parada sin GPS;
 - Torre de Control puede cargar/corregir GPS durante viaje activo;
-- incremento de revisión;
-- chofer recibe actualización sin reiniciar;
-- refresh periódico + foreground + manual;
-- notificación de cambio;
+- incremento de `route_revision`;
+- no reiniciar viaje;
+- notificación de cambio cuando el dispositivo obtiene una revisión superior;
 - cambios de secuencia solo explícitos y solo pendientes;
 - reconocimiento del chofer para cambios relevantes.
 
+## Sincronización durante validación Free
+
+Se reemplaza la idea anterior de `refresh periódico + foreground + manual` por una regla estricta:
+
+**actualización manual + respuestas de acciones operativas.**
+
+Torre de Control puede actualizar una parada en cualquier momento, pero el dispositivo del chofer obtiene el cambio cuando:
+
+- pulsa **Actualizar ruta**; o
+- registra su siguiente acción real y la respuesta devuelve la revisión vigente.
+
+No existe polling, refresh por visibilidad ni Realtime por defecto.
+
 Si Torre de Control no resuelve GPS:
 
-- capturar GPS al `Llegué`;
+- capturar GPS al `Llegué` y/o entrega;
 - conservar GPS real de entrega;
 - no modificar automáticamente maestro comercial.
 
-QA con viaje parcialmente ejecutado y modificación en vivo.
+QA con viaje parcialmente ejecutado y modificación de ubicación mientras está activo.
 
 ---
 
@@ -287,6 +320,8 @@ Regla semántica:
 
 **trayectoria estimada entre eventos GPS**, no GPS continuo de fondo.
 
+Regla de consumo: actualización manual por defecto. No polling automático.
+
 ---
 
 # 13. Fase 11 — Historial / POD / reportes
@@ -301,13 +336,17 @@ Implementar búsqueda por:
 - placa;
 - transportista.
 
-Exportaciones:
+Exportaciones futuras:
 
 - comprobante POD PDF;
 - Excel operacional;
 - dashboard KPI logístico.
 
 Mantener completamente separado de KPI comerciales.
+
+Regla de consumo: paginar/limitar; no descargar todo el histórico al abrir la pantalla.
+
+Estado: historial/POD base creado en rama; pendiente optimización de paginación y QA.
 
 ---
 
@@ -319,30 +358,32 @@ Mantener completamente separado de KPI comerciales.
 - rate limiting si aplica;
 - expiración/rotación;
 - Storage access;
+- compresión y límites de fotos;
 - performance/indexes;
 - bundle/code splitting;
 - UX móvil;
 - accesibilidad;
 - reintentos/conectividad;
 - pruebas de volumen;
-- revisión de logs/auditoría.
+- revisión de logs/auditoría;
+- revisión mensual de Database Size, Storage, Egress y Edge Function invocations durante validación.
 
 ---
 
 # 15. Release strategy recomendada
 
-No implementar todo en un único PR gigante.
+No considerar el módulo terminado solo porque compile.
 
-Secuencia sugerida de releases:
+Secuencia lógica:
 
-1. `logistics-v1-foundation` — esquema/maestros/permisos.
-2. `logistics-v1-dispatch` — Excel/manual/manifiesto.
-3. `logistics-v1-driver` — ejecución + acceso temporal.
-4. `logistics-v1-pod` — firma/foto/incidencias.
-5. `logistics-v1-control-tower` — updates dinámicos + Tracking.
-6. `logistics-v1-history-reporting` — POD/reportes.
+1. foundation — esquema/maestros/permisos;
+2. dispatch — Excel/manual/manifiesto;
+3. driver — ejecución + acceso temporal;
+4. pod — firma/foto/incidencias;
+5. control tower — updates manuales + Tracking;
+6. history/reporting — POD/reportes.
 
-Los nombres/versiones definitivos se decidirán al implementar.
+El PR #58 puede agrupar el prototipo integrado para QA, pero antes de promoción debe revisarse como un release único y controlado.
 
 ---
 
@@ -350,20 +391,23 @@ Los nombres/versiones definitivos se decidirán al implementar.
 
 - CI verde;
 - migraciones verificadas;
-- RLS verificado con Admin/Chofer interno/acceso externo;
-- Excel con datos reales anonimizados o TEST representativos;
+- RLS verificado con Admin/acceso externo;
+- Excel con datos TEST representativos;
 - móvil Android/iOS navegador;
 - firma y cámara;
 - GPS permitido/denegado;
 - señal intermitente;
 - token externo expirado/revocado;
 - ubicación pendiente resuelta por Torre de Control con viaje activo;
+- chofer obtiene la modificación mediante refresh manual o siguiente acción;
 - ubicación capturada por chofer cuando no se resolvió;
 - entrega parcial;
 - incidencia crítica;
 - cierre y conciliación;
 - historial por factura;
 - Tracking sin afectar Tracking comercial;
+- verificación de que no existe polling periódico ni Realtime de Logística V1;
+- consumo revisado;
 - rollback definido.
 
 ---
@@ -375,6 +419,7 @@ Si este proyecto continúa en otro chat:
 1. leer `docs/CHAT_CONTINUATION_CURRENT.md`;
 2. leer `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md` completo;
 3. leer este plan completo;
-4. verificar servicios reales;
-5. no asumir que ninguna fase está implementada por estar documentada;
-6. determinar la última fase realmente mergeada/desplegada antes de continuar.
+4. leer `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md` completo;
+5. verificar GitHub, Supabase y producción reales;
+6. no asumir que una fase está en producción por estar documentada o existir en una feature branch;
+7. determinar la última fase realmente mergeada/desplegada antes de continuar.
