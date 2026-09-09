@@ -1,273 +1,272 @@
 # P1 — Historial por Viaje / Recorrido Operativo
 
-Fecha: 08/09/2026 (RD)
+Fecha de cierre funcional: **09/09/2026 (RD)**
 
 ## Objetivo
 
-Evolucionar `Historial / POD` desde una vista centrada únicamente en documentos hacia una herramienta gerencial para analizar viajes completos, recorridos, tiempos, secuencia de paradas, GPS, incidencias y resultados de entrega.
+Evolucionar `Historial / POD` hacia una herramienta gerencial para analizar viajes completos, tiempos, secuencia de paradas, GPS, incidencias, resultados de entrega y una estimación liviana de distancia operativa.
+
+## Principio de arquitectura
+
+La solución debe mantenerse compatible con una operación de bajo consumo sobre Supabase Free.
+
+Por decisión de producto **NO se implementa tracking periódico, breadcrumbs, polling, Realtime ni GPS continuo**.
+
+La distancia se calcula en el navegador usando únicamente información que el sistema ya posee. No genera nuevas filas ni escrituras adicionales en Supabase.
 
 ## Regla semántica obligatoria
 
-El sistema muestra una **trayectoria estimada entre eventos GPS registrados**.
+El sistema puede mostrar dos conceptos distintos:
 
-No debe describirse como:
+1. **Trayectoria GPS estimada**: une visualmente eventos que sí contienen GPS.
+2. **Distancia operativa estimada**: suma segmentos rectos entre puntos operativos disponibles, priorizando GPS y usando ubicación planificada cuando falta GPS.
+
+Ninguno de los dos debe describirse como:
+
 - tracking continuo;
 - recorrido vial exacto;
-- calles efectivamente transitadas entre dos puntos sin eventos intermedios.
+- calles efectivamente transitadas;
+- kilometraje real de odómetro.
 
-La política existente se conserva: sin polling, sin Realtime y sin GPS continuo.
-
-## Rama y base
+## Rama y release
 
 Rama: `feature/logistics-trip-history-v1`
 
-Base exacta: `main` → `734e1da5f586066083ad3010bccf0aeb8431a020`
+PR: **#59**
+
+Base: `main` @ `734e1da5f586066083ad3010bccf0aeb8431a020`
 
 Producción base: `0.6.5-beta.13.0`
 
-PR: **#59 Draft**. No merge / no deploy mientras continúe QA.
+Release objetivo: **`0.6.5-beta.14.0`**
 
-## Implementación
+## P1 — Historial por Viaje
 
-### Historial / POD
+`Historial / POD` mantiene dos modos:
 
-La misma pantalla tiene dos modos:
+- `Documentos`: búsqueda, evidencias y POD existentes.
+- `Viajes`: análisis integral del recorrido y comportamiento operativo.
 
-- `Documentos`: conserva búsqueda, detalle y POD existentes.
-- `Viajes`: análisis integral del viaje y su comportamiento operativo.
+La vista Viajes incluye:
 
-### Filtro de fecha Desde / Hasta
-
-Se agregó un filtro global de período con:
-
-- `Desde`;
-- `Hasta`;
-- `Aplicar período`;
-- indicador de `Rango cargado`.
-
-El filtro no trabaja únicamente sobre un subconjunto ya descargado. El rango se aplica directamente a `delivery_trips` en Supabase mediante `trip_date`.
-
-Para evitar límites silenciosos:
-
-- viajes paginados en bloques de 500;
-- tablas relacionadas consultadas por lotes de IDs;
-- el período aplicado gobierna tanto `Documentos` como `Viajes`.
-
-Período inicial: primer día del mes actual → fecha actual de República Dominicana.
-
-### Explorador de viajes
-
-Incluye:
-
+- explorador de viajes;
 - búsqueda por viaje, chofer, placa y transportista;
 - filtros Todos / Finalizados / En curso / Excepciones;
-- estado del viaje;
-- fecha;
-- chofer;
-- vehículo;
-- progreso de paradas;
-- exportación Excel de los viajes visibles después de búsqueda/estado/período.
+- estado, fecha y progreso de paradas;
+- KPIs de duración, bultos, GPS, distancia estimada, permanencia y resultados;
+- mapa profesional;
+- secuencia planificada;
+- trayectoria GPS estimada;
+- desviaciones plan/real;
+- incidencias;
+- mapa grande / encajar;
+- paradas numeradas;
+- selección mapa/lista;
+- lectura gerencial;
+- timeline operativo con precisión GPS.
 
-### KPIs por viaje
+## P1.1 — Shared Logistics Map Core
 
-- duración total;
-- bultos entregados/cargados y retornos;
-- cobertura GPS de eventos;
-- trazado mínimo GPS: suma recta entre puntos registrados, no distancia vial;
-- permanencia media en clientes;
-- resultado de paradas.
-
-### Shared Logistics Map Core — P1.1
-
-`Operaciones / Torre de Control` e `Historial / Recorrido` comparten ahora:
+`Operaciones / Torre de Control` e `Historial / Recorrido` comparten:
 
 `src/lib/logisticsMapCore.ts`
 
 Centraliza:
 
-- OpenStreetMap estándar, sin API key;
-- centro y límites de contexto de República Dominicana;
-- min zoom / zoomSnap / zoomDelta / maxBounds;
-- `fitBounds` y fallback nacional;
-- sanitización de HTML en popups;
-- colores comunes de rutas;
-- utilidades de bounds;
-- pane/WMS para límites territoriales oficiales.
+- OpenStreetMap estándar sin API key;
+- centro y límites de República Dominicana;
+- zoom / maxBounds / fitBounds;
+- sanitización de popups;
+- colores y utilidades comunes;
+- infraestructura de límites territoriales oficiales.
 
-Esto elimina la divergencia que originalmente produjo `API KEY REQUIRED` al usar un proveedor CARTO independiente en Historial.
+Se eliminó la dependencia CARTO independiente que provocó `API KEY REQUIRED`.
 
-`DeliveryControlMap` conserva su UI y semántica de operación activa; `DeliveryTripJourneyMap` añade únicamente capas históricas propias.
+QA visual del usuario confirmó que los mapas de Operaciones e Historial funcionan correctamente después de la unificación.
 
-### Mapa profesional de Historial
+## P1.2 — Filtro Desde / Hasta
 
-Componente: `src/components/DeliveryTripJourneyMap.tsx`.
+`Historial / POD` posee un período global:
 
-Capas:
+- `Desde`;
+- `Hasta`;
+- `Aplicar período`;
+- indicador de rango cargado.
 
-- secuencia planificada;
-- trayectoria estimada GPS;
-- diferencias planificado vs ubicación real registrada;
-- incidencias;
-- paradas numeradas y coloreadas por estado;
-- punto de origen cuando esté disponible.
+El filtro se aplica directamente sobre `delivery_trips.trip_date` en Supabase, no solo sobre datos ya descargados.
 
-Mapas base:
+Características:
 
-- `Mapa`: mismo OpenStreetMap de Operaciones;
-- `Satélite`: Esri World Imagery opcional.
+- período inicial: primer día del mes actual → hoy RD;
+- viajes paginados en bloques;
+- relaciones cargadas por lotes de IDs;
+- el período gobierna Documentos y Viajes;
+- no depende de los 250 viajes más recientes.
 
-Interacción:
+QA del usuario confirmó correctamente un rango de un solo día (`08/09/2026`) y la reducción a los viajes correspondientes.
 
-- encajar recorrido;
-- mapa grande;
-- selección de parada desde mapa o lista;
-- popups con estado, hora y precisión GPS;
-- leyenda operativa.
+## P1.3 — Exportación Excel estructurada
 
-### Lectura gerencial
+`Exportar Excel` respeta:
 
-Se generan observaciones de lectura, no sentencias automáticas:
-
-- calidad/cobertura GPS;
-- incidencias;
-- entregas parciales/no entregadas/reprogramadas;
-- diferencia entre secuencia planificada y llegadas observadas;
-- desviaciones grandes entre ubicación esperada y registrada;
-- intervalos largos sin puntos GPS.
-
-Una desviación GPS puede significar comportamiento operativo o mala calidad del maestro; no se corrige automáticamente.
-
-### Excel estructurado
-
-Archivo generado desde el navegador usando la dependencia existente `exceljs`.
-
-El botón `Exportar Excel` toma **los viajes visibles** después de:
-
-1. período Desde/Hasta ya aplicado;
+1. período Desde/Hasta aplicado;
 2. búsqueda;
 3. filtro de estado.
 
-Para no volver pesada la pantalla, `delivery_events` y `delivery_incidents` de todos los viajes exportados se consultan **solo al pulsar Exportar Excel**.
+Los eventos e incidencias masivos de los viajes visibles se consultan únicamente al exportar y por lotes.
 
-Nombre:
+Archivo:
 
 `Historial_Viajes_<desde>_a_<hasta>.xlsx`
 
-Hojas:
+Hojas finales:
 
 1. `Resumen`
-   - período;
-   - búsqueda/estado;
-   - viajes/paradas/documentos;
-   - bultos;
-   - monto;
-   - eventos/cobertura GPS;
-   - incidencias;
-   - nota semántica sobre trayectoria GPS.
 2. `Viajes`
-   - chofer/vehículo/transportista;
-   - paradas/documentos/bultos/monto;
-   - salida/retorno/cierre/duración;
-   - cobertura y trazado GPS;
-   - gaps;
-   - incidencias;
-   - resultados y permanencia.
-3. `Paradas`
-   - destino;
-   - GPS planificado/real;
-   - desviación;
-   - bultos/montos;
-   - tiempos de llegada/descarga/entrega/permanencia.
-4. `Documentos`
-   - factura/pedido/cliente;
-   - bultos/monto/estado;
-   - intento y lineage de reintento cuando exista.
-5. `Eventos`
-   - timeline técnico;
-   - GPS, precisión, fuente y payload.
-6. `Incidencias`
-   - tipo/severidad/estado;
-   - descripción/resolución;
-   - timestamps y GPS.
+3. `Tramos`
+4. `Paradas`
+5. `Documentos`
+6. `Eventos`
+7. `Incidencias`
 
-Formato Excel:
+Incluye:
 
 - encabezados profesionales;
 - filtros automáticos;
 - fila superior congelada;
-- formatos de fecha, fecha-hora, moneda y porcentaje;
-- colores por estado;
-- anchos de columna preparados para análisis.
+- fechas / fecha-hora;
+- moneda y porcentajes;
+- colores de estado;
+- trazabilidad de reintentos;
+- GPS, precisión y fuente;
+- nota explícita de semántica de distancia.
 
-## Rendimiento
+## P1.4 — Distancia operativa estimada liviana
 
-Al navegar Historial:
+Nuevo núcleo:
 
-- el período se consulta en Supabase;
-- no se cargan todos los eventos de todos los viajes;
-- eventos e incidencias se consultan solo para el viaje seleccionado y se cachean durante la sesión.
+`src/lib/logisticsTripDistance.ts`
 
-Al exportar:
+Objetivo: ofrecer una estimación de distancia útil para gestión **sin agregar ninguna escritura GPS**.
 
-- eventos/incidencias de los viajes exportados se cargan bajo demanda y por lotes.
+### Prioridad de puntos
 
-No se agregó polling, Realtime ni GPS continuo.
+Para cada parada:
+
+1. `actual_delivery_latitude / actual_delivery_longitude` si existen;
+2. evento GPS asociado a la parada si existe;
+3. `planned_latitude / planned_longitude` como fallback;
+4. si no existe ninguna ubicación, la parada queda reportada como `sin ubicación` y no fabrica coordenadas.
+
+Para origen / retorno:
+
+- usa coordenadas de origen del viaje cuando existen;
+- usa eventos `DEPARTED_ORIGIN`, `RETURNED_ORIGIN` o `TRIP_COMPLETED` cuando tienen GPS;
+- si el viaje terminó y existe origen conocido, puede usar ese origen como retorno planificado cuando no hubo GPS de cierre.
+
+### Cálculo
+
+Los puntos disponibles se ordenan operativamente y cada par consecutivo forma un segmento.
+
+La distancia de cada segmento se calcula con Haversine y el total es la suma de esos segmentos rectos.
+
+No se consulta un servicio de rutas y no se afirma distancia vial exacta.
+
+### KPI
+
+Se reemplaza `Trazado mínimo GPS` por:
+
+**Distancia operativa estimada**
+
+Formato adaptativo:
+
+- menos de 1 km → metros;
+- 1 km o más → kilómetros.
+
+El subtítulo informa:
+
+- cantidad de segmentos;
+- paradas con GPS;
+- paradas estimadas mediante ubicación planificada;
+- paradas sin ubicación cuando existan.
+
+La lectura gerencial marca cuando parte de la distancia utiliza coordenadas planificadas.
+
+### Excel
+
+La hoja `Viajes` incluye:
+
+- distancia operativa estimada;
+- segmentos estimados;
+- paradas con GPS;
+- paradas por ubicación planificada;
+- paradas sin ubicación.
+
+La nueva hoja `Tramos` transparenta cada cálculo:
+
+- origen del segmento;
+- fuente de coordenadas;
+- destino del segmento;
+- latitud / longitud de ambos puntos;
+- distancia estimada en metros y kilómetros;
+- advertencia de que no representa ruta vial exacta.
+
+## Rendimiento y consumo
+
+Navegación normal:
+
+- eventos/incidencias solo para el viaje seleccionado;
+- cache en memoria de la vista;
+- sin polling ni Realtime.
+
+Exportación:
+
+- eventos/incidencias de los viajes visibles solo bajo demanda;
+- procesamiento del Excel en navegador.
+
+P1.4:
+
+- **0 tablas nuevas**;
+- **0 migraciones**;
+- **0 filas GPS adicionales**;
+- **0 escrituras adicionales**;
+- cálculo client-side.
 
 ## Base de datos
 
-No requiere migración ni cambio de esquema/RLS.
+Sin cambios de esquema/RLS.
 
-Usa las tablas existentes:
+Tablas existentes utilizadas:
 
 - `delivery_trips`;
 - `delivery_stops`;
 - `delivery_documents`;
 - `delivery_events`;
-- `delivery_incidents`.
+- `delivery_incidents`;
+- POD/evidencias para la vista documental.
 
-## QA realizado
+## QA / CI
 
-### Mapas
+QA visual realizado por el usuario:
 
-Validado visualmente por el usuario:
+- Operaciones / Torre de Control: OK;
+- Historial / mapa: OK;
+- mapa grande: OK;
+- proveedor sin API key: OK;
+- filtro Desde/Hasta: OK;
+- exportación Excel inicial: archivo generado correctamente.
 
-- Operaciones / Torre de Control;
-- mapa estándar;
-- mapa grande;
-- Control Tower;
-- Historial / recorrido;
-- sin `API KEY REQUIRED`;
-- Shared Map Core sin regresión visible.
-
-### Build
-
-Head funcional con fecha/export antes de este commit documental:
-
-`c1d2628ee008ed4f8d99f0d0327ffdc1323adfcc`
-
-Build validation:
+Build P1.4 con estimador y Excel por tramos:
 
 - TypeScript: **SUCCESS**;
 - Vite: **SUCCESS**.
 
-## QA todavía pendiente
+El usuario autorizó la promoción a producción el 09/09/2026.
 
-Antes de merge/deploy:
+## Restricciones permanentes
 
-1. actualizar la rama local;
-2. confirmar el toolbar Desde/Hasta;
-3. probar varios rangos;
-4. confirmar que viajes/documentos cambian según el período;
-5. combinar período + búsqueda + estado;
-6. descargar el Excel;
-7. abrir el archivo y validar sus 6 hojas, formatos y registros;
-8. confirmar que el Excel coincide con los viajes visibles;
-9. revisar responsive del toolbar de fecha.
-
-## No hacer todavía
-
-- no mergear a `main` sin QA final y aprobación;
-- no desplegar Cloudflare;
-- no agregar tracking continuo;
-- no modificar RLS ni tablas para P1;
-- no limpiar datos TEST.
+- no introducir tracking continuo sin una decisión futura explícita;
+- no presentar distancia estimada como kilometraje vial real;
+- no agregar consumo de Supabase solo para enriquecer la línea del mapa;
+- no limpiar datos TEST sin backup + aprobación;
+- los datos continúan siendo TEST hasta declaración explícita de Go-Live.
