@@ -7,6 +7,7 @@ import './styles/v058.css'
 import './styles/v062.css'
 import './styles/v063.css'
 import './styles/adaptive-layout.css'
+import './styles/logistics-history-filters.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AuthProvider><App/></AuthProvider></React.StrictMode>)
 
