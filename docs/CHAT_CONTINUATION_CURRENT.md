@@ -1,297 +1,241 @@
 # Continuación actual — Gestión de Ventas Diaria / Logística
 
-Fecha: **07/09/2026 (RD)**
+Fecha: **09/09/2026 (RD)**
 
-> **LEER PRIMERO EN EL PRÓXIMO CHAT.** GitHub, Supabase, CI y Cloudflare reales son la fuente de verdad. Verificar el estado real antes de escribir, mergear o desplegar.
+> **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN EL PRÓXIMO CHAT.** GitHub, Supabase, CI y Cloudflare reales son la fuente de verdad. Verificar estado real antes de escribir, mergear o desplegar.
 
-## Orden obligatorio de lectura
+## Orden recomendado de lectura
 
-1. **`docs/CHAT_CONTINUATION_CURRENT.md`** — este checkpoint.
-2. **`docs/LOGISTICS_P0_IMPLEMENTATION_STATUS_2026-09-07.md`** — estado P0 más reciente.
-3. `docs/CHAT_CONTINUATION_2026-09-07_FINAL.md` — handoff histórico anterior a los P0 nuevos.
-4. `docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`.
-5. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`.
-6. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`.
-7. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`.
+1. `docs/CHAT_CONTINUATION_CURRENT.md`
+2. `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
+3. `docs/LOGISTICS_P0_IMPLEMENTATION_STATUS_2026-09-07.md`
+4. `docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`
+5. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`
+6. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`
+7. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`
 
-Si hay discrepancia, prevalecen servicios reales + este checkpoint P0 más reciente.
+Si hay discrepancia, prevalecen GitHub/Supabase/CI/Cloudflare reales y el checkpoint más reciente.
 
-## Producción estable — NO TOCAR POR AHORA
+# Producción base antes de P1
 
-- Repo: `jjriosjose/Gestion_de_Ventas_Diaria`.
-- Rama productiva: `main`.
-- `main` verificado antes de P0 en `23eef94d400a69ac66d00e750397433ff935ff5d`.
-- Versión productiva conocida: **0.6.5-beta.12.2.8**.
-- Producción Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`.
-- Logística NO está mergeada ni desplegada a producción.
-- Datos continúan siendo **TEST** hasta declaración explícita de Go-Live.
+Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
-## Rama y PR de Logística
+Rama productiva: `main`
 
-Trabajar únicamente en:
+Main base de P1: `734e1da5f586066083ad3010bccf0aeb8431a020`
 
-**`feature/logistics-delivery-v1`**
+Versión base: **0.6.5-beta.13.0**
 
-PR:
+Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-**#58 — Logistics & Delivery V1 — implementation**
+Version ID base: `5b491c77-0dd2-4f7d-a5d9-72fc45226cf5`
 
-Estado obligatorio:
+Los datos continúan siendo **TEST** hasta declaración explícita de Go-Live.
 
-- OPEN;
-- DRAFT;
-- NO MERGE;
-- NO DEPLOY;
-- base `main`.
+# Release en promoción
 
-Verificar head y CI reales al comenzar cada sesión porque la documentación también genera nuevos commits.
+Rama: **`feature/logistics-trip-history-v1`**
 
-## Supabase
+PR: **#59**
 
-Proyecto real:
+Release objetivo: **0.6.5-beta.14.0**
+
+Estado al actualizar este documento:
+
+**P1 IMPLEMENTADO / MAPAS QA OK / FILTRO FECHA QA OK / EXCEL GENERA / P1.4 BUILD VERDE / PROMOCIÓN A PRODUCCIÓN AUTORIZADA POR EL USUARIO.**
+
+Después del merge/deploy se debe actualizar este documento con:
+
+- SHA final de `main`;
+- Cloudflare Version ID final;
+- confirmación de smoke test productivo.
+
+# P0 Logística ya productivo
+
+Validados previamente:
+
+- reintentos trazables y saldo pendiente;
+- bloqueo documento entregado;
+- bloqueo saldo incorrecto;
+- POD/firma en dos etapas;
+- firma endurecida contra toque/microtrazo;
+- Performance Fase 1;
+- GPS móvil por HTTPS;
+- cierre de viaje sin eventos duplicados.
+
+Migraciones P0 ya aplicadas; **no repetir**:
+
+- `20260907094026_delivery_document_retry_traceability`
+- `20260907094801_delivery_document_retry_guard_refinement`
+
+# Supabase
+
+Proyecto:
 
 - nombre: `Gestion de Ventas Diaria`;
-- Project Ref: `ccvzosnhxitfeochnflr`;
-- región: `ca-central-1`;
-- estado verificado durante P0: `ACTIVE_HEALTHY`;
-- `delivery-access`: ACTIVE v6.
+- ref: `ccvzosnhxitfeochnflr`;
+- región: `ca-central-1`.
 
-El mismo proyecto fue transferido administrativamente el 06/09/2026; no fue clonado ni recreado.
+Política vigente:
 
-No repetir migraciones existentes.
-
-## Logística funcional ya existente
-
-La feature branch y Supabase QA ya incluyen:
-
-- módulo Despacho y entregas;
-- Transportistas;
-- Choferes;
-- Vehículos;
-- carga Excel y manual;
-- plantilla `entregas.xlsx`;
-- cliente maestro y cliente externo;
-- GPS Excel / maestro / Torre de Control / chofer;
-- ubicación pendiente sin bloquear viaje;
-- creación de viajes, paradas y documentos;
-- múltiples facturas por una misma parada;
-- Torre de Control y mapas;
-- división territorial;
-- acceso temporal por link + PIN;
-- ejecución móvil del chofer;
-- salida, llegada, descarga, entrega;
-- conciliación por documento;
-- incidencias y resolución;
-- retorno a base;
-- cierre físico con hora/GPS;
-- viaje finalizado en solo lectura;
-- Historial/POD base.
-
-No reimplementar estas funciones por memoria de documentos antiguos.
-
-# P0 actual
-
-## P0-A — Reintentos / saldo pendiente
-
-Estado:
-
-**IMPLEMENTADO EN RAMA + SUPABASE QA / BUILD VERDE / PENDIENTE QA E2E DE ESCRITURA**
-
-Migraciones aplicadas y registradas:
-
-- `20260907094026_delivery_document_retry_traceability`;
-- `20260907094801_delivery_document_retry_guard_refinement`.
-
-`delivery_documents` ahora tiene:
-
-- `retry_of_document_id`;
-- `attempt_number`;
-- `packages_pending` calculado.
-
-Reglas backend implementadas:
-
-- viaje activo → bloquear;
-- histórico `DELIVERED` → bloquear;
-- `PARTIAL`, `NOT_DELIVERED`, `RESCHEDULED`, `CANCELLED` → reintento elegible con saldo;
-- referencia obligatoria al último intento elegible;
-- intento #N incremental;
-- reintento carga exactamente el saldo pendiente;
-- conserva el monto anterior;
-- identidad contempla empresa + factura/pedido;
-- guard backend evita que un frontend desactualizado cree duplicados silenciosos.
-
-Frontend implementado:
-
-- `src/lib/logisticsRetry.ts`;
-- clasificación `NEW | RETRY | BLOCKED`;
-- preview con `Reintento permitido · intento #N`;
-- conteo de reintentos/bloqueados;
-- preflight al Excel/manual y otra vez antes de crear viaje;
-- inserción conserva `retry_of_document_id` + `attempt_number`.
-
-Datos TEST históricos no fueron limpiados ni alterados para fabricar la prueba.
-
-Saldos verificados, entre otros:
-
-- QA-0004 → 2 pendientes;
-- QA-0005 → 1 pendiente;
-- QA-0011 → 9 pendientes.
-
-## P0-B — Firma / POD mejorada
-
-Estado:
-
-**IMPLEMENTADO EN RAMA / BUILD VERDE / PENDIENTE QA MÓVIL E2E**
-
-El portal de chofer ahora separa:
-
-### Etapa 1
-
-- conciliación por documentos;
-- bultos entregados/retornados;
-- motivo de diferencia;
-- receptor;
-- documento/teléfono;
-- fotografía;
-- observación;
-- botón `Continuar a firma`.
-
-No guarda definitivamente aquí.
-
-### Etapa 2
-
-- pantalla/modal grande dedicado a firma;
-- resumen de entrega;
-- canvas táctil amplio;
-- `Limpiar`;
-- `Volver` sin guardar;
-- `Confirmar firma y entrega`.
-
-La entrega solo se guarda después de una firma real.
-
-`SignaturePad.tsx` fue corregido para que un toque sin trazo no sea aceptado como firma válida.
-
-## P0-C — Performance del portal del chofer
-
-Estado:
-
-**FASE 1 IMPLEMENTADA / BUILD VERDE / PENDIENTE QA MÓVIL COMPARATIVO**
-
-No repetir la Fase 1 aunque `ExternalDelivery.tsx` todavía contenga el `getGeo()` tradicional.
-
-La optimización se aplica mediante:
-
-`public/delivery-geo-optimizer.js`
-
-Política:
-
-- solo `/entrega/`;
-- cache GPS en memoria para eventos intermedios;
-- intento corto ~1.8 s intermedio;
-- fallback intermedio limitado;
-- críticos buscan GPS fresco;
-- timeout fresco máximo aprox. 3.5 s;
 - sin polling;
 - sin Realtime;
 - sin GPS continuo;
-- sin consultas de fondo.
+- no limpiar TEST sin backup + aprobación;
+- no reescribir RLS global a ciegas.
 
-QA móvil requerido:
+# P1 — Historial por Viaje / Recorrido Operativo
 
-`Llegué → Iniciar descarga → Fin de descarga → POD → Iniciar retorno → Cerrar viaje`.
+Documento técnico principal:
 
-Solo si la mejora sigue siendo insuficiente, ejecutar Fase 2 backend:
+`docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
 
-- throttle `delivery_access_links.last_used_at`;
-- paralelización segura;
-- medir GPS vs Edge Function vs total.
+## Vista
 
-NO solucionar latencia con polling/Reatime.
+`Historial / POD` mantiene:
 
-# CI
+- `Documentos`;
+- `Viajes`.
 
-Los builds TypeScript + Vite posteriores a P0-A y P0-B terminaron en **SUCCESS**.
+Viajes incluye:
 
-El workflow territorial se ejecuta por commits del PR aunque el cambio no sea territorial; verificar que termine verde sobre el head final antes de promoción.
+- explorador y búsqueda;
+- filtros por estado;
+- filtro global `Desde / Hasta`;
+- KPIs;
+- mapa profesional;
+- secuencia planificada;
+- trayectoria GPS estimada;
+- desviaciones;
+- incidencias;
+- timeline;
+- permanencia y resultados;
+- Excel estructurado.
 
-# Seguridad
+## P1.1 — Shared Logistics Map Core
 
-Security Advisor fue ejecutado después de las migraciones P0.
+Operaciones e Historial comparten:
 
-El nuevo guard `private.delivery_guard_document_retry()` no apareció como hallazgo.
+`src/lib/logisticsMapCore.ts`
 
-Permanecen hallazgos globales previos, no creados por este P0:
+Centraliza OpenStreetMap sin API key, contexto RD, zoom, fitBounds, seguridad de popups y límites territoriales oficiales.
 
-- vistas ejecutivas `SECURITY DEFINER`;
-- funciones antiguas con grants amplios;
-- algunas funciones con search_path mutable;
-- Leaked Password Protection deshabilitado;
-- `bootstrap_credentials` con RLS sin policy.
+El proveedor CARTO independiente fue eliminado. QA del usuario confirmó que todos los mapas funcionan bien.
 
-No hacer hardening global a ciegas dentro del P0. Tratarlo en auditoría dedicada antes de promoción.
+## P1.2 — Desde / Hasta
 
-# QA pendiente antes de declarar P0 cerrado
+El período se aplica directamente a `delivery_trips.trip_date` en Supabase y gobierna Documentos + Viajes.
 
-## Reintentos
+No depende de los 250 viajes más recientes.
 
-1. QA-0004 con 2 bultos y mismo monto → permitir intento #2;
-2. QA-0011 con 9 bultos y mismo monto → permitir intento #2;
-3. QA-0001 entregada → bloquear;
-4. QA-0004 con saldo incorrecto → bloquear;
-5. crear intento #2 y validar trazabilidad;
-6. entregar intento #2 y comprobar bloqueo posterior;
-7. validar cadena de intento si #2 vuelve a parcial/no entregado.
+QA confirmado por el usuario con rango `08/09/2026 → 08/09/2026`.
 
-## Firma/POD
+## P1.3 — Excel
 
-1. receptor obligatorio;
-2. diferencia requiere motivo;
-3. `Continuar a firma` no guarda;
-4. toque sin dibujar no habilita confirmar;
-5. trazo real habilita confirmar;
-6. `Volver` no guarda y obliga a nueva firma;
-7. confirmar guarda una sola vez y actualiza documentos/parada/POD.
+`Exportar Excel` respeta:
 
-## Performance
+- Desde/Hasta;
+- búsqueda;
+- estado.
 
-Comparar latencia perceptual de eventos críticos e intermedios en móvil real.
+Hojas finales:
 
-# P1 posterior a P0
+1. `Resumen`
+2. `Viajes`
+3. `Tramos`
+4. `Paradas`
+5. `Documentos`
+6. `Eventos`
+7. `Incidencias`
 
-**Historial por Viaje**:
+Eventos e incidencias masivos se consultan únicamente al exportar y por lotes.
 
-- tabs `Documentos | Viajes`;
-- fila por viaje;
-- mapa grande;
-- timeline de eventos;
-- salida, llegadas, entregas, incidencias, retorno y cierre;
-- tiempos de viaje/permanencia;
-- botón `Ver recorrido`.
+## P1.4 — Distancia operativa estimada liviana
 
-Regla semántica obligatoria:
+Nuevo núcleo:
 
-> Es una **trayectoria estimada entre eventos GPS**, NO tracking continuo y NO recorrido vial exacto.
+`src/lib/logisticsTripDistance.ts`
 
-# Orden exacto desde este checkpoint
+Decisión de producto: **NO implementar breadcrumbs ni tracking periódico** para no aumentar consumo y complejidad sobre Supabase Free.
 
-1. Verificar PR #58, head y CI real.
-2. Verificar Supabase real; NO repetir las dos migraciones P0.
-3. Ejecutar QA E2E real de reintentos/saldo.
-4. Ejecutar QA móvil del nuevo flujo firma/POD.
-5. Ejecutar QA móvil comparativo Performance Fase 1.
-6. Solo si performance sigue insuficiente, implementar Fase 2 backend.
-7. Si los P0 pasan, implementar P1 Historial por Viaje.
-8. Repetir QA E2E completo.
-9. Auditoría final de seguridad + consumo Supabase + CI.
-10. Mantener PR Draft hasta aprobación explícita.
-11. Solo entonces decidir GO/NO-GO para merge/deploy.
+La distancia se calcula client-side con puntos ya existentes.
 
-# Reglas finales
+Prioridad por parada:
 
-- NO modificar `main`.
-- NO mergear PR #58 todavía.
-- NO desplegar Logística a Cloudflare productivo todavía.
-- NO limpiar datos TEST sin aprobación explícita.
-- NO repetir migraciones por memoria.
-- NO cambiar RLS/seguridad global sin auditoría y QA.
-- GitHub + Supabase + CI + Cloudflare reales prevalecen sobre cualquier documento.
+1. coordenada real de entrega;
+2. evento GPS de la parada;
+3. coordenada planificada;
+4. sin ubicación si no existe ninguna.
+
+Origen/retorno usan coordenadas ya disponibles del viaje o eventos existentes.
+
+El KPI ahora es:
+
+**Distancia operativa estimada**
+
+- formato adaptativo m/km;
+- suma Haversine de segmentos rectos;
+- indica cantidad de segmentos;
+- indica paradas con GPS;
+- indica paradas estimadas por ubicación planificada;
+- indica paradas sin ubicación.
+
+El Excel incorpora la misma lógica y la hoja `Tramos` transparenta cada segmento.
+
+### Consumo P1.4
+
+- 0 tablas nuevas;
+- 0 migraciones;
+- 0 filas GPS nuevas;
+- 0 escrituras adicionales;
+- 0 polling;
+- 0 Realtime;
+- cálculo en navegador.
+
+## Semántica obligatoria
+
+`Trayectoria GPS estimada` y `Distancia operativa estimada` **no son recorrido vial exacto**.
+
+Nunca afirmar calles transitadas ni kilometraje real si no existe tracking correspondiente.
+
+# Base de datos
+
+P1 no requiere cambios de esquema/RLS.
+
+Usa datos existentes de:
+
+- `delivery_trips`;
+- `delivery_stops`;
+- `delivery_documents`;
+- `delivery_events`;
+- `delivery_incidents`;
+- POD/evidencias para Documentos.
+
+# QA / CI
+
+Confirmado por el usuario:
+
+- Operaciones / Torre de Control: OK;
+- Historial / mapas: OK;
+- mapa grande: OK;
+- sin `API KEY REQUIRED`;
+- filtro Desde/Hasta: OK;
+- Excel inicial generado correctamente.
+
+P1.4:
+
+- TypeScript + Vite: **SUCCESS**.
+
+# Seguridad y consumo
+
+Hallazgos previos del Security Advisor siguen como backlog dedicado; P1 no modifica RLS ni seguridad.
+
+No interpretar datos TEST y coordenadas QA artificiales como conducta real del chofer.
+
+# Reglas de trabajo
+
+- producción solo después de CI final verde;
+- no introducir GPS continuo sin decisión explícita futura;
+- no agregar consumo de Supabase para fabricar rutas más detalladas;
+- no limpiar TEST;
+- antes de cualquier cambio futuro revalidar `main`, Supabase, CI y producción.
