@@ -46,6 +46,7 @@ type Props = {
 type BaseMap = 'STREETS' | 'LIGHT' | 'SATELLITE'
 
 const DR_CENTER: [number, number] = [18.7357, -70.1627]
+const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] || character))
@@ -80,20 +81,26 @@ function eventLabel(value: string) {
 }
 
 function tileDefinition(base: BaseMap) {
-  if (base === 'LIGHT') return {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    attribution: '© OpenStreetMap contributors © CARTO',
-    maxZoom: 20,
-  }
   if (base === 'SATELLITE') return {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles © Esri',
     maxZoom: 19,
+    opacity: 1,
   }
-  return {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  if (base === 'LIGHT') return {
+    // Deliberately reuse the same no-key OSM infrastructure already used by the
+    // rest of the app. Lower opacity over the white map surface creates a clean
+    // light SaaS treatment without depending on an API-key basemap provider.
+    url: OSM_TILES,
     attribution: '© OpenStreetMap contributors',
     maxZoom: 20,
+    opacity: 0.72,
+  }
+  return {
+    url: OSM_TILES,
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 20,
+    opacity: 1,
   }
 }
 
@@ -146,6 +153,7 @@ export function DeliveryTripJourneyMap({ trip, stops, events, incidents, selecte
       maxZoom: definition.maxZoom,
       maxNativeZoom: definition.maxZoom === 20 ? 19 : definition.maxZoom,
       attribution: definition.attribution,
+      opacity: definition.opacity,
       updateWhenIdle: true,
       keepBuffer: 2,
     }).addTo(map)
