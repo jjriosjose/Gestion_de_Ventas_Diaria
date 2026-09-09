@@ -4,6 +4,11 @@ import { Crosshair, Layers3, Map, Maximize2, Minimize2, Route, Satellite } from 
 import 'leaflet/dist/leaflet.css'
 import type { DeliveryStop, DeliveryTrip } from '../lib/logistics'
 
+type JourneyTrip = DeliveryTrip & {
+  origin_latitude?: number | null
+  origin_longitude?: number | null
+}
+
 type JourneyEvent = {
   id: string
   trip_id: string
@@ -30,7 +35,7 @@ type JourneyIncident = {
 }
 
 type Props = {
-  trip: DeliveryTrip
+  trip: JourneyTrip
   stops: DeliveryStop[]
   events: JourneyEvent[]
   incidents: JourneyIncident[]
