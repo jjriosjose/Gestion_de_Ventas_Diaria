@@ -18,37 +18,25 @@ Si hay discrepancia, prevalecen GitHub/Supabase/CI/Cloudflare reales y el checkp
 
 # Producción actual
 
-Repositorio:
+Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
-`jjriosjose/Gestion_de_Ventas_Diaria`
+Rama productiva: `main`
 
-Rama productiva:
+Main productivo: `734e1da5f586066083ad3010bccf0aeb8431a020`
 
-`main`
+Versión productiva: **0.6.5-beta.13.0**
 
-Main validado después de promover Logística V1:
+Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-`734e1da5f586066083ad3010bccf0aeb8431a020`
-
-Versión productiva:
-
-**0.6.5-beta.13.0**
-
-Cloudflare:
-
-`https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-
-Version ID del despliegue productivo:
-
-`5b491c77-0dd2-4f7d-a5d9-72fc45226cf5`
+Version ID: `5b491c77-0dd2-4f7d-a5d9-72fc45226cf5`
 
 Logística / Delivery V1 está mergeada y desplegada en producción.
 
 Los datos continúan siendo **TEST** hasta declaración explícita de Go-Live.
 
-# Estado P0
+# P0 Logística
 
-Los P0 de Logística fueron validados antes de la promoción:
+Validados antes de promoción:
 
 - reintentos trazables y saldo pendiente: APROBADO;
 - bloqueo de documento ya entregado: APROBADO;
@@ -70,8 +58,7 @@ Proyecto:
 
 - nombre: `Gestion de Ventas Diaria`;
 - ref: `ccvzosnhxitfeochnflr`;
-- región: `ca-central-1`;
-- mismo proyecto administrativamente transferido el 06/09/2026, no clonado.
+- región: `ca-central-1`.
 
 Política vigente:
 
@@ -81,48 +68,112 @@ Política vigente:
 - no limpiar TEST sin backup + aprobación;
 - no reescribir RLS global a ciegas.
 
-Hallazgos conocidos del Security Advisor siguen como backlog dedicado y no fueron introducidos por P1.
-
 # P1 actual — Historial por Viaje / Recorrido Operativo
 
-Rama de trabajo:
+Rama: **`feature/logistics-trip-history-v1`**
 
-**`feature/logistics-trip-history-v1`**
+PR: **#59 Draft**
 
-Base exacta de la rama:
-
-`main` en `734e1da5f586066083ad3010bccf0aeb8431a020`.
+Base exacta: `main` @ `734e1da5f586066083ad3010bccf0aeb8431a020`.
 
 Estado:
 
-**IMPLEMENTADO EN RAMA / BUILD VERDE / PENDIENTE QA VISUAL LOCAL / NO MERGE / NO DEPLOY**
+**IMPLEMENTADO EN RAMA / MAPAS QA OK / BUILD FUNCIONAL VERDE / FECHA+EXCEL PENDIENTES QA LOCAL / NO MERGE / NO DEPLOY**
 
-Documento técnico:
+Documento principal:
 
 `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
 
-## Lo implementado
+## P1 — Viajes
 
-`Historial / POD` ahora puede operar en dos modos:
+`Historial / POD` tiene:
 
-- `Documentos` — mantiene la funcionalidad previa;
-- `Viajes` — nueva vista integral del recorrido y comportamiento.
+- `Documentos`;
+- `Viajes`.
 
-Nueva vista de Viajes:
+Viajes incluye:
 
-- explorador/buscador de viajes;
+- búsqueda por viaje/chofer/placa/transportista;
 - filtros Todos / Finalizados / En curso / Excepciones;
 - KPIs de duración, bultos, GPS, permanencia y resultados;
-- mapa Leaflet profesional;
-- capas de secuencia planificada, GPS estimado, desviaciones e incidencias;
-- mapas base Claro / Calles / Satélite;
-- mapa grande y encajar;
-- selección sincronizada de parada desde mapa/lista;
-- lectura gerencial de anomalías;
-- indicadores de secuencia, gaps GPS y desviación plan/real;
-- lista de paradas con tiempos y bultos;
-- timeline operativo completo;
-- precisión GPS visible por evento.
+- mapa profesional;
+- secuencia planificada;
+- trayectoria GPS estimada;
+- desviaciones plan/real;
+- incidencias;
+- mapa grande / encajar;
+- paradas numeradas y estado;
+- selección mapa/lista;
+- lectura gerencial;
+- timeline operativo;
+- precisión GPS por evento.
+
+## P1.1 — Shared Logistics Map Core
+
+`Operaciones / Torre de Control` e `Historial / Recorrido` comparten:
+
+`src/lib/logisticsMapCore.ts`
+
+Centraliza:
+
+- OpenStreetMap sin API key;
+- centro/límites de RD;
+- zoom y fitBounds;
+- sanitización de popups;
+- colores de rutas;
+- infraestructura de límites territoriales oficiales.
+
+El proveedor CARTO independiente fue eliminado. Ya no aparece `API KEY REQUIRED`.
+
+QA visual del usuario:
+
+- Operaciones: funciona;
+- mapas grande/Control Tower: funcionan;
+- Historial: funciona;
+- usuario confirmó que todos los mapas funcionan bien.
+
+## P1.2 — Filtro de período
+
+Nuevo toolbar global `Desde / Hasta` en `Historial / POD`.
+
+Características:
+
+- default: primer día del mes actual → hoy RD;
+- `Aplicar período`;
+- indicador del rango cargado;
+- filtro aplicado en Supabase sobre `delivery_trips.trip_date`, no solo en memoria;
+- viajes paginados en bloques de 500;
+- stops/documentos/POD/evidencias cargados por lotes de IDs;
+- el período gobierna Documentos y Viajes.
+
+Esto elimina la limitación anterior de depender de los 250 viajes más recientes.
+
+## P1.3 — Exportación Excel
+
+Nuevo botón `Exportar Excel` en el explorador de Viajes.
+
+La exportación respeta:
+
+1. período Desde/Hasta aplicado;
+2. búsqueda;
+3. filtro de estado.
+
+Genera:
+
+`Historial_Viajes_<desde>_a_<hasta>.xlsx`
+
+Hojas:
+
+- `Resumen`;
+- `Viajes`;
+- `Paradas`;
+- `Documentos`;
+- `Eventos`;
+- `Incidencias`.
+
+Incluye formatos profesionales, filtros, encabezado congelado, moneda/fechas/porcentajes, colores de estado y nota de semántica GPS.
+
+Los eventos/incidencias masivos se consultan únicamente al pulsar exportar, por lotes; la navegación normal conserva carga lazy por viaje seleccionado.
 
 ## Regla semántica obligatoria
 
@@ -130,65 +181,59 @@ La línea GPS es una **trayectoria estimada entre eventos GPS registrados**.
 
 Nunca presentarla como tracking continuo ni ruta vial exacta.
 
-## Rendimiento
-
-Los eventos e incidencias NO se cargan masivamente para todos los viajes.
-
-Se consultan solo cuando el usuario selecciona un viaje y se cachean en memoria durante la sesión de la vista.
-
-No se agregó polling ni Realtime.
-
 ## Base de datos
 
-P1 no requiere migración ni cambios de esquema.
+P1/P1.1/P1.2/P1.3 no requieren migración ni cambios de esquema/RLS.
 
-Usa:
+Usan tablas existentes:
 
 - `delivery_trips`;
 - `delivery_stops`;
 - `delivery_documents`;
 - `delivery_events`;
-- `delivery_incidents`.
+- `delivery_incidents`;
+- `delivery_proofs` / `delivery_evidence` para vista documental.
 
 ## Build
 
-Build validation sobre el código funcional inicial:
+Head funcional de fecha/export validado antes de commits documentales:
 
-- TypeScript: SUCCESS;
-- Vite: SUCCESS.
+`c1d2628ee008ed4f8d99f0d0327ffdc1323adfcc`
 
-Tras cambios documentales, verificar nuevamente el head final antes de PR/merge.
+Build validation:
 
-# QA visual pendiente para P1
+- TypeScript + Vite: **SUCCESS**.
 
-1. Cambiar localmente a `feature/logistics-trip-history-v1`.
-2. Abrir `Historial / POD`.
-3. Confirmar que `Documentos` conserva comportamiento previo.
-4. Abrir `Viajes`.
-5. Validar lista de viajes TEST.
-6. Seleccionar viaje de 5 paradas.
-7. Validar mapa y popups.
-8. Alternar capas Planificada / GPS / Desviación / Incidencias.
-9. Alternar Claro / Calles / Satélite.
-10. Probar Mapa grande / Encajar.
-11. Seleccionar paradas en lista y en mapa.
-12. Comparar KPIs/timeline con Supabase.
-13. Revisar responsive.
+Nota: hubo un primer build fallido únicamente por una llamada `getRange` ajena a ExcelJS; se corrigió y el siguiente build quedó verde.
+
+# QA pendiente antes de merge
+
+1. actualizar rama local `feature/logistics-trip-history-v1`;
+2. confirmar toolbar Desde/Hasta;
+3. probar rango de un solo día y rango de varios días;
+4. comprobar actualización de contadores/lista;
+5. combinar fecha + búsqueda + filtro de estado;
+6. pulsar `Exportar Excel`;
+7. abrir archivo y validar las 6 hojas;
+8. confirmar registros, formatos, fechas, montos y GPS;
+9. confirmar que Excel coincide con viajes visibles;
+10. revisar responsive del toolbar.
 
 # Seguridad y consumo
 
-P1 no modifica seguridad ni RLS.
-
-P1 evita consultas masivas de `delivery_events`/`delivery_incidents`.
-
-No interpretar datos QA viejos como comportamiento real de un chofer; existen viajes TEST con coordenadas y tiempos artificiales.
+- sin cambios RLS;
+- sin polling;
+- sin Realtime;
+- sin tracking continuo;
+- eventos/incidencias masivos solo bajo demanda al exportar;
+- no interpretar coordenadas QA artificiales como conducta real del chofer.
 
 # Reglas de trabajo desde aquí
 
-- NO modificar `main` para P1 hasta QA y aprobación explícita.
+- NO modificar `main` hasta QA y aprobación explícita.
 - NO desplegar P1 a Cloudflare todavía.
 - NO crear migraciones innecesarias.
-- NO activar GPS continuo para fabricar una ruta exacta.
+- NO activar GPS continuo.
 - NO limpiar datos TEST.
-- Abrir PR Draft después de dejar CI final verde.
+- PR #59 debe permanecer Draft hasta cerrar QA.
 - Antes de merge futuro: revalidar main, Supabase, CI y producción.
