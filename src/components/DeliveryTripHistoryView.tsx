@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock3, FileText, LoaderCircle, MapPin, Navigation, PackageCheck, Route, Search, Truck, UserRound } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock3, Download, FileText, LoaderCircle, MapPin, Navigation, PackageCheck, Route, Search, Truck, UserRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { currency, type DeliveryDocument, type DeliveryStop, type DeliveryTrip } from '../lib/logistics'
+import { exportTripHistoryExcel } from '../lib/logisticsHistoryExport'
 import { DeliveryTripJourneyMap } from './DeliveryTripJourneyMap'
 
 type JourneyTrip = DeliveryTrip & {
@@ -53,6 +54,8 @@ type Props = {
   trips: DeliveryTrip[]
   stops: DeliveryStop[]
   documents: DeliveryDocument[]
+  fromDate?: string
+  toDate?: string
 }
 
 const TRIP_STATUS: Record<string, string> = {
@@ -66,6 +69,8 @@ const STOP_STATUS: Record<string, string> = {
 const EVENT_LABELS: Record<string, string> = {
   DEPARTED_ORIGIN: 'Salida del centro de carga', ARRIVED: 'Llegada al cliente', UNLOAD_STARTED: 'Inicio de descarga', UNLOAD_FINISHED: 'Fin de descarga', DELIVERY_CONFIRMED: 'Entrega confirmada', DELIVERY_PARTIAL: 'Entrega parcial', DELIVERY_NOT_DELIVERED: 'No entregada', DELIVERY_RESCHEDULED: 'Entrega reprogramada', INCIDENT_REPORTED: 'Incidencia reportada', INCIDENT_RESOLVED: 'Incidencia resuelta', RETURN_STARTED: 'Inicio de retorno', RETURNED_ORIGIN: 'Retorno a base', TRIP_COMPLETED: 'Cierre del viaje',
 }
+
+const FILTER_LABELS = { ALL: 'Todos', COMPLETED: 'Finalizados', ACTIVE: 'En curso', EXCEPTION: 'Excepciones' } as const
 
 function minutesBetween(start?: string | null, end?: string | null) {
   if (!start || !end) return null
@@ -110,13 +115,14 @@ function statusTone(status: string) {
   return ''
 }
 
-export function DeliveryTripHistoryView({ trips, stops, documents }: Props) {
+export function DeliveryTripHistoryView({ trips, stops, documents, fromDate, toDate }: Props) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'COMPLETED' | 'ACTIVE' | 'EXCEPTION'>('ALL')
   const [selectedTripId, setSelectedTripId] = useState<string | null>(() => trips[0]?.id || null)
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
   const [bundles, setBundles] = useState<Record<string, Bundle>>({})
   const [loadingTrip, setLoadingTrip] = useState('')
+  const [exporting, setExporting] = useState(false)
   const [message, setMessage] = useState('')
 
   const journeyTrips = trips as JourneyTrip[]
@@ -164,6 +170,21 @@ export function DeliveryTripHistoryView({ trips, stops, documents }: Props) {
     }).finally(() => { if (!cancelled) setLoadingTrip('') })
     return () => { cancelled = true }
   }, [selectedTripId, bundles])
+
+  const exportVisibleTrips = async () => {
+    if (!visibleTrips.length) return
+    setExporting(true); setMessage('')
+    try {
+      await exportTripHistoryExcel({
+        trips: visibleTrips,
+        stops: journeyStops,
+        documents,
+        filters: { fromDate, toDate, search: query.trim(), statusLabel: FILTER_LABELS[statusFilter] },
+      })
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'No fue posible generar el Excel del historial.')
+    } finally { setExporting(false) }
+  }
 
   const metrics = useMemo(() => {
     if (!selectedTrip) return null
@@ -216,7 +237,7 @@ export function DeliveryTripHistoryView({ trips, stops, documents }: Props) {
     return items
   }, [metrics, incidents])
 
-  if (!journeyTrips.length) return <div className="panel empty-state"><Route/><b>Sin viajes registrados</b><p>Cuando existan viajes, aparecerán aquí con su recorrido y comportamiento operativo.</p></div>
+  if (!journeyTrips.length) return <div className="panel empty-state"><Route/><b>Sin viajes en el período</b><p>Ajusta Desde/Hasta para consultar otro rango del historial.</p></div>
 
   return <div className="journey-history-layout">
     <aside className="panel journey-trip-browser">
@@ -228,6 +249,7 @@ export function DeliveryTripHistoryView({ trips, stops, documents }: Props) {
         <button className={statusFilter === 'ACTIVE' ? 'active' : ''} onClick={() => setStatusFilter('ACTIVE')}>En curso</button>
         <button className={statusFilter === 'EXCEPTION' ? 'active' : ''} onClick={() => setStatusFilter('EXCEPTION')}>Excepciones</button>
       </div>
+      <div className="journey-export-wrap"><button className="journey-export-button" disabled={exporting || !visibleTrips.length} onClick={() => void exportVisibleTrips()}>{exporting ? <LoaderCircle className="spin" size={15}/> : <Download size={15}/>}<span><b>{exporting ? 'Generando Excel…' : 'Exportar Excel'}</b><small>{visibleTrips.length} viaje(s) visibles</small></span></button></div>
       <div className="journey-trip-list">{visibleTrips.map(trip => {
         const tripStops = journeyStops.filter(stop => stop.trip_id === trip.id)
         const terminal = tripStops.filter(stop => ['DELIVERED', 'PARTIAL', 'NOT_DELIVERED', 'RESCHEDULED', 'CANCELLED'].includes(stop.status)).length
