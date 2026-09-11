@@ -1,18 +1,19 @@
 # Continuación actual — Gestión de Ventas Diaria / Logística
 
-Fecha: **09/09/2026 (RD)**
+Fecha: **11/09/2026 (RD)**
 
 > **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN EL PRÓXIMO CHAT.** GitHub, Supabase, CI y Cloudflare reales son la fuente de verdad. Verificar estado real antes de escribir, mergear o desplegar.
 
 ## Orden recomendado de lectura
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
-3. `docs/LOGISTICS_P0_IMPLEMENTATION_STATUS_2026-09-07.md`
-4. `docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`
-5. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`
-6. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`
-7. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`
+2. `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
+3. `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
+4. `docs/LOGISTICS_P0_IMPLEMENTATION_STATUS_2026-09-07.md`
+5. `docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`
+6. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`
+7. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`
+8. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`
 
 Si hay discrepancia, prevalecen GitHub/Supabase/CI/Cloudflare reales y el checkpoint más reciente.
 
@@ -22,6 +23,8 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Rama productiva: `main`
 
+Main actual: `968671f26b4cbff3896ffdc11fb325fa861b96d9` (el último commit es documentación; código desplegado indicado abajo).
+
 Release productivo: **0.6.5-beta.14.0**
 
 SHA del código mergeado y desplegado: `055292797e4625896ed71e4d2a1e44dd62d33a47`
@@ -30,15 +33,64 @@ Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
 Cloudflare Version ID: `ac7ee2e2-0dbf-473d-9877-f46b3455e300`
 
-PR de promoción: **#59 — MERGED**
+PR de promoción P1: **#59 — MERGED**
 
-Estado:
+Estado productivo:
 
-**P1 HISTORIAL POR VIAJE DESPLEGADO EN PRODUCCIÓN / SHARED MAP CORE ACTIVO / FILTRO DESDE-HASTA ACTIVO / EXCEL ESTRUCTURADO ACTIVO / DISTANCIA OPERATIVA ESTIMADA ACTIVA / SMOKE TEST PRODUCTIVO OK.**
-
-La captura productiva posterior al deploy confirmó que `Historial / POD` carga correctamente y la UI muestra **Versión 0.6.5-beta.14.0**.
+**P1 HISTORIAL POR VIAJE DESPLEGADO / SHARED MAP CORE ACTIVO / FILTRO DESDE-HASTA ACTIVO / EXCEL ESTRUCTURADO ACTIVO / DISTANCIA OPERATIVA ESTIMADA ACTIVA / SMOKE TEST PRODUCTIVO OK.**
 
 Los datos continúan siendo **TEST** hasta declaración explícita de Go-Live.
+
+# Trabajo actual — Jornadas Libres + Visitas Adicionales
+
+Rama: **`feature/open-field-journeys-v1`**
+
+PR: **#60 — DRAFT / NO MERGED**
+
+Documento técnico: `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
+
+Base exacta de la rama: `968671f26b4cbff3896ffdc11fb325fa861b96d9`.
+
+Objetivo:
+
+- permitir al vendedor iniciar una **Jornada Libre** cuando no exista ruta planificada disponible para hoy;
+- permitir **Visitas Adicionales** dentro de una ruta planificada activa;
+- mantener visitas adicionales fuera del numerador/denominador de cobertura planificada;
+- mantener una sola jornada activa y una sola visita abierta por vendedor;
+- conservar cierre, GPS, incidencias, Tracking, Jornadas y reportes.
+
+Migración Supabase TEST ya aplicada y **no debe repetirse por memoria**:
+
+`20260911225302_open_field_journeys_v1`
+
+Cambios principales de DB:
+
+- `route_plans.route_mode = PLANIFICADA | LIBRE`;
+- RPC `start_open_journey(...)`;
+- RPC `start_additional_visit(...)`;
+- índice único parcial para una sola `route_session` ACTIVA por empleado;
+- vista `executive_route_journeys_v4` con métricas Plan vs Adicionales vs Total.
+
+Todos los 17 `route_plans` históricos existentes conservaron `route_mode = PLANIFICADA` por default; no se modificaron resultados históricos.
+
+Estado actual de la implementación:
+
+- frontend `Routes`: Jornada Libre + Visita adicional + métricas separadas;
+- frontend `Journeys`: modo de jornada, adicionales y total;
+- nuevo selector de cliente `AdditionalVisitModal`;
+- migración versionada en GitHub;
+- build funcional pre-documentación: **SUCCESS**;
+- QA funcional con usuario Vendedor: **PENDIENTE**;
+- producción: **NO MODIFICADA**.
+
+Reglas obligatorias:
+
+- no mergear PR #60 hasta completar QA;
+- no desplegar esta funcionalidad todavía;
+- un cliente que ya es parada planificada no puede registrarse como visita adicional;
+- Jornada Libre no fabrica paradas planificadas;
+- cobertura de una Jornada Libre se muestra `N/A`;
+- visitas adicionales cuentan para actividad real/tiempo/frecuencia, pero no para cobertura del plan.
 
 # Baseline anterior
 
@@ -78,8 +130,8 @@ Proyecto:
 
 Política vigente:
 
-- sin polling;
-- sin Realtime;
+- sin polling por defecto;
+- sin Realtime por defecto;
 - sin GPS continuo;
 - no limpiar TEST sin backup + aprobación;
 - no reescribir RLS global a ciegas.
@@ -114,29 +166,19 @@ Viajes incluye:
 
 ## P1.1 — Shared Logistics Map Core
 
-Operaciones e Historial comparten:
-
-`src/lib/logisticsMapCore.ts`
+Operaciones e Historial comparten `src/lib/logisticsMapCore.ts`.
 
 Centraliza OpenStreetMap sin API key, contexto RD, zoom, fitBounds, seguridad de popups y límites territoriales oficiales.
 
-El proveedor CARTO independiente fue eliminado. QA del usuario confirmó que todos los mapas funcionan bien y no aparece `API KEY REQUIRED`.
+QA confirmó todos los mapas funcionando y sin `API KEY REQUIRED`.
 
 ## P1.2 — Desde / Hasta
 
 El período se aplica directamente a `delivery_trips.trip_date` en Supabase y gobierna Documentos + Viajes.
 
-No depende de los 250 viajes más recientes.
-
-QA confirmado por el usuario con rango `08/09/2026 → 08/09/2026`.
+QA confirmado con rango `08/09/2026 → 08/09/2026`.
 
 ## P1.3 — Excel estructurado
-
-`Exportar Excel` respeta:
-
-- Desde/Hasta;
-- búsqueda;
-- estado.
 
 Hojas finales:
 
@@ -148,96 +190,40 @@ Hojas finales:
 6. `Eventos`
 7. `Incidencias`
 
-Eventos e incidencias masivos se consultan únicamente al exportar y por lotes.
-
 ## P1.4 — Distancia operativa estimada liviana
 
-Núcleo:
-
-`src/lib/logisticsTripDistance.ts`
+Núcleo: `src/lib/logisticsTripDistance.ts`.
 
 Decisión de producto: **NO implementar breadcrumbs ni tracking periódico** para no aumentar consumo y complejidad sobre Supabase Free.
 
-La distancia se calcula client-side con puntos ya existentes.
+La distancia se calcula client-side con puntos ya existentes y es una estimación recta, no recorrido vial exacto.
 
-Prioridad por parada:
+# QA / CI / Producción P1
 
-1. coordenada real de entrega;
-2. evento GPS de la parada;
-3. coordenada planificada;
-4. sin ubicación si no existe ninguna.
-
-Origen/retorno usan coordenadas ya disponibles del viaje o eventos existentes.
-
-KPI:
-
-**Distancia operativa estimada**
-
-- formato adaptativo m/km;
-- suma Haversine de segmentos rectos;
-- indica cantidad de segmentos;
-- indica paradas con GPS;
-- indica paradas estimadas por ubicación planificada;
-- indica paradas sin ubicación.
-
-El Excel incorpora la misma lógica y la hoja `Tramos` transparenta cada segmento.
-
-### Consumo P1.4
-
-- 0 tablas nuevas;
-- 0 migraciones;
-- 0 filas GPS nuevas;
-- 0 escrituras adicionales;
-- 0 polling;
-- 0 Realtime;
-- cálculo en navegador.
-
-## Semántica obligatoria
-
-`Trayectoria GPS estimada` y `Distancia operativa estimada` **no son recorrido vial exacto**.
-
-Nunca afirmar calles transitadas ni kilometraje real si no existe tracking correspondiente.
-
-# Base de datos
-
-P1 no requiere cambios de esquema/RLS.
-
-Usa datos existentes de:
-
-- `delivery_trips`;
-- `delivery_stops`;
-- `delivery_documents`;
-- `delivery_events`;
-- `delivery_incidents`;
-- POD/evidencias para Documentos.
-
-# QA / CI / Producción
-
-Confirmado por el usuario y CI:
+Confirmado:
 
 - Operaciones / Torre de Control: OK;
 - Historial / mapas: OK;
 - mapa grande: OK;
 - sin `API KEY REQUIRED`: OK;
 - filtro Desde/Hasta: OK;
-- Excel estructurado: generado correctamente;
-- P1.4 TypeScript + Vite: SUCCESS;
-- CI final pre-merge: SUCCESS;
-- CI post-merge en `main`: SUCCESS;
+- Excel estructurado: OK;
+- TypeScript + Vite: SUCCESS;
+- CI pre/post merge: SUCCESS;
 - deploy Cloudflare: SUCCESS;
 - smoke test productivo `0.6.5-beta.14.0`: OK.
 
 # Seguridad y consumo
 
-Hallazgos previos del Security Advisor siguen como backlog dedicado; P1 no modifica RLS ni seguridad.
+Hallazgos previos del Security Advisor siguen como backlog dedicado; no hacer refactor masivo de RLS durante una entrega funcional.
 
-No interpretar datos TEST y coordenadas QA artificiales como conducta real del chofer.
+No interpretar datos TEST y coordenadas QA artificiales como conducta real del vendedor/chofer.
 
 # Reglas de trabajo
 
 - producción actual: `0.6.5-beta.14.0`;
+- feature actual: `feature/open-field-journeys-v1` / PR #60 Draft;
 - no introducir GPS continuo sin decisión explícita futura;
-- no agregar consumo de Supabase para fabricar rutas más detalladas;
 - no limpiar TEST;
-- antes de cualquier cambio futuro revalidar `main`, Supabase, CI y producción;
+- antes de cualquier cambio revalidar `main`, Supabase, CI y producción;
 - si se abre otro chat, leer este documento primero y verificar que el estado vivo siga coincidiendo con este checkpoint.
