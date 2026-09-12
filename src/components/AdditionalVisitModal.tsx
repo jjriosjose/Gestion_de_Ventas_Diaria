@@ -21,17 +21,19 @@ type ClientRow={
 type Props={
   sessionId:string
   plannedClientIds?:string[]
+  journeyMode?:'PLANIFICADA'|'LIBRE'|string
   onClose:()=>void
   onStarted:(result:any)=>void
 }
 
-export function AdditionalVisitModal({sessionId,plannedClientIds=[],onClose,onStarted}:Props){
+export function AdditionalVisitModal({sessionId,plannedClientIds=[],journeyMode='PLANIFICADA',onClose,onStarted}:Props){
   const{employee}=useAuth()
   const[q,setQ]=useState('')
   const[rows,setRows]=useState<ClientRow[]>([])
   const[loading,setLoading]=useState(false)
   const[busyId,setBusyId]=useState('')
   const plannedSet=useMemo(()=>new Set(plannedClientIds),[plannedClientIds])
+  const free=journeyMode==='LIBRE'
 
   useEffect(()=>{
     if(!employee?.id)return
@@ -67,12 +69,12 @@ export function AdditionalVisitModal({sessionId,plannedClientIds=[],onClose,onSt
       })
       if(error)throw error
       onStarted({...data,client})
-    }catch(e){alert(e instanceof Error?e.message:'No se pudo iniciar la visita adicional')}
+    }catch(e){alert(e instanceof Error?e.message:free?'No se pudo registrar la llegada':'No se pudo iniciar la visita adicional')}
     finally{setBusyId('')}
   }
 
   return <div className="modal-wrap"><button className="modal-backdrop" onClick={busyId?undefined:onClose}/><div className="modal large additional-visit-modal">
-    <div className="modal-head"><div><span className="eyebrow">VISITA FUERA DEL PLAN</span><h3>Visita adicional</h3><p>Busca cualquier cliente y registra la llegada dentro de la jornada activa. No modifica la cobertura de la ruta planificada.</p></div><button className="icon-btn" disabled={!!busyId} onClick={onClose}><X/></button></div>
+    <div className="modal-head"><div><span className="eyebrow">{free?'JORNADA LIBRE':'VISITA FUERA DEL PLAN'}</span><h3>{free?'Visitar cliente':'Visita adicional'}</h3><p>{free?'Busca un cliente y registra la llegada. Desde ese momento comienza a medirse el tiempo de atención hasta que finalices la visita y salgas.':'Busca cualquier cliente y registra la llegada dentro de la jornada activa. No modifica la cobertura de la ruta planificada.'}</p></div><button className="icon-btn" disabled={!!busyId} onClick={onClose}><X/></button></div>
     <div className="additional-visit-search"><Search size={18}/><input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nombre o código de cliente..."/>{loading&&<LoaderCircle className="spin" size={18}/>}</div>
     <div className="additional-visit-help"><b>{q.trim().length>=2?'Resultados de búsqueda':'Tu cartera'}</b><span>{q.trim().length>=2?'La búsqueda puede incluir clientes fuera de tu cartera.':'Escribe al menos 2 caracteres para buscar en toda la base de clientes.'}</span></div>
     <div className="additional-client-list">{rows.length?rows.map(client=>{const planned=plannedSet.has(client.id);const mine=client.vendor_employee_id===employee?.id;const nav=googleMapsNavigation(client.latitude,client.longitude);return <div className={`additional-client-card ${planned?'blocked':''}`} key={client.id}>
