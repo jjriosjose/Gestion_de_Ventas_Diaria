@@ -1,6 +1,6 @@
 # Continuación actual — Gestión de Ventas Diaria / Logística
 
-Fecha: **11/09/2026 (RD)**
+Fecha: **13/09/2026 (RD)**
 
 > **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN EL PRÓXIMO CHAT.** GitHub, Supabase, CI y Cloudflare reales son la fuente de verdad. Verificar estado real antes de escribir, mergear o desplegar.
 
@@ -23,84 +23,120 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Rama productiva: `main`
 
-Main actual: `968671f26b4cbff3896ffdc11fb325fa861b96d9` (el último commit es documentación; código desplegado indicado abajo).
+Main de código desplegado: `ea6a7314e34dbbdad2a54b6590c177f1bcebadf0`.
 
-Release productivo: **0.6.5-beta.14.0**
-
-SHA del código mergeado y desplegado: `055292797e4625896ed71e4d2a1e44dd62d33a47`
+Release productivo: **0.6.5-beta.15.0**
 
 Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Cloudflare Version ID: `ac7ee2e2-0dbf-473d-9877-f46b3455e300`
+Cloudflare Version ID: `6889d500-e3f0-477a-9994-79a5c6c30bf9`
 
-PR de promoción P1: **#59 — MERGED**
+PR de promoción Street Operations V1: **#60 — MERGED**
+
+CI pre-merge: **SUCCESS**
+
+CI post-merge sobre `main`: **SUCCESS**
+
+Deploy Cloudflare: **SUCCESS**
 
 Estado productivo:
 
-**P1 HISTORIAL POR VIAJE DESPLEGADO / SHARED MAP CORE ACTIVO / FILTRO DESDE-HASTA ACTIVO / EXCEL ESTRUCTURADO ACTIVO / DISTANCIA OPERATIVA ESTIMADA ACTIVA / SMOKE TEST PRODUCTIVO OK.**
+**JORNADAS LIBRES + VISITAS ADICIONALES PRODUCTIVO / TRACKING >45 MIN ACTIVO / NO_GESTIONADO ACTIVO / CONFIRMACIÓN SHOWROOM ACTIVA / FALLBACK GPS DE SALIDA ACTIVO / P1 HISTORIAL POR VIAJE ACTIVO / SHARED MAP CORE ACTIVO / FILTRO DESDE-HASTA ACTIVO / EXCEL ESTRUCTURADO ACTIVO / DISTANCIA OPERATIVA ESTIMADA ACTIVA.**
 
 Los datos continúan siendo **TEST** hasta declaración explícita de Go-Live.
 
-# Trabajo actual — Jornadas Libres + Visitas Adicionales
-
-Rama: **`feature/open-field-journeys-v1`**
-
-PR: **#60 — DRAFT / NO MERGED**
+# Street Operations V1 — PRODUCTIVO
 
 Documento técnico: `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
 
-Base exacta de la rama: `968671f26b4cbff3896ffdc11fb325fa861b96d9`.
+Release: **0.6.5-beta.15.0**
 
-Objetivo:
+## Jornada Libre
 
-- permitir al vendedor iniciar una **Jornada Libre** cuando no exista ruta planificada disponible para hoy;
-- permitir **Visitas Adicionales** dentro de una ruta planificada activa;
-- mantener visitas adicionales fuera del numerador/denominador de cobertura planificada;
-- mantener una sola jornada activa y una sola visita abierta por vendedor;
-- conservar cierre, GPS, incidencias, Tracking, Jornadas y reportes.
+- El vendedor puede iniciar una Jornada Libre cuando no existe ruta planificada disponible para el día actual.
+- Internamente usa `route_mode = LIBRE`.
+- Mantiene los mismos hitos operativos de una jornada planificada: inicio, llegada, atención, salida y cierre.
+- No crea `route_stops` artificiales.
+- Cobertura se muestra `N/A`.
+- Máximo una Jornada Libre por vendedor y fecha, aunque la primera ya esté finalizada.
+- Después del cierre, la UI muestra `Jornada del día finalizada` y no ofrece una segunda jornada.
 
-Migración Supabase TEST ya aplicada y **no debe repetirse por memoria**:
+## Visitas adicionales
 
-`20260911225302_open_field_journeys_v1`
+- Dentro de una ruta planificada activa el vendedor puede visitar clientes fuera del plan.
+- Se guarda `planned=false` y `route_stop_id=null`.
+- Las visitas adicionales cuentan para actividad real y Total visitas.
+- Nunca inflan numerador ni denominador de cobertura del plan.
+- Un cliente que ya existe como parada planificada no puede registrarse como adicional.
 
-Cambios principales de DB:
+## Endurecimiento previo a producción
 
-- `route_plans.route_mode = PLANIFICADA | LIBRE`;
-- RPC `start_open_journey(...)`;
-- RPC `start_additional_visit(...)`;
-- índice único parcial para una sola `route_session` ACTIVA por empleado;
-- vista `executive_route_journeys_v4` con métricas Plan vs Adicionales vs Total.
+- Salida de visita: primer intento GPS, reintento explícito y fallback final para guardar sin coordenadas.
+- Una gestión comercial no se pierde por un fallo transitorio de GPS.
+- Fotos/evidencia no dependen de tener GPS de salida.
+- Resultado comercial `NO_GESTIONADO` mostrado como `Cliente no estaba / no gestionado`.
+- Si `¿Lo recibieron? = No`, el formulario propone `NO_GESTIONADO` + `NO_RECIBIDO`.
+- Showroom: selección de fecha/hora requiere confirmación explícita antes de finalizar.
+- Tracking: KPI `Sin registro >45 min`, por vendedor activo único, clicable y con detalle de vendedores que requieren revisión.
+- No se agregó GPS periódico, polling nuevo, Realtime ni tracking continuo.
 
-Todos los 17 `route_plans` históricos existentes conservaron `route_mode = PLANIFICADA` por default; no se modificaron resultados históricos.
+## QA aprobado
 
-Estado actual de la implementación:
+### Jornada Libre E2E
 
-- frontend `Routes`: Jornada Libre + Visita adicional + métricas separadas;
-- frontend `Journeys`: modo de jornada, adicionales y total;
-- nuevo selector de cliente `AdditionalVisitModal`;
-- migración versionada en GitHub;
-- build funcional pre-documentación: **SUCCESS**;
-- QA funcional con usuario Vendedor: **PENDIENTE**;
-- producción: **NO MODIFICADA**.
+- inicio correcto;
+- visita libre `planned=false` / `route_stop_id=null`;
+- llegada y salida con tiempos;
+- formulario comercial normal;
+- cierre normal;
+- plan y sesión `FINALIZADA`;
+- 0 pendientes artificiales;
+- cobertura N/A;
+- segunda Jornada Libre del mismo día bloqueada en UI y DB.
 
-Reglas obligatorias:
+### Ruta planificada + adicionales
 
-- no mergear PR #60 hasta completar QA;
-- no desplegar esta funcionalidad todavía;
-- un cliente que ya es parada planificada no puede registrarse como visita adicional;
-- Jornada Libre no fabrica paradas planificadas;
-- cobertura de una Jornada Libre se muestra `N/A`;
-- visitas adicionales cuentan para actividad real/tiempo/frecuencia, pero no para cobertura del plan.
+Prueba real 13/09/2026:
+
+- 3 paradas planificadas;
+- 3 planificadas finalizadas `VISITADO`;
+- 2 visitas fuera del plan completadas;
+- 5 visitas totales reales;
+- 0 visitas abiertas al cierre;
+- ruta/sesión `FINALIZADA`.
+
+### QA final
+
+- fallo inicial GPS al iniciar ruta no dejó sesión huérfana;
+- intento posterior registró inicio correctamente;
+- `Cliente no estaba / no gestionado`: validado;
+- confirmación explícita de fecha/hora de showroom: validada;
+- Tracking `Sin registro >45 min`: validado;
+- smoke de Rutas / Jornadas / Visitas / Tracking: aprobado.
+
+# Migraciones Street Operations V1
+
+Aplicadas y versionadas; **no repetir por memoria**:
+
+- `20260911225302_open_field_journeys_v1`
+- `20260912163228_open_field_journey_start_fix`
+- `20260912172056_open_field_one_free_journey_per_day`
+
+Antes del merge productivo se confirmó:
+
+- `0` sesiones activas;
+- `0` visitas abiertas;
+- sin grupos de doble jornada activa.
 
 # Baseline anterior
 
-Release anterior: **0.6.5-beta.13.0**
+Release anterior: **0.6.5-beta.14.0**
 
-Main anterior: `734e1da5f586066083ad3010bccf0aeb8431a020`
+Main anterior: `968671f26b4cbff3896ffdc11fb325fa861b96d9`.
 
-Cloudflare Version ID anterior: `5b491c77-0dd2-4f7d-a5d9-72fc45226cf5`
+Cloudflare Version ID anterior: `ac7ee2e2-0dbf-473d-9877-f46b3455e300`.
 
-Ese baseline fue reemplazado productivamente por `0.6.5-beta.14.0`.
+Ese baseline fue reemplazado productivamente por `0.6.5-beta.15.0`.
 
 # P0 Logística ya productivo
 
@@ -138,91 +174,43 @@ Política vigente:
 
 # P1 — Historial por Viaje / Recorrido Operativo — PRODUCTIVO
 
-Documento técnico principal:
+Documento técnico principal: `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
 
-`docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
+Incluye:
 
-## Vista
-
-`Historial / POD` mantiene:
-
-- `Documentos`;
-- `Viajes`.
-
-Viajes incluye:
-
+- Documentos + Viajes;
 - explorador y búsqueda;
 - filtros por estado;
-- filtro global `Desde / Hasta`;
+- período Desde/Hasta;
 - KPIs;
-- mapa profesional;
+- mapa profesional compartido;
 - secuencia planificada;
 - trayectoria GPS estimada;
-- desviaciones;
-- incidencias;
+- desviaciones e incidencias;
 - timeline;
 - permanencia y resultados;
-- Excel estructurado.
+- Excel estructurado;
+- distancia operativa estimada liviana.
 
-## P1.1 — Shared Logistics Map Core
+Shared Map Core: `src/lib/logisticsMapCore.ts`.
 
-Operaciones e Historial comparten `src/lib/logisticsMapCore.ts`.
+Distancia: `src/lib/logisticsTripDistance.ts`.
 
-Centraliza OpenStreetMap sin API key, contexto RD, zoom, fitBounds, seguridad de popups y límites territoriales oficiales.
-
-QA confirmó todos los mapas funcionando y sin `API KEY REQUIRED`.
-
-## P1.2 — Desde / Hasta
-
-El período se aplica directamente a `delivery_trips.trip_date` en Supabase y gobierna Documentos + Viajes.
-
-QA confirmado con rango `08/09/2026 → 08/09/2026`.
-
-## P1.3 — Excel estructurado
-
-Hojas finales:
-
-1. `Resumen`
-2. `Viajes`
-3. `Tramos`
-4. `Paradas`
-5. `Documentos`
-6. `Eventos`
-7. `Incidencias`
-
-## P1.4 — Distancia operativa estimada liviana
-
-Núcleo: `src/lib/logisticsTripDistance.ts`.
-
-Decisión de producto: **NO implementar breadcrumbs ni tracking periódico** para no aumentar consumo y complejidad sobre Supabase Free.
-
-La distancia se calcula client-side con puntos ya existentes y es una estimación recta, no recorrido vial exacto.
-
-# QA / CI / Producción P1
-
-Confirmado:
-
-- Operaciones / Torre de Control: OK;
-- Historial / mapas: OK;
-- mapa grande: OK;
-- sin `API KEY REQUIRED`: OK;
-- filtro Desde/Hasta: OK;
-- Excel estructurado: OK;
-- TypeScript + Vite: SUCCESS;
-- CI pre/post merge: SUCCESS;
-- deploy Cloudflare: SUCCESS;
-- smoke test productivo `0.6.5-beta.14.0`: OK.
+La distancia es estimada entre puntos ya existentes; no es recorrido vial exacto. Se mantiene la decisión de **no implementar breadcrumbs ni tracking periódico** para no aumentar consumo y complejidad sobre Supabase Free.
 
 # Seguridad y consumo
 
 Hallazgos previos del Security Advisor siguen como backlog dedicado; no hacer refactor masivo de RLS durante una entrega funcional.
 
-No interpretar datos TEST y coordenadas QA artificiales como conducta real del vendedor/chofer.
+No interpretar datos TEST ni coordenadas QA artificiales como conducta real del vendedor/chofer.
+
+La precisión GPS del dispositivo y la distancia al punto maestro son conceptos distintos. Un punto puede tener precisión aceptable y aun así estar muy distante del cliente; Tracking debe conservar ambas lecturas separadas.
 
 # Reglas de trabajo
 
-- producción actual: `0.6.5-beta.14.0`;
-- feature actual: `feature/open-field-journeys-v1` / PR #60 Draft;
+- producción actual: **0.6.5-beta.15.0**;
+- `main` es la fuente de código productivo;
+- PR #60 está mergeado;
 - no introducir GPS continuo sin decisión explícita futura;
 - no limpiar TEST;
 - antes de cualquier cambio revalidar `main`, Supabase, CI y producción;
