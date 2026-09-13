@@ -16,10 +16,10 @@ export function DashboardWorkspace(){
   const canView=hasPermission(employee,'journeys.view');const executive=['Administrador','Supervisor'].includes(profileForEmployee(employee))
   const load=async()=>{
     if(!employee?.id||!canView)return setRows([])
-    let q=supabase.from('executive_route_journeys_v2').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').eq('route_date',today())
+    let q=supabase.from('executive_route_journeys_v4').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').eq('route_date',today())
     if(!executive)q=q.eq('employee_id',employee.id)
     const current=await q
-    let staleQ=supabase.from('executive_route_journeys_v2').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').eq('derived_status','PENDIENTE_CIERRE')
+    let staleQ=supabase.from('executive_route_journeys_v4').select('route_plan_id,employee_id,route_date,derived_status,planned_clients,visited_clients,resolved_clients,coverage_pct').eq('derived_status','PENDIENTE_CIERRE')
     if(!executive)staleQ=staleQ.eq('employee_id',employee.id)
     const stale=await staleQ
     const unique=new Map<string,any>();[...(current.data||[]),...(stale.data||[])].forEach(r=>unique.set(r.route_plan_id,r));setRows([...unique.values()])
