@@ -1,4 +1,4 @@
-# Continuación actual — Gestión de Ventas Diaria / Logística
+# Continuación actual — Gestión de Ventas Diaria
 
 Fecha: **13/09/2026 (RD)**
 
@@ -23,122 +23,168 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Rama productiva: `main`
 
-Main de código desplegado: `ea6a7314e34dbbdad2a54b6590c177f1bcebadf0`.
+Main de código desplegado: `fde063fd4e5746575af7cc350901056d32ec0849`.
 
-Release productivo: **0.6.5-beta.15.0**
+Release productivo: **0.6.5-beta.16.0**
 
 Cloudflare: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Cloudflare Version ID: `6889d500-e3f0-477a-9994-79a5c6c30bf9`
+Cloudflare Version ID: `875c7105-7d7c-4b05-a047-226f3f453dc2`
 
-PR de promoción Street Operations V1: **#60 — MERGED**
+PR de promoción CRM Territorial + Showroom Flow V1: **#61 — MERGED**
 
 CI pre-merge: **SUCCESS**
 
-CI post-merge sobre `main`: **SUCCESS**
+CI post-merge `main` build #969: **SUCCESS**
 
 Deploy Cloudflare: **SUCCESS**
 
-Estado productivo:
-
-**JORNADAS LIBRES + VISITAS ADICIONALES PRODUCTIVO / TRACKING >45 MIN ACTIVO / NO_GESTIONADO ACTIVO / CONFIRMACIÓN SHOWROOM ACTIVA / FALLBACK GPS DE SALIDA ACTIVO / P1 HISTORIAL POR VIAJE ACTIVO / SHARED MAP CORE ACTIVO / FILTRO DESDE-HASTA ACTIVO / EXCEL ESTRUCTURADO ACTIVO / DISTANCIA OPERATIVA ESTIMADA ACTIVA.**
+> Nota: cualquier commit posterior al SHA desplegado que modifique solo documentación no requiere redeploy.
 
 Los datos continúan siendo **TEST** hasta declaración explícita de Go-Live.
+
+# CRM Territorial + Showroom Flow V1 — PRODUCTIVO
+
+Release: **0.6.5-beta.16.0**
+
+Migración aplicada y versionada; **no repetir por memoria**:
+
+- `20260913165442_crm_territorial_showroom_v1`
+
+## Llamadas / CRM territorial
+
+- Filtros territoriales compatibles con la lógica del módulo Mapa: Maestro comercial o División territorial oficial.
+- Región, provincia, municipio/distrito según la fuente territorial elegida.
+- Filtros por vendedor, gestor, tipo, estado CRM, resultado, dirección de llamada y rango de fechas.
+- Cobertura telefónica y cartera pendiente por territorio.
+- Llamadas entrantes y salientes.
+- Duración opcional, sin valor artificial por defecto.
+- Resultado `COMPRO` exige monto de compra.
+- Ventas por llamada alimentan el resumen ejecutivo.
+- Cartera priorizada + Cliente 360 en dos columnas; `Gestionar` mantiene el formulario visible.
+- `Registrar llamada` permite seleccionar/buscar cliente de forma directa.
+- Fecha/hora tentativa de showroom requiere confirmación explícita.
+
+## Agenda / Showroom
+
+Flujo vigente:
+
+**Interés → solicitud → validación del Gestor → cita confirmada → llegada → espera → atención → resultado comercial → salida física.**
+
+- Solicitudes originadas desde llamada o visita se asignan al Gestor oficial del cliente.
+- Solicitudes sin Gestor quedan en cola administrativa para asignación.
+- Todos los Gestores pueden consultar el movimiento completo de Agenda/Showroom.
+- Solo el Gestor responsable o administración puede ejecutar la atención comercial correspondiente.
+- Pre-agenda/PENDIENTE_VALIDACION se distingue de una cita realmente confirmada.
+- `Quién atendió` usa desplegable de Gestores activos y se guarda separado del Gestor responsable.
+- Próxima acción usa catálogo estructurado/desplegable.
+- Compra showroom registra monto y alimenta Dashboard.
+- Disponibilidad diaria del Gestor: Disponible / En atención / Almuerzo.
+- Salir a comer y regresar del almuerzo no usa polling ni Realtime.
+
+## Recepción V2
+
+- Centro operativo para agenda futura, pre-agenda, llegadas, espera, atención y salida.
+- KPIs: Por validar, Citas hoy, Próximos 7 días, Próximos 30 días, Dentro, En espera, En atención.
+- Rango Desde/Hasta y accesos rápidos Hoy / 7 / 30 / 90 días.
+- Filtros por Gestor, tipo de cliente, origen, estado y búsqueda.
+- `Pre-agenda · solicitudes por validar` separada del calendario de llegadas confirmadas.
+- Calendario muestra fecha/hora real confirmada, cliente, origen y Gestor responsable.
+- Llegada de una cita confirmada puede registrarla:
+  - Recepción;
+  - Administración;
+  - el Gestor responsable de esa cita.
+- Otros Gestores pueden consultar la cita, pero no registrar la llegada.
+- Llegada sin cita de un cliente comercial conserva Gestor oficial o exige asignar uno.
+- `Detalle de visita` usa catálogo estructurado; casos especiales van en Observación.
+- Recepción carga la cartera completa de clientes mediante paginación, evitando límite práctico de 1000.
+- La salida física permanece separada de la finalización de la atención comercial.
+
+## Alertas
+
+- Showroom pendiente de validar genera alerta al Gestor responsable.
+- Llegada/cliente esperando queda visible para el Gestor responsable.
+- Las alertas siguen `assigned_manager_id`.
+- Se actualizan con navegación/foco/apertura de campana sin polling continuo.
+
+## Dashboard / Inicio
+
+Ventas registradas unifican:
+
+**calle + llamadas + showroom**
+
+con desglose por origen.
+
+Las compras y montos de llamada/showroom se integran al resumen ejecutivo y rankings sin crear un sistema de facturación paralelo.
+
+## QA aprobado CRM V1
+
+Casos reales TEST verificados:
+
+- COMERCIAL DE LEON visible en Recepción dentro del rango futuro.
+- CASA MIREYA / COMETA: pre-agenda separada de cita confirmada.
+- BEKIM S SRL: llegada sin cita, alerta y movimiento visibles para Gestores.
+- Un Gestor puede ver citas/movimientos de otro Gestor.
+- Un Gestor distinto no puede registrar llegada de una cita ajena.
+- Recepción puede registrar llegada después de que el Gestor responsable confirma la cita.
+- El Gestor responsable conserva capacidad de registrar la llegada de su propia cita.
+- Compra showroom RD$200,450 persistida y reflejada en Dashboard.
+- Nueva compra CRM/Showroom de COMETA persistida con seguimiento estructurado.
+- Dashboard QA validó desglose calle + llamadas + showroom.
+- No se observaron llegadas parciales/duplicadas cuando RLS bloqueó una acción no autorizada.
 
 # Street Operations V1 — PRODUCTIVO
 
 Documento técnico: `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
 
-Release: **0.6.5-beta.15.0**
+Release de promoción original: **0.6.5-beta.15.0**
 
 ## Jornada Libre
 
 - El vendedor puede iniciar una Jornada Libre cuando no existe ruta planificada disponible para el día actual.
 - Internamente usa `route_mode = LIBRE`.
-- Mantiene los mismos hitos operativos de una jornada planificada: inicio, llegada, atención, salida y cierre.
+- Mantiene inicio, llegada, atención, salida y cierre.
 - No crea `route_stops` artificiales.
-- Cobertura se muestra `N/A`.
-- Máximo una Jornada Libre por vendedor y fecha, aunque la primera ya esté finalizada.
-- Después del cierre, la UI muestra `Jornada del día finalizada` y no ofrece una segunda jornada.
+- Cobertura N/A.
+- Máximo una Jornada Libre por vendedor y fecha.
+- Visitas adicionales dentro de ruta planificada se guardan `planned=false` y no alteran cobertura planificada.
+- Salida de visita: GPS con reintento y fallback final para guardar sin coordenadas.
+- Resultado `NO_GESTIONADO` mostrado como `Cliente no estaba / no gestionado`.
+- Tracking: `Sin registro >45 min` por vendedor activo, con detalle clicable.
+- Sin GPS periódico, polling nuevo, Realtime ni tracking continuo.
 
-## Visitas adicionales
-
-- Dentro de una ruta planificada activa el vendedor puede visitar clientes fuera del plan.
-- Se guarda `planned=false` y `route_stop_id=null`.
-- Las visitas adicionales cuentan para actividad real y Total visitas.
-- Nunca inflan numerador ni denominador de cobertura del plan.
-- Un cliente que ya existe como parada planificada no puede registrarse como adicional.
-
-## Endurecimiento previo a producción
-
-- Salida de visita: primer intento GPS, reintento explícito y fallback final para guardar sin coordenadas.
-- Una gestión comercial no se pierde por un fallo transitorio de GPS.
-- Fotos/evidencia no dependen de tener GPS de salida.
-- Resultado comercial `NO_GESTIONADO` mostrado como `Cliente no estaba / no gestionado`.
-- Si `¿Lo recibieron? = No`, el formulario propone `NO_GESTIONADO` + `NO_RECIBIDO`.
-- Showroom: selección de fecha/hora requiere confirmación explícita antes de finalizar.
-- Tracking: KPI `Sin registro >45 min`, por vendedor activo único, clicable y con detalle de vendedores que requieren revisión.
-- No se agregó GPS periódico, polling nuevo, Realtime ni tracking continuo.
-
-## QA aprobado
-
-### Jornada Libre E2E
-
-- inicio correcto;
-- visita libre `planned=false` / `route_stop_id=null`;
-- llegada y salida con tiempos;
-- formulario comercial normal;
-- cierre normal;
-- plan y sesión `FINALIZADA`;
-- 0 pendientes artificiales;
-- cobertura N/A;
-- segunda Jornada Libre del mismo día bloqueada en UI y DB.
-
-### Ruta planificada + adicionales
-
-Prueba real 13/09/2026:
-
-- 3 paradas planificadas;
-- 3 planificadas finalizadas `VISITADO`;
-- 2 visitas fuera del plan completadas;
-- 5 visitas totales reales;
-- 0 visitas abiertas al cierre;
-- ruta/sesión `FINALIZADA`.
-
-### QA final
-
-- fallo inicial GPS al iniciar ruta no dejó sesión huérfana;
-- intento posterior registró inicio correctamente;
-- `Cliente no estaba / no gestionado`: validado;
-- confirmación explícita de fecha/hora de showroom: validada;
-- Tracking `Sin registro >45 min`: validado;
-- smoke de Rutas / Jornadas / Visitas / Tracking: aprobado.
-
-# Migraciones Street Operations V1
-
-Aplicadas y versionadas; **no repetir por memoria**:
+Migraciones aplicadas; **no repetir**:
 
 - `20260911225302_open_field_journeys_v1`
 - `20260912163228_open_field_journey_start_fix`
 - `20260912172056_open_field_one_free_journey_per_day`
 
-Antes del merge productivo se confirmó:
+# P1 — Historial por Viaje / Recorrido Operativo — PRODUCTIVO
 
-- `0` sesiones activas;
-- `0` visitas abiertas;
-- sin grupos de doble jornada activa.
+Documento técnico: `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
 
-# Baseline anterior
+Incluye:
 
-Release anterior: **0.6.5-beta.14.0**
+- Documentos + Viajes;
+- explorador y búsqueda;
+- filtros de estado y período Desde/Hasta;
+- KPIs;
+- mapa profesional compartido;
+- secuencia planificada;
+- trayectoria GPS estimada;
+- desviaciones e incidencias;
+- timeline;
+- permanencia y resultados;
+- Excel estructurado;
+- distancia operativa estimada liviana.
 
-Main anterior: `968671f26b4cbff3896ffdc11fb325fa861b96d9`.
+Shared Map Core: `src/lib/logisticsMapCore.ts`.
 
-Cloudflare Version ID anterior: `ac7ee2e2-0dbf-473d-9877-f46b3455e300`.
+Distancia: `src/lib/logisticsTripDistance.ts`.
 
-Ese baseline fue reemplazado productivamente por `0.6.5-beta.15.0`.
+La distancia es estimada entre puntos ya existentes; no es recorrido vial exacto. No implementar breadcrumbs ni tracking periódico sin decisión explícita.
 
-# P0 Logística ya productivo
+# P0 Logística — PRODUCTIVO
 
 Validados previamente:
 
@@ -151,7 +197,7 @@ Validados previamente:
 - GPS móvil por HTTPS;
 - cierre de viaje sin eventos duplicados.
 
-Migraciones P0 ya aplicadas; **no repetir**:
+Migraciones aplicadas; **no repetir**:
 
 - `20260907094026_delivery_document_retry_traceability`
 - `20260907094801_delivery_document_retry_guard_refinement`
@@ -172,45 +218,31 @@ Política vigente:
 - no limpiar TEST sin backup + aprobación;
 - no reescribir RLS global a ciegas.
 
-# P1 — Historial por Viaje / Recorrido Operativo — PRODUCTIVO
-
-Documento técnico principal: `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
-
-Incluye:
-
-- Documentos + Viajes;
-- explorador y búsqueda;
-- filtros por estado;
-- período Desde/Hasta;
-- KPIs;
-- mapa profesional compartido;
-- secuencia planificada;
-- trayectoria GPS estimada;
-- desviaciones e incidencias;
-- timeline;
-- permanencia y resultados;
-- Excel estructurado;
-- distancia operativa estimada liviana.
-
-Shared Map Core: `src/lib/logisticsMapCore.ts`.
-
-Distancia: `src/lib/logisticsTripDistance.ts`.
-
-La distancia es estimada entre puntos ya existentes; no es recorrido vial exacto. Se mantiene la decisión de **no implementar breadcrumbs ni tracking periódico** para no aumentar consumo y complejidad sobre Supabase Free.
-
 # Seguridad y consumo
 
 Hallazgos previos del Security Advisor siguen como backlog dedicado; no hacer refactor masivo de RLS durante una entrega funcional.
 
 No interpretar datos TEST ni coordenadas QA artificiales como conducta real del vendedor/chofer.
 
-La precisión GPS del dispositivo y la distancia al punto maestro son conceptos distintos. Un punto puede tener precisión aceptable y aun así estar muy distante del cliente; Tracking debe conservar ambas lecturas separadas.
+La precisión GPS y la distancia al punto maestro son conceptos distintos y deben conservarse separadas en Tracking.
+
+# Baseline anterior inmediato
+
+Release anterior: **0.6.5-beta.15.0**
+
+Main desplegado anterior: `ea6a7314e34dbbdad2a54b6590c177f1bcebadf0`.
+
+Cloudflare Version ID anterior: `6889d500-e3f0-477a-9994-79a5c6c30bf9`.
+
+Ese baseline fue reemplazado productivamente por **0.6.5-beta.16.0**.
 
 # Reglas de trabajo
 
-- producción actual: **0.6.5-beta.15.0**;
+- producción actual: **0.6.5-beta.16.0**;
+- código desplegado: `fde063fd4e5746575af7cc350901056d32ec0849`;
+- Cloudflare Version ID: `875c7105-7d7c-4b05-a047-226f3f453dc2`;
 - `main` es la fuente de código productivo;
-- PR #60 está mergeado;
+- PR #61 está mergeado;
 - no introducir GPS continuo sin decisión explícita futura;
 - no limpiar TEST;
 - antes de cualquier cambio revalidar `main`, Supabase, CI y producción;
