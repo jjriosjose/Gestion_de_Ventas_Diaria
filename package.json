@@ -1,7 +1,7 @@
 {
   "name": "gestion-de-ventas-diaria",
   "private": true,
-  "version": "0.6.5-beta.16.0",
+  "version": "0.6.5-beta.16.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,8 @@
     "@supabase/supabase-js": "^2.0.0",
     "date-fns": "^4.0.0",
     "exceljs": "^4.4.0",
+    "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.4.2",
     "jspdf": "^3.0.0",
     "jspdf-autotable": "^5.0.0",
     "leaflet": "^1.9.4",
