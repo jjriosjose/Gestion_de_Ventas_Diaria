@@ -13,7 +13,7 @@ import { Tracking } from './pages/Tracking'
 import { Capture } from './pages/Capture'
 import { VisitsWorkspace } from './pages/VisitsWorkspace'
 import { CallsV2 } from './pages/CallsV2'
-import { AgendaV2 } from './pages/AgendaV2'
+import { AgendaWorkspaceV2 } from './pages/AgendaWorkspaceV2'
 import { ReceptionV2 } from './pages/ReceptionV2'
 import { Coverage } from './pages/Coverage'
 import { Logistics } from './pages/Logistics'
@@ -46,7 +46,7 @@ function Protected(){
   <Route path="cobertura" element={<RequirePermission permission="coverage.view"><Coverage/></RequirePermission>}/>
   <Route path="visitas" element={<RequirePermission permission="visits.view"><VisitsWorkspace/></RequirePermission>}/>
   <Route path="llamadas" element={<RequirePermission permission="calls.view"><CallsV2/></RequirePermission>}/>
-  <Route path="agenda" element={<RequirePermission permission="agenda.view"><AgendaV2/></RequirePermission>}/>
+  <Route path="agenda" element={<RequirePermission permission="agenda.view"><AgendaWorkspaceV2/></RequirePermission>}/>
   <Route path="recepcion" element={<RequirePermission permission="reception.view"><ReceptionV2/></RequirePermission>}/>
   <Route path="logistica" element={<RequirePermission permission="logistics.view"><Logistics/></RequirePermission>}/>
   <Route path="logistica/historial" element={<RequirePermission permission="logistics.view"><DeliveryHistory/></RequirePermission>}/>
