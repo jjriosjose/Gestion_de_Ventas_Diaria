@@ -54,9 +54,12 @@ QA visual aprobado el 13/09/2026:
 
 - Versión de aplicación: `0.6.5-beta.16.2`.
 - Rama: `feature/journey-route-lifecycle-beta16-2`.
-- PR: #63 — `Journey/Route lifecycle — past unexecuted routes · beta.16.2`.
+- PR: #63 — `Journey/Route lifecycle — past unexecuted routes · beta.16.2` — MERGED.
 - Commit funcional final previo a documentación: `0c991c95d2fbae05f733516e3180f1387156ade5`.
+- Merge funcional en `main`: `0355723c5931650c9e1942b0fa7ed63da057fcaf`.
 - Build validation #992: SUCCESS.
+- Build validation pre-merge final #996: SUCCESS.
+- Build validation post-merge #997: SUCCESS.
 
 ## Regla funcional que debe preservarse
 
@@ -64,4 +67,10 @@ Una ruta pertenece exclusivamente a su fecha operativa. Si vence sin iniciarse, 
 
 ## Producción
 
-Promoción a producción autorizada por el usuario después del QA visual. El SHA final de `main` y el Cloudflare Version ID deben registrarse en `docs/CHAT_CONTINUATION_CURRENT.md` después del merge/deploy definitivo.
+Promoción a producción completada y validada visualmente el 13/09/2026.
+
+- URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
+- Cloudflare Version ID: `080a251b-41e7-4ca1-a7e8-fa8833a6f54e`
+- Versión visible validada en UI: `0.6.5-beta.16.2`.
+- QA productivo con Virmania: Rutas muestra `2 rutas anteriores no ejecutadas`; `Ver no ejecutadas` abre Jornadas con ambas rutas visibles en un único rango histórico.
+- El entorno local quedó limpio después de descartar el stash residual de `package-lock.json`: `main`, 0 changed files, sin stash pendiente.
