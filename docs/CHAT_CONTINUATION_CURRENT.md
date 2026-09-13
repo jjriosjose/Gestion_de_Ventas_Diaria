@@ -25,7 +25,7 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Rama productiva de código: `main`
 
-Release incorporado a `main`: **0.6.5-beta.16.2**
+Release productivo actual: **0.6.5-beta.16.2**
 
 PR: **#63 — MERGED**
 
@@ -37,13 +37,17 @@ CI post-merge de `main`: Build validation **#997 SUCCESS**.
 
 Cloudflare productivo: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Último deploy Cloudflare confirmado antes de beta.16.2: release **0.6.5-beta.16.1**, Version ID `e3909fe3-5fa2-460e-b7dd-8517b1a8de31`.
+Deploy productivo beta.16.2 confirmado el 13/09/2026:
 
-**Importante:** al escribir este checkpoint, beta.16.2 ya está mergeada en GitHub `main`, pero el deploy Cloudflare de beta.16.2 todavía requiere ejecutar el flujo local validado `Pull main → npm run build → npx wrangler deploy`. Una vez desplegado, registrar aquí el nuevo Cloudflare Version ID. Un commit posterior que modifique solo documentación no requiere redeploy.
+- Versión visible: **0.6.5-beta.16.2**.
+- Cloudflare Version ID: `080a251b-41e7-4ca1-a7e8-fa8833a6f54e`.
+- Wrangler detectó y publicó 5 assets nuevos/modificados.
+- QA productivo final con Virmania aprobado: el banner de Rutas muestra 2 rutas no ejecutadas y Jornadas muestra juntas las rutas del 30/08 y 01/09 en rango histórico.
+- Entorno local del usuario quedó limpio: `main`, `0 changed files`, stash residual de `package-lock.json` descartado.
 
 Todos los datos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
 
-# Beta.16.2 — Journey / Route Lifecycle
+# Beta.16.2 — Journey / Route Lifecycle — PRODUCTIVO
 
 Documento: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md`
 
@@ -78,7 +82,7 @@ La prueba del 13/09 ocurrió en domingo y el módulo solicitó confirmación de 
 
 # Beta.16.1 — Reporting Executive Consistency V2
 
-Release anterior inmediatamente productivo en Cloudflare antes de beta.16.2: **0.6.5-beta.16.1**.
+Release anterior: **0.6.5-beta.16.1**.
 
 Incluye el Resumen ejecutivo de Inicio y exportación PDF ejecutivo ya validados visualmente. El PDF se genera correctamente a dos páginas con KPI, gráficas y rankings y mantiene consistencia con la vista ejecutiva.
 
@@ -118,6 +122,7 @@ Reglas vigentes:
 - cobertura planificada = visitados del plan / planificados del plan.
 - jornadas vencidas no pueden continuar al día siguiente.
 - pendientes de cierre requieren revisión/cierre, no continuidad.
+- rutas planificadas vencidas que nunca iniciaron se muestran como `NO_INICIADA` y permanecen solo como histórico.
 - no GPS periódico, no polling nuevo, no Realtime.
 
 Migraciones aplicadas; **no repetir**:
@@ -193,8 +198,11 @@ Política de datos y consumo:
 
 # Próximo paso inmediato
 
-GitHub `main` ya contiene beta.16.2 y CI #997 pasó. Falta únicamente sincronizar el `main` local, construir y desplegar Cloudflare. Después del deploy:
+Beta.16.2 queda **cerrada y productiva**. No hay acción pendiente de merge, build o deploy para este release.
 
-- confirmar versión visible `0.6.5-beta.16.2`;
-- registrar Cloudflare Version ID;
-- actualizar este documento con el deploy definitivo si todavía figura como pendiente.
+Antes de cualquier nueva actualización:
+
+- hacer `Fetch origin`/`Pull origin` en `main`;
+- verificar versión visible y estado vivo;
+- crear una nueva feature branch;
+- mantener el flujo PR → CI → QA → autorización → merge → deploy.
