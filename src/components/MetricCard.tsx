@@ -60,7 +60,7 @@ export function MetricCard({icon,label,value,note,tone='neutral',selected=false,
   const displayLabel=isTrackingFreshness?'Sin registro >45 min':label
   const displayValue=isTrackingFreshness?staleVendors.length:value
   const displayNote=isTrackingFreshness?(staleVendors.length?`${staleVendors.length} vendedor${staleVendors.length===1?'':'es'} requiere${staleVendors.length===1?'':'n'} revisión`:'Todos los vendedores activos tienen registros recientes'):note
-  const displayTone:isTrackingFreshness extends true?MetricTone:MetricTone = isTrackingFreshness?(staleVendors.length?'warning':'neutral'):tone
+  const displayTone:MetricTone=isTrackingFreshness?(staleVendors.length?'warning':'neutral'):tone
 
   const onKeyDown=(event:KeyboardEvent<HTMLDivElement>)=>{
     if(!internalClick)return
