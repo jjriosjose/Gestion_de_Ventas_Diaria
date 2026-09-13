@@ -93,8 +93,45 @@ No se modifican:
 - GPS;
 - Realtime;
 - políticas de consumo;
-- datos existentes de rutas no ejecutadas.
+- datos existentes de rutas no ejecutadas por defecto.
+
+## GitHub / CI
+
+PR **#64 — MERGED**.
+
+Merge commit:
+
+`6a4790f3bfebed352abac0052b09399e63cd5bf0`
+
+La implementación fue validada por CI antes del despliegue productivo.
+
+## Producción
+
+URL:
+
+`https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
+
+Versión visible validada:
+
+**0.6.5-beta.16.3**
+
+Cloudflare Version ID:
+
+`6fb1d46c-3a45-4a46-9930-6725b4449591`
+
+Wrangler publicó 6 assets nuevos/modificados en el despliegue final.
+
+## QA productivo confirmado
+
+- El panel administrativo de **Rutas no ejecutadas** aparece para el usuario con permisos.
+- Antes de resolver ninguna, producción mostró **11 rutas no ejecutadas requieren resolución administrativa**.
+- Cada registro muestra fecha, Vendedor y cantidad de paradas.
+- El modal de resolución indica explícitamente **No se eliminará el historial**.
+- La opción **Anular planificación** conserva la ruta original y sus paradas y exige motivo/observación.
+- Producción muestra **Versión 0.6.5-beta.16.3**.
 
 ## Estado
 
-Backend/migración aplicado. Frontend en PR #64, sujeto a Build validation y merge antes del despliegue Cloudflare.
+**CERRADO Y PRODUCTIVO**.
+
+No queda pendiente merge, build o deploy para beta.16.3.
