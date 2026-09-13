@@ -26,19 +26,21 @@ export function CrmTerritoryFilters({
   const provinces=useMemo(()=>uniqueSorted(clients.filter(c=>!region||c.region===region).map(c=>c.province)),[clients,region])
   const municipalities=useMemo(()=>uniqueSorted(clients.filter(c=>(!region||c.region===region)&&(!province||c.province===province)).map(c=>c.municipality)),[clients,region,province])
 
-  return <>
-    <div className="territory-source-row">
-      <b>Territorio según</b>
-      <div className="segmented compact-segmented">
+  return <div className="crm-territory-block">
+    <div className="crm-territory-head">
+      <div className="crm-territory-copy">
+        <b>Territorio</b>
+        <span>{mode==='OFFICIAL'?'División territorial oficial, igual a la utilizada en Mapa.':'Región, provincia y municipio del maestro comercial.'}</span>
+      </div>
+      <div className="segmented crm-territory-mode" aria-label="Fuente territorial">
         <button type="button" className={mode==='MASTER'?'active':''} onClick={()=>onModeChange('MASTER')}>Maestro comercial</button>
         <button type="button" className={mode==='OFFICIAL'?'active':''} onClick={()=>onModeChange('OFFICIAL')}>División territorial oficial</button>
       </div>
-      <span>{mode==='OFFICIAL'?'Misma división oficial usada por Mapa.':'Región, provincia y municipio del maestro comercial.'}</span>
     </div>
-    {mode==='MASTER'?<>
-      <select value={region} onChange={e=>onRegionChange(e.target.value)}><option value="">Todas las regiones</option>{regions.map(v=><option key={v}>{v}</option>)}</select>
-      <select value={province} onChange={e=>onProvinceChange(e.target.value)}><option value="">Todas las provincias</option>{provinces.map(v=><option key={v}>{v}</option>)}</select>
-      <select value={municipality} onChange={e=>onMunicipalityChange(e.target.value)}><option value="">Todos los municipios</option>{municipalities.map(v=><option key={v}>{v}</option>)}</select>
-    </>:<OfficialTerritoryFilters areas={officialAreas} value={officialSelection} onChange={onOfficialSelectionChange}/>} 
-  </>
+    {mode==='MASTER'?<div className="crm-territory-grid">
+      <select value={region} onChange={e=>onRegionChange(e.target.value)} aria-label="Región"><option value="">Todas las regiones</option>{regions.map(v=><option key={v}>{v}</option>)}</select>
+      <select value={province} onChange={e=>onProvinceChange(e.target.value)} aria-label="Provincia"><option value="">Todas las provincias</option>{provinces.map(v=><option key={v}>{v}</option>)}</select>
+      <select value={municipality} onChange={e=>onMunicipalityChange(e.target.value)} aria-label="Municipio"><option value="">Todos los municipios</option>{municipalities.map(v=><option key={v}>{v}</option>)}</select>
+    </div>:<div className="crm-territory-grid official"><OfficialTerritoryFilters compact areas={officialAreas} value={officialSelection} onChange={onOfficialSelectionChange}/></div>}
+  </div>
 }
