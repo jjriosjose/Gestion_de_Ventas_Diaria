@@ -7,15 +7,16 @@ Fecha: **13/09/2026 (RD)**
 ## Orden de lectura recomendado
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md`
-3. `docs/CONTINUATION_PROMPT_2026-09-13_BETA16_2.md`
-4. `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
-5. `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
-6. `docs/LOGISTICS_P0_IMPLEMENTATION_STATUS_2026-09-07.md`
-7. `docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`
-8. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`
-9. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`
-10. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`
+2. `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`
+3. `docs/CONTINUATION_PROMPT_2026-09-13_BETA16_3.md`
+4. `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md`
+5. `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
+6. `docs/LOGISTICS_TRIP_HISTORY_P1_2026-09-08.md`
+7. `docs/LOGISTICS_P0_IMPLEMENTATION_STATUS_2026-09-07.md`
+8. `docs/LOGISTICS_DRIVER_PERFORMANCE_PHASE1_2026-09-07.md`
+9. `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`
+10. `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md`
+11. `docs/LOGISTICS_DELIVERY_V1_RESOURCE_POLICY.md`
 
 `PROJECT_HANDOFF.md` se conserva como documento histórico; su cabecera original quedó desactualizada y no debe prevalecer sobre este checkpoint ni sobre el estado vivo.
 
@@ -25,72 +26,114 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Rama productiva de código: `main`
 
-Release productivo actual: **0.6.5-beta.16.2**
+Release productivo actual: **0.6.5-beta.16.3**
 
-PR: **#63 — MERGED**
+PR: **#64 — MERGED**
 
-Merge funcional beta.16.2: `0355723c5931650c9e1942b0fa7ed63da057fcaf`
+Merge funcional beta.16.3:
 
-CI pre-merge final de la rama: Build validation **#996 SUCCESS**.
+`6a4790f3bfebed352abac0052b09399e63cd5bf0`
 
-CI post-merge de `main`: Build validation **#997 SUCCESS**.
+Cloudflare productivo:
 
-Cloudflare productivo: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
+`https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Deploy productivo beta.16.2 confirmado el 13/09/2026:
+Deploy productivo beta.16.3 confirmado el 13/09/2026:
 
-- Versión visible: **0.6.5-beta.16.2**.
-- Cloudflare Version ID: `080a251b-41e7-4ca1-a7e8-fa8833a6f54e`.
-- Wrangler detectó y publicó 5 assets nuevos/modificados.
-- QA productivo final con Virmania aprobado: el banner de Rutas muestra 2 rutas no ejecutadas y Jornadas muestra juntas las rutas del 30/08 y 01/09 en rango histórico.
-- Entorno local del usuario quedó limpio: `main`, `0 changed files`, stash residual de `package-lock.json` descartado.
+- Versión visible: **0.6.5-beta.16.3**.
+- Cloudflare Version ID: `6fb1d46c-3a45-4a46-9930-6725b4449591`.
+- Wrangler detectó y publicó 6 assets nuevos/modificados.
+- QA productivo visual confirmado por el usuario.
 
 Todos los datos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
 
+# Beta.16.3 — Resolución administrativa de rutas no ejecutadas — PRODUCTIVO
+
+Documento:
+
+`docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`
+
+Objetivo resuelto: permitir que Administración/Supervisión gestione desde **Rutas** las planificaciones vencidas que nunca iniciaron, sin borrar ni alterar el histórico operacional.
+
+Regla crítica:
+
+- `NO_INICIADA` describe el hecho operacional;
+- `REVISADA`, `ANULADA` y `REPROGRAMADA` describen la decisión administrativa posterior;
+- nunca crear una `route_session` artificial;
+- nunca marcar paradas como visitadas si no hubo ejecución;
+- nunca eliminar físicamente la ruta original ni sus `route_stops` desde este flujo.
+
+Acciones disponibles:
+
+- **Dar por revisada**: reconoce administrativamente la no ejecución.
+- **Anular planificación**: conserva ruta/paradas e incorpora motivo de anulación.
+- **Reprogramar ruta**: crea una nueva planificación para otra fecha y mantiene la original como no ejecutada, vinculada mediante `reprogrammed_route_id`.
+
+Migración aplicada en Supabase; **NO REPETIR POR MEMORIA**:
+
+`20260913210416_route_plan_admin_resolution`
+
+Datos agregados a `route_plans`:
+
+- `resolution_status`;
+- `resolution_reason`;
+- `resolved_at`;
+- `resolved_by`;
+- `reprogrammed_route_id`.
+
+QA productivo confirmado:
+
+- panel administrativo visible en Rutas para usuario autorizado;
+- antes de realizar resoluciones, producción mostró **11 rutas no ejecutadas requieren resolución administrativa**;
+- el listado muestra fecha, Vendedor y cantidad de paradas;
+- el modal indica explícitamente **No se eliminará el historial**;
+- `Anular planificación` exige motivo/observación y no borra datos;
+- producción muestra **0.6.5-beta.16.3**.
+
+Beta.16.3 no modifica funcionalmente Captación, CRM/Llamadas, Agenda/Showroom, Recepción, Tracking, Logística/POD, GPS, Realtime ni los históricos existentes por defecto.
+
 # Beta.16.2 — Journey / Route Lifecycle — PRODUCTIVO
 
-Documento: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md`
+Documento:
+
+`docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md`
 
 Objetivo resuelto: un Vendedor ya no tiene que filtrar día por día para descubrir rutas planificadas antiguas que vencieron sin iniciarse.
 
 Comportamiento vigente:
 
-- Rutas consulta `executive_route_journeys_v4` para el estado operativo consolidado.
+- Rutas consulta `executive_route_journeys_v4` para el estado operacional consolidado.
 - Si existen rutas históricas `NO_INICIADA`, aparece un banner `N rutas anteriores no ejecutadas`.
-- El banner muestra fecha de la más reciente y cantidad de paradas.
-- `Ver no ejecutadas` abre `/jornadas?status=NO_INICIADA`.
-- Jornadas detecta ese acceso y abre automáticamente en rango personalizado desde `01/01` del año hasta hoy.
-- Las rutas vencidas se conservan como histórico; no se crea sesión artificial y no se permite ejecutarlas fuera de fecha.
-- El wrapper de Rutas ya no usa refresco periódico de 30 segundos; actualiza en carga inicial y al recuperar foco/visibilidad.
-- Sin migración Supabase, sin cambios RLS, sin limpieza de datos, sin Realtime y sin GPS continuo.
+- `Ver no ejecutadas` abre Jornadas con `status=NO_INICIADA`.
+- Jornadas abre automáticamente un rango personalizado desde `01/01` del año hasta hoy.
+- Las rutas vencidas se conservan como histórico y no pueden ejecutarse fuera de su fecha.
+- Rutas actualiza al cargar y al recuperar foco/visibilidad; sin polling periódico de 30 segundos.
 
-QA real TEST aprobado con Virmania Inoa:
+QA previo con Virmania Inoa:
 
-- 01/09/2026 — Ruta de visitas — 15 paradas — no ejecutada.
-- 30/08/2026 — Ruta de visitas — 8 paradas — no ejecutada.
-- Banner Rutas: 2 rutas anteriores no ejecutadas.
-- Jornadas: ambas visibles juntas en rango 01/01/2026 → 13/09/2026.
-- Total planificado: 23; visitado: 0; cobertura: 0%.
+- 01/09/2026 — Ruta de visitas — 15 paradas — no ejecutada;
+- 30/08/2026 — Ruta de visitas — 8 paradas — no ejecutada;
+- ambas visibles juntas en Jornadas.
 
-Regla crítica a preservar: **una ruta pertenece exclusivamente a su fecha operativa**. Si vence sin iniciarse, queda `NO_INICIADA` para consulta/auditoría, pero no se reactiva en una fecha posterior.
+Regla a preservar: **una ruta pertenece exclusivamente a su fecha operativa**. Si vence sin iniciarse, queda `NO_INICIADA` para consulta/auditoría y posible resolución administrativa posterior, pero no se reactiva como si fuera la misma jornada en otra fecha.
 
 # Captación
 
-Beta.16.2 **no modifica Captación**.
+Beta.16.2 y beta.16.3 **no modifican Captación**.
 
-La prueba del 13/09 ocurrió en domingo y el módulo solicitó confirmación de `Captación libre`; se determinó que ese comportamiento correspondía al contexto de día sin tarea activa. No introducir otra modificación en Captación sin una nueva necesidad reproducible en un día operativo normal.
+La prueba del 13/09 ocurrió en domingo y el módulo solicitó confirmación de `Captación libre`; ese comportamiento correspondió al contexto de día sin tarea activa. No introducir otra modificación en Captación sin una necesidad reproducible en un día operativo normal.
 
 # Beta.16.1 — Reporting Executive Consistency V2
 
 Release anterior: **0.6.5-beta.16.1**.
 
-Incluye el Resumen ejecutivo de Inicio y exportación PDF ejecutivo ya validados visualmente. El PDF se genera correctamente a dos páginas con KPI, gráficas y rankings y mantiene consistencia con la vista ejecutiva.
+Incluye el Resumen ejecutivo de Inicio y exportación PDF ejecutivo validados visualmente. El PDF mantiene KPI, gráficas y rankings consistentes con la vista ejecutiva.
 
 # CRM Territorial + Showroom Flow — PRODUCTIVO
 
-Migración aplicada; **no repetir por memoria**:
+Migración aplicada; **NO REPETIR POR MEMORIA**:
 
-- `20260913165442_crm_territorial_showroom_v1`
+`20260913165442_crm_territorial_showroom_v1`
 
 Flujo vigente:
 
@@ -104,32 +147,36 @@ Capacidades que deben preservarse:
 - venta CRM incluida en resumen ejecutivo;
 - pre-agenda separada de cita confirmada;
 - Gestor responsable separado de quién atendió;
-- Recepción V2 con cola de validación, agenda futura, llegada, espera, atención y salida;
+- Recepción V2 con agenda futura, llegada, espera, atención y salida;
 - todos los Gestores pueden consultar movimiento, pero las acciones sensibles respetan responsable/RLS;
 - compras showroom alimentan Dashboard;
 - alertas sin polling continuo.
 
 # Street Operations / Jornadas — PRODUCTIVO
 
-Documento: `docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
+Documento:
+
+`docs/OPEN_FIELD_JOURNEYS_V1_2026-09-11.md`
 
 Reglas vigentes:
 
-- Jornada Libre disponible cuando no existe ruta planificada del día.
-- `route_mode = LIBRE`.
-- máximo una Jornada Libre por vendedor y fecha.
-- visitas adicionales dentro de una ruta planificada usan `planned=false` y no inflan cobertura.
-- cobertura planificada = visitados del plan / planificados del plan.
-- jornadas vencidas no pueden continuar al día siguiente.
-- pendientes de cierre requieren revisión/cierre, no continuidad.
-- rutas planificadas vencidas que nunca iniciaron se muestran como `NO_INICIADA` y permanecen solo como histórico.
+- Jornada Libre disponible cuando no existe ruta planificada del día;
+- `route_mode = LIBRE`;
+- máximo una Jornada Libre por vendedor y fecha;
+- visitas adicionales dentro de una ruta planificada usan `planned=false` y no inflan cobertura;
+- cobertura planificada = visitados del plan / planificados del plan;
+- jornadas vencidas no pueden continuar al día siguiente;
+- pendientes de cierre requieren revisión/cierre, no continuidad;
+- rutas planificadas vencidas que nunca iniciaron se muestran como `NO_INICIADA`;
+- la resolución administrativa posterior no altera el hecho operacional;
 - no GPS periódico, no polling nuevo, no Realtime.
 
-Migraciones aplicadas; **no repetir**:
+Migraciones aplicadas; **NO REPETIR**:
 
-- `20260911225302_open_field_journeys_v1`
-- `20260912163228_open_field_journey_start_fix`
-- `20260912172056_open_field_one_free_journey_per_day`
+- `20260911225302_open_field_journeys_v1`;
+- `20260912163228_open_field_journey_start_fix`;
+- `20260912172056_open_field_one_free_journey_per_day`;
+- `20260913210416_route_plan_admin_resolution`.
 
 # Logística — PRODUCTIVO
 
@@ -158,10 +205,10 @@ P1 Historial por Viaje:
 
 La trayectoria/distancia es una estimación entre eventos GPS ya registrados; no representa ruta vial exacta. No implementar breadcrumbs ni tracking continuo sin decisión explícita.
 
-Migraciones P0 aplicadas; **no repetir**:
+Migraciones P0 aplicadas; **NO REPETIR**:
 
-- `20260907094026_delivery_document_retry_traceability`
-- `20260907094801_delivery_document_retry_guard_refinement`
+- `20260907094026_delivery_document_retry_traceability`;
+- `20260907094801_delivery_document_retry_guard_refinement`.
 
 # Supabase
 
@@ -171,7 +218,7 @@ Proyecto:
 - ref: `ccvzosnhxitfeochnflr`;
 - región: `ca-central-1`.
 
-La transferencia administrativa realizada anteriormente fue del mismo proyecto; no se clonó ni recreó.
+La transferencia administrativa anterior fue del mismo proyecto; no se clonó ni recreó.
 
 Política de datos y consumo:
 
@@ -194,11 +241,11 @@ Política de datos y consumo:
 7. No introducir polling, Realtime ni GPS continuo por defecto.
 8. Mantener el producto SaaS-ready de forma progresiva sin improvisar multi-tenancy parcial.
 9. GitHub Desktop se usa para sincronización local; CMD/PowerShell para `npm`, build y deploy.
-10. Si un chat nuevo continúa el proyecto, leer este documento y luego `docs/CONTINUATION_PROMPT_2026-09-13_BETA16_2.md`.
+10. En un chat nuevo, leer este documento y luego `docs/CONTINUATION_PROMPT_2026-09-13_BETA16_3.md`.
 
 # Próximo paso inmediato
 
-Beta.16.2 queda **cerrada y productiva**. No hay acción pendiente de merge, build o deploy para este release.
+Beta.16.3 queda **cerrada y productiva**. No hay acción pendiente de merge, build o deploy para este release.
 
 Antes de cualquier nueva actualización:
 
