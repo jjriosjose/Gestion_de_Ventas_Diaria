@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarClock, Camera, Check, MapPinCheck, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { currentPosition } from '../lib/geo'
+import { currentPosition, type GeoPoint } from '../lib/geo'
 import { useAuth } from '../context/AuthContext'
 import { exportPdf, exportXlsx } from '../lib/export'
 import { ClientTypeFilter } from '../components/ClientTypeFilter'
@@ -49,6 +49,19 @@ function durationLabel(start: string, end: string) {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`
 }
 
+async function resolveExitPosition():Promise<{position:GeoPoint|null;cancelled:boolean}> {
+  try { return {position:await currentPosition(),cancelled:false} }
+  catch {
+    const retry=window.confirm('No fue posible obtener la ubicación de salida. Pulsa Aceptar para intentar nuevamente o Cancelar para volver al formulario sin guardar todavía.')
+    if(!retry)return {position:null,cancelled:true}
+    try { return {position:await currentPosition(),cancelled:false} }
+    catch {
+      const withoutGps=window.confirm('El GPS sigue sin estar disponible. Pulsa Aceptar para finalizar la visita sin coordenadas o Cancelar para volver al formulario.')
+      return withoutGps?{position:null,cancelled:false}:{position:null,cancelled:true}
+    }
+  }
+}
+
 function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void; onSaved: () => void }) {
   const { employee } = useAuth()
   const [received, setReceived] = useState('si')
@@ -64,36 +77,41 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
   const [followUp, setFollowUp] = useState('')
   const [showroomInterest, setShowroomInterest] = useState('no')
   const [showroomDate, setShowroomDate] = useState('')
+  const [showroomConfirmed, setShowroomConfirmed] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
 
-  const uploadPhotos = async (position: { latitude: number; longitude: number }) => {
+  const uploadPhotos = async (position: GeoPoint|null) => {
     if (!files.length || !employee) return
     for (const file of files) {
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
       const path = `${employee.id}/${row.id}/${crypto.randomUUID()}-${safe}`
       const { error: uploadError } = await supabase.storage.from('karaka-photos').upload(path, file, { contentType: file.type || undefined, upsert: false })
       if (uploadError) throw uploadError
-      const { error: photoError } = await supabase.from('photos').insert({ client_id: row.client_id || null, visit_id: row.id, employee_id: employee.id, bucket_id: 'karaka-photos', object_path: path, photo_type: 'VISITA', mime_type: file.type || null, size_bytes: file.size, latitude: position.latitude, longitude: position.longitude, taken_at: new Date().toISOString() })
+      const { error: photoError } = await supabase.from('photos').insert({ client_id: row.client_id || null, visit_id: row.id, employee_id: employee.id, bucket_id: 'karaka-photos', object_path: path, photo_type: 'VISITA', mime_type: file.type || null, size_bytes: file.size, latitude: position?.latitude ?? null, longitude: position?.longitude ?? null, taken_at: new Date().toISOString() })
       if (photoError) throw photoError
     }
   }
 
   const save = async () => {
     if (!employee) return
-    if (!purchase) return alert('Selecciona explícitamente el resultado comercial: Compró, No compró o Pendiente.')
+    if (!purchase) return alert('Selecciona explícitamente el resultado comercial: Compró, No compró, Pendiente o Cliente no estaba / no gestionado.')
+    if(showroomInterest==='si'&&!showroomDate)return alert('Selecciona la fecha y hora tentativa del showroom.')
+    if(showroomInterest==='si'&&!showroomConfirmed)return alert('Confirma la fecha y hora tentativa del showroom antes de finalizar la visita.')
     setBusy(true)
     try {
-      const p = await currentPosition()
+      const gps=await resolveExitPosition()
+      if(gps.cancelled)return
+      const p=gps.position
       const endedAt = new Date().toISOString()
       const storedNextAction = showroomInterest === 'si' ? 'SHOWROOM' : nextAction === 'SIN_SEGUIMIENTO' ? null : nextAction
-      const { error } = await supabase.from('visits').update({ ended_at: endedAt, end_latitude: p.latitude, end_longitude: p.longitude, end_accuracy_m: p.accuracy, received: received === 'si', purchase_result: purchase, purchase_amount: purchase === 'COMPRO' && purchaseAmount ? Number(purchaseAmount) : null, result, contact_name: contact || null, no_purchase_reason: purchase === 'NO_COMPRO' ? reason || null : null, merchandise_comment: karaka || null, competitor_comment: competition || null, notes: notes || null, next_action: storedNextAction, follow_up_date: followUp || null }).eq('id', row.id)
+      const { error } = await supabase.from('visits').update({ ended_at: endedAt, end_latitude: p?.latitude ?? null, end_longitude: p?.longitude ?? null, end_accuracy_m: p?.accuracy ?? null, received: received === 'si', purchase_result: purchase, purchase_amount: purchase === 'COMPRO' && purchaseAmount ? Number(purchaseAmount) : null, result, contact_name: contact || null, no_purchase_reason: purchase === 'NO_COMPRO' || purchase === 'NO_GESTIONADO' ? reason || null : null, merchandise_comment: karaka || null, competitor_comment: competition || null, notes: notes || null, next_action: storedNextAction, follow_up_date: followUp || null }).eq('id', row.id)
       if (error) throw error
       if (row.route_stop_id) {
         const { error: stopError } = await supabase.from('route_stops').update({ status: 'VISITADO', visit_id: row.id }).eq('id', row.route_stop_id)
         if (stopError) throw stopError
       }
-      if (row.client_id) {
+      if (row.client_id && p) {
         const { error: geoError } = await supabase.rpc('record_geo_verification_from_visit', { p_visit_id: row.id })
         if (geoError) console.warn('Geo verification pending:', geoError.message)
       }
@@ -101,7 +119,7 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
 
       if (showroomInterest === 'si') {
         const managerId = row.clients?.manager_employee_id || null
-        const tentative = showroomDate ? new Date(showroomDate).toISOString() : null
+        const tentative = new Date(showroomDate).toISOString()
         const { error: appointmentError } = await supabase.from('appointments').insert({
           client_id: row.client_id,
           employee_id: managerId || employee.id,
@@ -127,20 +145,32 @@ function FinishVisit({ row, onClose, onSaved }: { row: any; onClose: () => void;
     } finally { setBusy(false) }
   }
 
-  return <div className="modal-wrap"><button className="modal-backdrop" onClick={onClose}/><div className="modal large"><div className="modal-head"><div><span className="eyebrow">SALIDA DEL CLIENTE</span><h3>{row.clients?.legal_name || 'Cliente'}</h3><p>Al guardar se registra hora y GPS de salida; luego podrás iniciar el siguiente cliente.</p></div><button className="icon-btn" onClick={onClose}><X/></button></div>
+  const changeReceived=(value:string)=>{
+    setReceived(value)
+    if(value==='no'){
+      setPurchase('NO_GESTIONADO')
+      setResult('NO_RECIBIDO')
+      if(!reason)setReason('Cliente no estaba / no fue posible realizar gestión comercial')
+    }else{
+      if(purchase==='NO_GESTIONADO')setPurchase('')
+      if(result==='NO_RECIBIDO')setResult('RECIBIDO')
+    }
+  }
+
+  return <div className="modal-wrap"><button className="modal-backdrop" onClick={onClose}/><div className="modal large"><div className="modal-head"><div><span className="eyebrow">SALIDA DEL CLIENTE</span><h3>{row.clients?.legal_name || 'Cliente'}</h3><p>Al guardar se registra hora y GPS de salida; si el GPS falla podrás reintentarlo y, como último recurso, finalizar sin coordenadas.</p></div><button className="icon-btn" onClick={onClose}><X/></button></div>
     <div className="form-grid">
-      <label>¿Lo recibieron?<select value={received} onChange={e => setReceived(e.target.value)}><option value="si">Sí</option><option value="no">No</option></select></label>
+      <label>¿Lo recibieron?<select value={received} onChange={e => changeReceived(e.target.value)}><option value="si">Sí</option><option value="no">No</option></select></label>
       <label>Quién lo atendió en el cliente<input value={contact} onChange={e => setContact(e.target.value)} placeholder="Nombre / cargo del contacto"/></label>
-      <label>Resultado comercial<select value={purchase} onChange={e => setPurchase(e.target.value)}><option value="">Selecciona resultado...</option><option value="COMPRO">Compró</option><option value="NO_COMPRO">No compró</option><option value="PENDIENTE">Pendiente</option></select></label>
+      <label>Resultado comercial<select value={purchase} onChange={e => setPurchase(e.target.value)}><option value="">Selecciona resultado...</option><option value="COMPRO">Compró</option><option value="NO_COMPRO">No compró</option><option value="PENDIENTE">Pendiente</option><option value="NO_GESTIONADO">Cliente no estaba / no gestionado</option></select></label>
       <label>Resultado visita<select value={result} onChange={e => setResult(e.target.value)}><option value="RECIBIDO">Recibido</option><option value="NO_RECIBIDO">No recibido</option><option value="CERRADO">Cerrado</option><option value="NO_LOCALIZADO">No localizado</option><option value="REPROGRAMAR">Reprogramar</option></select></label>
       {purchase === 'COMPRO' && <label className="span-2">Monto de compra (opcional)<input type="number" min="0" step="0.01" value={purchaseAmount} onChange={e => setPurchaseAmount(e.target.value)} placeholder="RD$"/><small>Si conoces el monto, quedará incluido en el reporte ejecutivo.</small></label>}
-      {purchase === 'NO_COMPRO' && <label className="span-2">Motivo no compra<input value={reason} onChange={e => setReason(e.target.value)}/></label>}
+      {(purchase === 'NO_COMPRO'||purchase==='NO_GESTIONADO') && <label className="span-2">{purchase==='NO_GESTIONADO'?'Motivo / contexto':'Motivo no compra'}<input value={reason} onChange={e => setReason(e.target.value)}/></label>}
       <label className="span-2">Comentario mercancía Karaka<textarea value={karaka} onChange={e => setKaraka(e.target.value)}/></label>
       <label className="span-2">Comentario competencia<textarea value={competition} onChange={e => setCompetition(e.target.value)}/></label>
 
-      <label>¿Posible visita al showroom?<select value={showroomInterest} onChange={e => setShowroomInterest(e.target.value)}><option value="no">No</option><option value="si">Sí, cliente manifestó interés</option></select></label>
+      <label>¿Posible visita al showroom?<select value={showroomInterest} onChange={e => {setShowroomInterest(e.target.value);if(e.target.value==='no'){setShowroomConfirmed(false);setShowroomDate('')}}}><option value="no">No</option><option value="si">Sí, cliente manifestó interés</option></select></label>
       <label>Próxima acción<select value={nextAction} onChange={e => setNextAction(e.target.value)} disabled={showroomInterest === 'si'}><option value="SIN_SEGUIMIENTO">Sin seguimiento</option><option value="VOLVER_VISITAR">Volver a visitar</option><option value="LLAMAR">Llamar</option><option value="ENVIAR_INFO">Enviar información</option><option value="OTRO">Otro</option></select></label>
-      {showroomInterest === 'si' && <><label>Fecha/hora tentativa showroom<input type="datetime-local" value={showroomDate} onChange={e => setShowroomDate(e.target.value)}/></label><label>Asignación<input disabled value={row.clients?.manager_employee_id ? 'Automática al V-Gestor' : 'PENDIENTE DE ASIGNACIÓN POR DIRECCIÓN'}/></label><div className="span-2 info-box"><CalendarClock size={19}/><div><b>Solicitud de showroom pendiente de validación</b><span>{row.clients?.manager_employee_id ? 'El V-Gestor deberá llamar al cliente, confirmar o reprogramar la cita y registrar posteriormente si asistió.' : 'La solicitud se guardará aunque el cliente no tenga V-Gestor. Dirección recibirá la alerta y, al asignar el Gestor oficial del cliente, la solicitud pasará automáticamente a su bandeja.'}</span></div></div></>}
+      {showroomInterest === 'si' && <><label>Fecha/hora tentativa showroom<div style={{display:'flex',gap:8,alignItems:'center'}}><input type="datetime-local" value={showroomDate} onChange={e => {setShowroomDate(e.target.value);setShowroomConfirmed(false)}}/><button type="button" className="secondary compact" disabled={!showroomDate} onClick={e=>{e.preventDefault();setShowroomConfirmed(true);(document.activeElement as HTMLElement|null)?.blur()}}><Check size={15}/> Confirmar</button></div><small>{showroomConfirmed&&showroomDate?`✓ Confirmada: ${new Date(showroomDate).toLocaleString('es-DO')}`:'Selecciona fecha/hora y pulsa Confirmar.'}</small></label><label>Asignación<input disabled value={row.clients?.manager_employee_id ? 'Automática al V-Gestor' : 'PENDIENTE DE ASIGNACIÓN POR DIRECCIÓN'}/></label><div className="span-2 info-box"><CalendarClock size={19}/><div><b>Solicitud de showroom pendiente de validación</b><span>{row.clients?.manager_employee_id ? 'El V-Gestor deberá llamar al cliente, confirmar o reprogramar la cita y registrar posteriormente si asistió.' : 'La solicitud se guardará aunque el cliente no tenga V-Gestor. Dirección recibirá la alerta y, al asignar el Gestor oficial del cliente, la solicitud pasará automáticamente a su bandeja.'}</span></div></div></>}
       <label>Fecha seguimiento<input type="date" value={followUp} onChange={e => setFollowUp(e.target.value)}/></label>
       <div />
 
