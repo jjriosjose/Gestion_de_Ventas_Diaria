@@ -29,6 +29,13 @@ Después verifica:
 - estado real de Supabase `ccvzosnhxitfeochnflr`.
 - producción Cloudflare `https://gestion-de-ventas-diaria.jjriosjose.workers.dev` y versión visible en la UI.
 
+Estado productivo confirmado al cierre del 13/09/2026:
+
+- Release: **0.6.5-beta.16.2**.
+- Cloudflare Version ID: `080a251b-41e7-4ca1-a7e8-fa8833a6f54e`.
+- Versión visible validada en UI: `0.6.5-beta.16.2`.
+- GitHub Desktop local quedó en `main`, `0 changed files`, sin stash pendiente.
+
 Estado funcional más reciente a preservar:
 
 - Street Operations/Jornadas y Jornada Libre están productivos.
@@ -48,6 +55,7 @@ QA real aprobado con Virmania Inoa:
 - 30/08/2026: ruta no ejecutada con 8 paradas.
 - Rutas mostró 2 rutas anteriores no ejecutadas.
 - Jornadas mostró ambas juntas, 23 paradas planificadas y 0% cobertura.
+- La misma validación fue repetida en producción beta.16.2 y aprobada.
 
 Regla crítica: una ruta pertenece exclusivamente a su fecha operativa. Una ruta vencida sin iniciar se conserva como histórico `NO_INICIADA`; no se reabre ni se ejecuta fuera de fecha.
 
