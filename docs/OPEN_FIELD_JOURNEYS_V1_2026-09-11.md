@@ -1,21 +1,25 @@
 # Jornadas Libres y Visitas Adicionales V1
 
 Fecha inicial: **11/09/2026 (RD)**  
-Última actualización QA: **12/09/2026 (RD)**
+Última actualización: **13/09/2026 (RD)**
 
-Estado: **IMPLEMENTADO EN RAMA / MIGRACIONES APLICADAS EN SUPABASE TEST / QA JORNADA LIBRE E2E APROBADO / QA RUTA PLANIFICADA + ADICIONAL PENDIENTE / NO DESPLEGADO A PRODUCCIÓN**
+Estado: **PRODUCTIVO / QA E2E APROBADO / CI PRE Y POST MERGE SUCCESS / CLOUDFLARE DEPLOY SUCCESS**
 
-Rama: `feature/open-field-journeys-v1`
+Release productivo: **0.6.5-beta.15.0**
 
-Base de la rama: `968671f26b4cbff3896ffdc11fb325fa861b96d9`
+PR: **#60 — MERGED**
 
-Producción vigente mientras se valida esta funcionalidad: **0.6.5-beta.14.0**.
+Merge productivo: `ea6a7314e34dbbdad2a54b6590c177f1bcebadf0`
+
+Cloudflare Version ID: `6889d500-e3f0-477a-9994-79a5c6c30bf9`
+
+Producción: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
 ## Objetivo
 
 Permitir que un vendedor pueda trabajar en calle aunque Dirección no haya creado previamente una ruta para ese día, y permitir que dentro de una ruta planificada visite clientes adicionales sin alterar artificialmente la cobertura del plan original.
 
-La Jornada Libre debe medir los mismos hitos temporales de una jornada planificada:
+La Jornada Libre mide los mismos hitos temporales de una jornada planificada:
 
 - inicio/salida de jornada;
 - llegada al cliente;
@@ -37,16 +41,10 @@ La diferencia funcional es que no existe una secuencia previa de clientes ni un 
 - No puede iniciarse si existe una ruta planificada disponible para el mismo vendedor en el día actual.
 - **Solo puede existir una Jornada Libre por vendedor y fecha, aunque la primera ya haya sido finalizada.**
 - Después de cerrar la Jornada Libre, el vendedor no puede iniciar otra hasta el próximo día.
-- Internamente se crea un `route_plan` técnico con:
-  - `route_mode = LIBRE`;
-  - `plan_type = VISITAS`;
-  - estado inicial transaccional `PLANIFICADA` para respetar el guard histórico de inicio;
-  - luego de crear correctamente la `route_session`, pasa a `ACTIVA`;
-  - cero paradas planificadas.
-- También se crea su `route_session` activa con GPS/hora de salida.
-- No se crean `route_stops` artificiales para las visitas libres.
-- La cobertura del plan se muestra como `N/A` porque no existe un denominador planificado.
-- Dentro de Jornada Libre la acción se presenta al usuario como **`Visitar cliente`**, no `Visita adicional`.
+- Internamente se crea un `route_plan` técnico con `route_mode = LIBRE` y cero paradas planificadas.
+- El orden transaccional es: plan técnico `PLANIFICADA` → `route_session` → plan `ACTIVA`.
+- La cobertura se muestra `N/A`.
+- La acción para el usuario se presenta como **`Visitar cliente`**, no `Visita adicional`.
 
 ### Visita adicional en ruta planificada
 
@@ -54,26 +52,52 @@ La diferencia funcional es que no existe una secuencia previa de clientes ni un 
 - Guarda `planned = false`.
 - Guarda `route_stop_id = null`.
 - Puede pertenecer a la cartera del vendedor o ser un cliente encontrado fuera de cartera.
-- Si el cliente ya existe como parada planificada en la ruta actual, el sistema bloquea la visita adicional y obliga a registrar la llegada desde la parada original.
+- Si el cliente ya existe como parada planificada en la ruta actual, el sistema bloquea la visita adicional.
 - Solo puede existir una visita abierta por empleado.
 - No puede iniciarse una visita adicional mientras exista una eventualidad activa.
-- Usa el mismo cierre de visita ya existente: GPS de salida, resultado comercial, compra, fotos, seguimiento, showroom y verificación geográfica.
+- Usa el mismo cierre comercial de una visita planificada.
 
 ## Tiempos y GPS
 
-Las Jornadas Libres reutilizan exactamente las mismas entidades operativas:
+Las Jornadas Libres reutilizan las mismas entidades operativas:
 
 - `route_sessions.started_at`: inicio/salida de jornada;
 - `visits.started_at`: llegada al cliente;
 - `visits.ended_at`: salida del cliente;
-- duración de atención = diferencia entre llegada y salida;
-- `route_sessions.ended_at`: cierre definitivo de jornada.
+- duración de atención = llegada → salida;
+- `route_sessions.ended_at`: cierre definitivo.
 
-Se guardan GPS de inicio, llegada, salida y cierre usando el mismo flujo existente. La ausencia o mala precisión GPS no debe falsear los tiempos.
+### Fallback GPS de salida
+
+Previo a producción se endureció el cierre de visita:
+
+1. primer intento GPS;
+2. si falla, opción explícita `Intentar nuevamente`;
+3. si vuelve a fallar, posibilidad de `Finalizar sin coordenadas`;
+4. la gestión comercial, hora de salida, seguimiento, showroom, observaciones y evidencia no se pierden por un fallo GPS.
+
+El inicio de ruta/jornada mantiene la necesidad de obtener ubicación antes de arrancar; un fallo inicial no debe dejar una sesión huérfana.
+
+## Resultado comercial `NO_GESTIONADO`
+
+Se incorporó el resultado:
+
+**Cliente no estaba / no gestionado**
+
+Cuando `¿Lo recibieron? = No`, el formulario propone:
+
+- `purchase_result = NO_GESTIONADO`;
+- `visit_result = NO_RECIBIDO`.
+
+Esto evita clasificar como `No compró` una visita donde realmente no existió una gestión comercial completa.
+
+## Showroom — confirmación de fecha/hora
+
+El selector nativo de fecha/hora se complementó con confirmación explícita. La fecha/hora de showroom debe seleccionarse y confirmarse antes de finalizar la visita cuando corresponda.
 
 ## Métricas
 
-Una ruta planificada debe reportar por separado:
+Una ruta planificada reporta por separado:
 
 - `Planificados`;
 - `Visitados plan`;
@@ -81,147 +105,160 @@ Una ruta planificada debe reportar por separado:
 - `Visitas adicionales`;
 - `Total visitas`.
 
-Ejemplo:
-
-- 10 planificados;
-- 8 visitados del plan;
-- 3 adicionales;
-- cobertura = 80%;
-- total visitas = 11.
-
-Las visitas adicionales **nunca aumentan el denominador ni el numerador de cobertura del plan**.
+Las visitas adicionales **nunca aumentan el numerador ni el denominador de cobertura del plan**.
 
 En Jornada Libre:
 
 - Planificados = 0;
-- Cobertura plan = `N/A`;
-- `Realizadas` = visitas finalizadas de la jornada;
-- Total visitas = visitas finalizadas de la jornada;
-- una visita abierta aparece separadamente como `En visita`.
+- Cobertura = `N/A`;
+- `Realizadas` = visitas finalizadas;
+- Total visitas = visitas finalizadas;
+- una visita abierta aparece como `En visita`.
+
+## Tracking — alerta >45 min
+
+Se reemplazó la lectura ambigua anterior por un KPI especializado:
+
+**Sin registro >45 min**
+
+Reglas:
+
+- se calcula sobre vendedores con jornada activa;
+- cuenta vendedores únicos, no filas/rutas;
+- si existen vendedores que superan 45 minutos sin nuevo registro operativo, el KPI indica cuántos requieren revisión;
+- al hacer clic se muestra el detalle de esos vendedores para investigación;
+- no se agregó GPS continuo, polling nuevo, Realtime ni escrituras periódicas.
+
+La calidad GPS y la coherencia geográfica se mantienen separadas:
+
+- `accuracy_m` expresa incertidumbre de la coordenada capturada;
+- distancia al cliente compara esa coordenada con el punto maestro;
+- una coordenada puede tener precisión de ±150 m y aun estar a decenas o cientos de kilómetros del cliente.
 
 ## Cambios de Supabase
 
-Migraciones vivas TEST y alineadas con GitHub:
+Migraciones aplicadas y alineadas con GitHub:
 
 1. `20260911225302_open_field_journeys_v1`
    - `route_plans.route_mode = PLANIFICADA | LIBRE`;
    - índice modo/fecha/empleado;
-   - índice único parcial `route_sessions_one_active_employee_idx`;
+   - índice único parcial para una sola `route_session` ACTIVA por empleado;
    - RPC `public.start_open_journey(...)`;
    - RPC `public.start_additional_visit(...)`;
    - vista `public.executive_route_journeys_v4`.
 2. `20260912163228_open_field_journey_start_fix`
-   - corrige el orden de creación de Jornada Libre para respetar `private.enforce_route_session_operational_date()`;
-   - crea plan técnico `PLANIFICADA`, crea sesión y luego promueve plan a `ACTIVA`.
+   - corrige el orden de creación para respetar guards históricos.
 3. `20260912172056_open_field_one_free_journey_per_day`
-   - índice único `route_plans_one_free_per_employee_day_idx` sobre `(employee_id, route_date)` cuando `route_mode = LIBRE`;
-   - guard explícito en `start_open_journey(...)` para impedir una segunda Jornada Libre en la misma fecha aunque la primera esté finalizada.
+   - índice único de una Jornada Libre por empleado/fecha;
+   - guard adicional en `start_open_journey(...)`.
 
-No reejecutar migraciones por memoria: verificar `supabase_migrations` antes de cualquier acción futura.
+No reejecutar migraciones por memoria: verificar migraciones vivas antes de cualquier acción futura.
 
-## Cambios frontend
+## Cambios frontend principales
 
 ### `src/pages/Routes.tsx`
 
-- Banner `Iniciar jornada libre` solo cuando realmente corresponde.
-- Si la Jornada Libre del día ya fue finalizada, muestra **`Jornada del día finalizada`** y elimina la opción de iniciar otra.
-- Auto-selección de la Jornada Libre del día para facilitar consulta posterior al cierre.
-- Etiqueta explícita `Jornada libre | Ruta planificada`.
-- En Jornada Libre: botón **`Visitar cliente`**.
-- En ruta planificada: botón **`Visita adicional`**.
-- Visitas libres/adicionales separadas de las paradas planificadas.
-- Jornada Libre no fabrica mapa/secuencia de paradas inexistentes.
+- Jornada Libre cuando corresponde.
+- `Jornada del día finalizada` después del cierre.
+- `Visitar cliente` en Jornada Libre.
+- `Visita adicional` en ruta planificada.
 - KPIs Plan vs actividad real.
-- Cierre compatible con Jornada Libre.
-- Excel/PDF usa `Origen = JORNADA_LIBRE` para Jornada Libre y `ADICIONAL` para actividad extra de una ruta planificada.
+- separación visual de visitas libres/adicionales.
+- cierre compatible con Jornada Libre.
 
 ### `src/components/AdditionalVisitModal.tsx`
 
-- Copia contextual según `journeyMode`.
-- En Jornada Libre explica que `Registrar llegada` inicia el tiempo de atención hasta `Finalizar visita y salir`.
-- Tu cartera por defecto.
-- Búsqueda por nombre/código en toda la base al escribir al menos 2 caracteres.
-- Cliente planificado bloqueado.
-- Navegación Google Maps cuando hay coordenadas.
-- Registro de llegada mediante RPC con GPS.
+- copy contextual por tipo de jornada;
+- cartera por defecto;
+- búsqueda global por nombre/código;
+- cliente planificado bloqueado;
+- llegada mediante RPC y GPS.
 
 ### `src/pages/Journeys.tsx`
 
-- Usa `executive_route_journeys_v4`.
-- Muestra `Modo`, `Visitados plan`, `Adicionales`, `Total`.
-- Cobertura `N/A` en Jornada Libre.
-- Excel diferencia Plan vs Adicionales.
-- Drawer muestra visitas adicionales por separado.
+- `executive_route_journeys_v4`;
+- `Modo`, `Visitados plan`, `Adicionales`, `Total`;
+- cobertura `N/A` en Jornada Libre;
+- Excel diferenciado Plan vs Adicionales.
 
-## Tracking
+### `src/pages/Visits.tsx`
 
-La Jornada Libre conserva un `route_plan_id` técnico para mantener compatibilidad con Tracking, Jornadas y reportes existentes.
+- fallback GPS de salida;
+- `NO_GESTIONADO`;
+- confirmación explícita de fecha/hora showroom.
 
-Los eventos reales de las visitas libres/adicionales se registran en `visits`; no se agrega tracking continuo.
+### `src/pages/Tracking.tsx`
 
-No se agrega:
+- KPI `Sin registro >45 min`;
+- detalle clicable de vendedores que requieren revisión;
+- sin tracking continuo adicional.
 
-- polling nuevo;
-- Realtime;
-- GPS continuo;
-- breadcrumbs periódicos.
-
-## Controles de seguridad
-
-- Identidad del vendedor se resuelve en backend con `private.current_employee_id()`.
-- RPC de Jornada Libre no acepta un employee_id arbitrario enviado por navegador.
-- RPC de visita adicional verifica que la sesión pertenezca al vendedor autenticado.
-- Índice único DB impide dos jornadas activas simultáneas.
-- Índice único DB impide dos Jornadas Libres del mismo vendedor en la misma fecha.
-- Guard existente impide más de una visita abierta simultánea.
-- Guard de fecha sigue impidiendo continuar una sesión en días posteriores.
-
-## QA real completado — Jornada Libre
+## QA real — Jornada Libre
 
 Usuario TEST: **Cesar Caba**.
 
-Flujo validado el 12/09/2026:
+Validado:
 
-1. Sin ruta planificada disponible → aparece `Iniciar jornada libre`.
-2. Jornada Libre inicia correctamente.
-3. Se registra llegada a un cliente seleccionado durante la jornada.
-4. La visita queda `planned=false` y `route_stop_id=null`.
-5. Se completa el formulario comercial normal.
-6. `Finalizar visita y salir` registra hora/GPS de salida.
-7. Se cierra Jornada Libre sin crear pendientes artificiales.
-8. Sesión y plan quedan `FINALIZADA`.
-9. Cobertura = `N/A`.
-10. Una segunda Jornada Libre del mismo día queda bloqueada por DB/RPC y ya no debe ofrecerse en la UI.
+1. Sin ruta planificada → aparece `Iniciar jornada libre`.
+2. Inicio correcto.
+3. Llegada a cliente libre.
+4. `planned=false`, `route_stop_id=null`.
+5. Formulario comercial normal.
+6. Salida con hora/GPS.
+7. Cierre sin pendientes artificiales.
+8. Sesión y plan `FINALIZADA`.
+9. Cobertura `N/A`.
+10. Segunda Jornada Libre del mismo día bloqueada en UI y DB.
 
-Validación Supabase del caso:
+Caso validado:
 
-- Jornada: `LIBRE`;
-- inicio: 13:03:45 RD aprox.;
-- cierre: 13:11:19 RD aprox.;
-- duración total: ~7.55 min;
-- visitas registradas: 1;
-- visitas libres/no planificadas: 1;
-- visitas completadas: 1;
+- duración jornada ~7.55 min;
+- visitas: 1;
 - pendientes: 0;
-- cierre: `NORMAL / SIN_PENDIENTES`.
+- cierre `NORMAL / SIN_PENDIENTES`.
 
-La prueba desde PC entregó precisión GPS aproximada de 10.29 km; por tanto valida flujo/tiempos, **no calidad geográfica**. No se marcó el cliente como geográficamente verificado.
+## QA real — ruta planificada + adicionales
 
-## QA pendiente antes de producción
+Prueba 13/09/2026:
 
-1. Ruta planificada + visita adicional:
-   - iniciar ruta normal;
-   - completar al menos una parada planificada;
-   - iniciar visita adicional a cliente fuera del plan;
-   - comprobar que cliente planificado no puede registrarse como adicional;
-   - cobertura plan no cambia por la adicional;
-   - Total visitas sí aumenta.
-2. Guards adicionales:
-   - segunda visita abierta bloqueada;
-   - visita adicional durante eventualidad bloqueada;
-   - Jornada Libre bloqueada cuando existe plan disponible hoy.
-3. Tracking/Jornadas/Visitas deben continuar cargando sin regresiones.
+- 3 paradas planificadas;
+- 3 planificadas finalizadas `VISITADO`;
+- 2 visitas fuera del plan completadas;
+- 5 visitas totales;
+- 0 visitas abiertas al cierre;
+- ruta y sesión `FINALIZADA`.
+
+La prueba confirmó que las adicionales no alteran la cobertura planificada.
+
+## QA de endurecimiento
+
+Validado por usuario:
+
+- fallo GPS inicial de navegador no creó una sesión huérfana;
+- intento posterior capturó GPS y creó una única sesión válida;
+- `Cliente no estaba / no gestionado`;
+- confirmación explícita de fecha/hora showroom;
+- Tracking `Sin registro >45 min`;
+- smoke de Rutas, Jornadas, Visitas y Tracking.
+
+Antes de promoción se verificó en Supabase:
+
+- 0 sesiones activas;
+- 0 visitas abiertas;
+- sin duplicidad de jornadas activas.
+
+## CI y promoción
+
+- CI feature antes del release: **SUCCESS**.
+- Release branch: `0.6.5-beta.15.0`.
+- PR #60: **MERGED**.
+- Merge SHA: `ea6a7314e34dbbdad2a54b6590c177f1bcebadf0`.
+- CI post-merge sobre `main`: **SUCCESS**.
+- Deploy Cloudflare: **SUCCESS**.
+- Cloudflare Version ID: `6889d500-e3f0-477a-9994-79a5c6c30bf9`.
 
 ## Producción
 
-**NO mergear / NO desplegar todavía.** PR #60 permanece Draft hasta completar el QA de ruta planificada + visita adicional y validar CI final.
+**DESPLEGADO EN PRODUCCIÓN — 13/09/2026.**
+
+Los datos continúan siendo TEST hasta declaración explícita de Go-Live.
