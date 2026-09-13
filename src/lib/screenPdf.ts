@@ -38,11 +38,11 @@ function sliceCanvas(source:HTMLCanvasElement,top:number,height:number){
   return canvas
 }
 
-async function capture(element:HTMLElement){
+function captureOptions(element:HTMLElement){
   const width=Math.max(element.scrollWidth,Math.ceil(element.getBoundingClientRect().width))
   const height=Math.max(element.scrollHeight,Math.ceil(element.getBoundingClientRect().height))
   const scale=Math.min(1.6,Math.max(1.2,window.devicePixelRatio||1))
-  return html2canvas(element,{
+  return {
     scale,
     useCORS:true,
     allowTaint:false,
@@ -51,8 +51,25 @@ async function capture(element:HTMLElement){
     width,
     height,
     windowWidth:Math.max(document.documentElement.clientWidth,width),
-    ignoreElements:node=>node instanceof HTMLElement&&node.dataset.pdfExclude==='true',
-  })
+    ignoreElements:(node:Element)=>node instanceof HTMLElement&&node.dataset.pdfExclude==='true',
+  }
+}
+
+function isUnsupportedColorError(error:unknown){
+  const message=error instanceof Error?error.message:String(error??'')
+  return /unsupported color function|attempting to parse an unsupported color/i.test(message)
+}
+
+async function capture(element:HTMLElement){
+  const options=captureOptions(element)
+  try{
+    return await html2canvas(element,options)
+  }catch(error){
+    if(!isUnsupportedColorError(error))throw error
+    const module=await import('html2canvas-pro')
+    const html2canvasPro=module.default
+    return html2canvasPro(element,options)
+  }
 }
 
 export async function exportScreenPdf(rootId:string,fileName:string,title:string){
