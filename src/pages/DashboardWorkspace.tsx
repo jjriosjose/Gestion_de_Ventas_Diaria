@@ -1,7 +1,7 @@
 import { useEffect,useMemo,useState } from 'react'
 import { AlertTriangle,CalendarRange,CheckCircle2,ChevronRight,Route } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Dashboard } from './Dashboard'
+import { DashboardV2 } from './DashboardV2'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { hasPermission,profileForEmployee } from '../lib/access'
@@ -29,16 +29,7 @@ export function DashboardWorkspace(){
     const todayRows=rows.filter(r=>r.route_date===today())
     const plannedClients=todayRows.reduce((s,r)=>s+Number(r.planned_clients||0),0)
     const visited=todayRows.reduce((s,r)=>s+Number(r.visited_clients||0),0)
-    return {
-      planned:todayRows.filter(r=>r.derived_status==='PLANIFICADA').length,
-      active:todayRows.filter(r=>r.derived_status==='ACTIVA').length,
-      finalized:todayRows.filter(r=>['FINALIZADA','FINALIZADA_PARCIAL'].includes(r.derived_status)).length,
-      expired:rows.filter(r=>r.derived_status==='PENDIENTE_CIERRE').length,
-      coverage:pct(visited,plannedClients),
-    }
+    return {planned:todayRows.filter(r=>r.derived_status==='PLANIFICADA').length,active:todayRows.filter(r=>r.derived_status==='ACTIVA').length,finalized:todayRows.filter(r=>['FINALIZADA','FINALIZADA_PARCIAL'].includes(r.derived_status)).length,expired:rows.filter(r=>r.derived_status==='PENDIENTE_CIERRE').length,coverage:pct(visited,plannedClients)}
   },[rows])
-  return <div className="dashboard-workspace">
-    {canView&&<section className={`panel dashboard-journey-strip ${stats.expired?'has-warning':''}`}><div className="dashboard-journey-title"><CalendarRange/><div><span className="eyebrow">JORNADAS</span><b>{executive?'Control operativo de hoy':'Mi estado operativo'}</b></div></div><div className="dashboard-journey-metrics"><span><CalendarRange/> <b>{stats.planned}</b> planificada{stats.planned===1?'':'s'}</span><span><Route/> <b>{stats.active}</b> activa{stats.active===1?'':'s'}</span><span><CheckCircle2/> <b>{stats.finalized}</b> finalizada{stats.finalized===1?'':'s'}</span><span className={stats.expired?'warn':''}><AlertTriangle/> <b>{stats.expired}</b> pendiente{stats.expired===1?'':'s'} cierre</span><span><b>{stats.coverage}%</b> cobertura hoy</span></div><button className="secondary compact" onClick={()=>navigate('/jornadas')}>Ver Jornadas <ChevronRight size={15}/></button></section>}
-    <Dashboard/>
-  </div>
+  return <div className="dashboard-workspace">{canView&&<section className={`panel dashboard-journey-strip ${stats.expired?'has-warning':''}`}><div className="dashboard-journey-title"><CalendarRange/><div><span className="eyebrow">JORNADAS</span><b>{executive?'Control operativo de hoy':'Mi estado operativo'}</b></div></div><div className="dashboard-journey-metrics"><span><CalendarRange/> <b>{stats.planned}</b> planificada{stats.planned===1?'':'s'}</span><span><Route/> <b>{stats.active}</b> activa{stats.active===1?'':'s'}</span><span><CheckCircle2/> <b>{stats.finalized}</b> finalizada{stats.finalized===1?'':'s'}</span><span className={stats.expired?'warn':''}><AlertTriangle/> <b>{stats.expired}</b> pendiente{stats.expired===1?'':'s'} cierre</span><span><b>{stats.coverage}%</b> cobertura hoy</span></div><button className="secondary compact" onClick={()=>navigate('/jornadas')}>Ver Jornadas <ChevronRight size={15}/></button></section>}<DashboardV2/></div>
 }
