@@ -5,6 +5,14 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,
 const text=(v:unknown)=>String(v??'').trim()
 const internalEmail=(username:string)=>`${username.toLowerCase().replace(/[^a-z0-9._-]/g,'')}@usuarios.karaka.internal`
 function normalizePhone(v:unknown){let digits=String(v??'').replace(/\D/g,'');if(digits.length===10)digits=`1${digits}`;if(!/^1\d{10}$/.test(digits))return null;return `+${digits}`}
+const encoder=new TextEncoder()
+function bytesToB64(bytes:Uint8Array){let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary)}
+async function hashBootstrapPassword(password:string,iterations=210000){
+  const salt=crypto.getRandomValues(new Uint8Array(16))
+  const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits'])
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations},key,256)
+  return{salt_b64:bytesToB64(salt),hash_b64:bytesToB64(new Uint8Array(bits)),iterations}
+}
 
 const profiles=['Administrador','Supervisor','Gestor','Vendedor','Recepcion','SoloLectura'] as const
 type AccessProfile=typeof profiles[number]
@@ -78,11 +86,14 @@ Deno.serve(async(req:Request)=>{
       const patch:Record<string,unknown>={updated_by:userData.user.id,access_profile:accessProfile,permission_overrides:permissionOverrides,app_role:mapped.app_role,employee_type:mapped.employee_type}
       for(const key of ['full_name','username','job_title','phone_display','active'])if(body[key]!==undefined)patch[key]=body[key]
       if(body.phone_e164!==undefined||body.phone_display!==undefined){const normalized=normalizePhone(body.phone_e164||body.phone_display);if(!normalized)return json({error:'Número telefónico inválido'},400);patch.phone_e164=normalized}
+      const newPassword=body.new_password!==undefined?text(body.new_password):''
+      if(newPassword&&newPassword.length<6)return json({error:'La nueva clave debe tener al menos 6 caracteres'},400)
+      const nextUsername=String(patch.username??current.username)
+
       if(current.auth_user_id){
         const authPatch:Record<string,unknown>={}
         if(patch.phone_e164&&patch.phone_e164!==current.phone_e164){authPatch.phone=patch.phone_e164;authPatch.phone_confirm=true}
-        if(body.new_password)authPatch.password=text(body.new_password)
-        const nextUsername=String(patch.username??current.username)
+        if(newPassword)authPatch.password=newPassword
         if(patch.username&&patch.username!==current.username){authPatch.email=internalEmail(nextUsername);authPatch.email_confirm=true}
         if(patch.full_name||patch.username)authPatch.user_metadata={full_name:patch.full_name??current.full_name,username:nextUsername}
         authPatch.app_metadata={role:mapped.app_role,employee_type:mapped.employee_type,access_profile:accessProfile,employee_id:current.id}
@@ -90,7 +101,29 @@ Deno.serve(async(req:Request)=>{
         if(body.active===true&&current.active===false)authPatch.ban_duration='none'
         const {error}=await admin.auth.admin.updateUserById(current.auth_user_id,authPatch as any)
         if(error)return json({error:error.message},400)
+      }else{
+        const oldBootstrapUsername=String(current.username??'').trim().toLowerCase()
+        const nextBootstrapUsername=nextUsername.trim().toLowerCase()
+        const {data:bootstrap,error:bootstrapError}=await admin.from('bootstrap_credentials').select('username,iterations').eq('username',oldBootstrapUsername).maybeSingle()
+        if(bootstrapError)return json({error:bootstrapError.message},400)
+        if((newPassword||nextBootstrapUsername!==oldBootstrapUsername)&&!bootstrap)return json({error:'Credencial inicial no encontrada para este usuario'},400)
+        if(bootstrap){
+          const bootstrapPatch:Record<string,unknown>={updated_at:new Date().toISOString()}
+          if(nextBootstrapUsername!==oldBootstrapUsername)bootstrapPatch.username=nextBootstrapUsername
+          if(newPassword){
+            const hashed=await hashBootstrapPassword(newPassword,Number(bootstrap.iterations||210000))
+            bootstrapPatch.salt_b64=hashed.salt_b64
+            bootstrapPatch.hash_b64=hashed.hash_b64
+            bootstrapPatch.iterations=hashed.iterations
+            bootstrapPatch.failed_attempts=0
+            bootstrapPatch.locked_until=null
+            bootstrapPatch.used_at=null
+          }
+          const {error}=await admin.from('bootstrap_credentials').update(bootstrapPatch).eq('username',oldBootstrapUsername)
+          if(error)return json({error:error.message},400)
+        }
       }
+
       const {data:updated,error:updateError}=await admin.from('employees').update(patch).eq('id',id).select().single()
       if(updateError)return json({error:updateError.message},400)
       return json({user:updated})
