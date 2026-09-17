@@ -43,7 +43,7 @@ function periodBounds(mode:PeriodMode,date:string,month:string,from:string,to:st
 export function ReportsV2(){
  const {employee}=useAuth()
  const profile=profileForEmployee(employee)
- const executive=['Administrador','Supervisor'].includes(profile)
+ const executive=['Administrador','Supervisor','Gestor'].includes(profile)
  const ownRole:CommercialRole=employee?.employee_type==='Vendedor'||employee?.employee_type==='Gestor'?employee.employee_type:''
  const [mode,setMode]=useState<PeriodMode>(executive?'MONTH':'DAY'),[date,setDate]=useState(today()),[month,setMonth]=useState(currentMonth()),[from,setFrom]=useState(today()),[to,setTo]=useState(today())
  const [commercialRows,setCommercialRows]=useState<any[]>([]),[journeys,setJourneys]=useState<any[]>([]),[crmRows,setCrmRows]=useState<any[]>([]),[employees,setEmployees]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[pdfBusy,setPdfBusy]=useState(false)

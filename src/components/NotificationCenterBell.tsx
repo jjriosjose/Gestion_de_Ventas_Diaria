@@ -42,7 +42,7 @@ function relative(value:string){
 
 export function NotificationCenterBell({onOpen}:{onOpen?:()=>void}){
  const {employee}=useAuth(),navigate=useNavigate(),location=useLocation()
- const [open,setOpen]=useState(false),[alerts,setAlerts]=useState<AlertItem[]>([]),[filter,setFilter]=useState<'ALL'|'ACTION'>('ALL'),[loading,setLoading]=useState(false)
+ const [open,setOpen]=useState(false),[alerts,setAlerts]=useState<AlertItem[]>([]),[filter,setFilter]=useState<'ALL'|'ACTION'>('ALL'),[loading,setLoading]=useState(false),[liveNotice,setLiveNotice]=useState<any>(null)
  const executive=['Administrador','Supervisor'].includes(profileForEmployee(employee))
 
  const load=async()=>{
@@ -118,14 +118,21 @@ export function NotificationCenterBell({onOpen}:{onOpen?:()=>void}){
 
  useEffect(()=>{void load()},[employee?.id,location.pathname])
  useEffect(()=>{const onFocus=()=>void load();window.addEventListener('focus',onFocus);return()=>window.removeEventListener('focus',onFocus)},[employee?.id])
+ useEffect(()=>{
+  if(!employee?.id)return
+  const channel=supabase.channel(`notifications-live-${employee.id}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`employee_id=eq.${employee.id}`},payload=>{const row:any=payload.new||{};setLiveNotice(row);void load()}).subscribe()
+  return()=>{void supabase.removeChannel(channel)}
+ },[employee?.id])
+ useEffect(()=>{if(!liveNotice)return;const timer=window.setTimeout(()=>setLiveNotice(null),9000);return()=>window.clearTimeout(timer)},[liveNotice])
  const visible=useMemo(()=>filter==='ALL'?alerts:alerts.filter(a=>a.severity==='CRITICAL'||a.severity==='ACTION'),[alerts,filter])
  const grouped=useMemo(()=>categoryOrder.map(category=>({category,items:visible.filter(i=>i.category===category)})).filter(g=>g.items.length),[visible])
  const toggle=()=>{const next=!open;setOpen(next);if(next){onOpen?.();void load()}}
  const openAlert=async(item:AlertItem)=>{if(item.storedId)await supabase.from('notifications').update({status:'READ',read_at:new Date().toISOString()}).eq('id',item.storedId);setOpen(false);navigate(item.href);void load()}
  const markAll=async()=>{if(!employee?.id)return;await supabase.from('notifications').update({status:'READ',read_at:new Date().toISOString()}).eq('employee_id',employee.id).eq('status','UNREAD');await load()}
  const actionCount=alerts.filter(a=>a.severity==='CRITICAL'||a.severity==='ACTION').length
+ const openLive=async()=>{if(!liveNotice)return;const inferred=inferStored(liveNotice);if(liveNotice.id)await supabase.from('notifications').update({status:'READ',read_at:new Date().toISOString()}).eq('id',liveNotice.id);setLiveNotice(null);navigate(inferred.href);void load()}
 
- return <div className="notification-center-root">
+ return <div className="notification-center-root">{liveNotice&&<button type="button" className="notification-live-toast" onClick={()=>void openLive()} aria-label="Abrir nueva alerta"><BellRing/><div><b>{liveNotice.title||'Nueva alerta'}</b><span>{liveNotice.message||'Revisa el centro de alertas.'}</span></div><ChevronRight/></button>}
   <button className={`icon-btn ${open?'active':''}`} title="Centro de alertas" aria-label="Centro de alertas" aria-expanded={open} onClick={toggle}><BellRing size={19}/>{alerts.length>0&&<span className={`notification-count ${actionCount?'has-action':''}`}>{alerts.length}</span>}</button>
   {open&&<div className="panel notification-center"><div className="notification-center-head"><div><b>Centro de alertas</b><span>{actionCount?`${actionCount} requieren atención`:'Sin acciones críticas pendientes'}</span></div><button className="secondary compact" onClick={()=>void markAll()}>Marcar leídas</button></div><div className="notification-tabs"><button className={filter==='ALL'?'active':''} onClick={()=>setFilter('ALL')}>Todas <span>{alerts.length}</span></button><button className={filter==='ACTION'?'active':''} onClick={()=>setFilter('ACTION')}>Acción <span>{actionCount}</span></button></div>{loading?<div className="notification-empty"><Clock3/><span>Actualizando alertas...</span></div>:grouped.length?<div className="notification-groups">{grouped.map(group=><section key={group.category} className="notification-group"><div className="notification-group-title"><b>{categoryLabel[group.category]}</b><span>{group.items.length}</span></div>{group.items.map(item=><button key={item.id} className={`notification-item severity-${item.severity.toLowerCase()}`} onClick={()=>void openAlert(item)}><div className="notification-item-icon">{iconFor(item)}</div><div className="notification-item-copy"><div><b>{item.title}</b><span className="severity-badge">{severityLabel[item.severity]}</span></div><p>{item.message}</p><small>{relative(item.created_at)}</small></div><ChevronRight className="notification-chevron"/></button>)}</section>)}</div>:<div className="notification-empty"><CheckCircle2/><b>Todo al día</b><span>No hay alertas para este filtro.</span></div>}</div>}
  </div>
