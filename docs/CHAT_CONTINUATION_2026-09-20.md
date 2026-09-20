@@ -12,7 +12,7 @@ Rama productiva: `main`
 
 Después de reconciliar el PR #67 el 20/09/2026:
 
-- `main` SHA: `9d5497a59d8a91a3c8bb956b5285a79a57bcd715`
+- `main` SHA: `df3c6836c5113896ecebfb228101af48b323a80b`
 - `package.json`: **0.6.5-beta.16.3.9**
 - PR #67: **MERGED**
 - título: `beta16.3.9 report sales charts`
@@ -26,9 +26,9 @@ Cloudflare productivo:
 
 **No desplegar nuevamente solo por el merge del PR #67.** El frontend 16.3.9 ya fue desplegado y validado por el usuario antes de reconciliar `main`.
 
-### Deuda inmediata menor
+### Lockfile
 
-`package-lock.json` aún declara **0.6.5-beta.16.3.8** en su metadata de versión mientras `package.json` está en 16.3.9. Debe sincronizarse en un cambio controlado posterior. No cambia dependencias.
+`package-lock.json` fue sincronizado a **0.6.5-beta.16.3.9** mediante PR #69. Solo cambiaron 2 líneas de metadata; no cambiaron dependencias. Build validation #1083: **SUCCESS**.
 
 ## 2. Validación productiva 16.3.8 / 16.3.9
 
@@ -208,9 +208,10 @@ Datos actuales continúan siendo de prueba.
 
 - [x] Reconciliar PR #67 con `main`.
 - [x] Crear checkpoint documental 20/09.
-- [ ] Sincronizar `package-lock.json` con 16.3.9.
-- [ ] Confirmar CI/build de `main` después del merge.
-- [ ] Mergear actualización documental después de revisión.
+- [x] Sincronizar `package-lock.json` con 16.3.9.
+- [x] Build validation #1083 SUCCESS para la sincronización del lockfile.
+- [x] Mergear checkpoint documental inicial (#68).
+- [x] Inventario read-only de migraciones GitHub ↔ Supabase; ver `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`.
 
 ### Fase 1 — reproducibilidad / staging
 
