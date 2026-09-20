@@ -11,9 +11,10 @@ Fecha: **20/09/2026 (RD)**
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
 2. `docs/CHAT_CONTINUATION_2026-09-20.md`
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
-4. `docs/SUPABASE_CAPACITY_2026-09-20.md`
-5. Para Logística/TMS: documentos `LOGISTICS_*.md` vigentes.
-6. Para reglas históricas de Rutas/Jornadas: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md` y `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`.
+4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
+5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
+6. Para Logística/TMS: documentos `LOGISTICS_*.md` vigentes.
+7. Para reglas históricas de Rutas/Jornadas: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md` y `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`.
 
 `PROJECT_HANDOFF.md` funciona como índice estable y apunta a este checkpoint. Documentos anteriores son contexto histórico y no prevalecen sobre estado vivo.
 
@@ -22,7 +23,7 @@ Fecha: **20/09/2026 (RD)**
 Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 `main`:
-- SHA: `9d5497a59d8a91a3c8bb956b5285a79a57bcd715`
+- SHA: `df3c6836c5113896ecebfb228101af48b323a80b`
 - versión `package.json`: **0.6.5-beta.16.3.9**
 - PR #67 de Reportes: **MERGED** el 20/09/2026.
 
@@ -77,7 +78,7 @@ Deploy Cloudflare confirmado actualmente es manual con `npm run deploy`; merge a
 9. **Atomicidad**: cierre Showroom, cierre Visita e importación maestra necesitan endurecimiento transaccional.
 10. **audit_log**: ~101 MB; evitar snapshots geográficos grandes.
 11. **Geo performance**: principal hotspot observado.
-12. `package-lock.json` conserva metadata 16.3.8 y debe sincronizarse con 16.3.9.
+12. `package-lock.json` ya fue sincronizado a 16.3.9 mediante PR #69; Build validation #1083: SUCCESS.
 
 ## Supabase Free vs Pro
 
@@ -107,9 +108,8 @@ Decisión actual:
 
 ## Próximo paso exacto
 
-1. Mergear esta actualización documental.
-2. Sincronizar `package-lock.json` a 16.3.9 y validar build/CI.
-3. Ejecutar auditoría de migraciones GitHub ↔ Supabase **sin modificar producción**.
-4. Diseñar staging/rebuild test.
-5. Iniciar hardening de seguridad por módulos y con pruebas por rol.
+1. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
+2. Diseñar staging/rebuild test.
+3. Iniciar hardening de seguridad por módulos y con pruebas por rol.
+4. Proteger `main` cuando el flujo de CI requerido esté definido.
 
