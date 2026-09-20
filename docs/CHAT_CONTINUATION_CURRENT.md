@@ -23,7 +23,8 @@ Fecha: **20/09/2026 (RD)**
 Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 `main`:
-- SHA: `df3c6836c5113896ecebfb228101af48b323a80b`
+- baseline de código/runtime 16.3.9 (incluye lockfile sync): `df3c6836c5113896ecebfb228101af48b323a80b`
+- los commits documentales posteriores pueden mover HEAD sin cambiar runtime
 - versión `package.json`: **0.6.5-beta.16.3.9**
 - PR #67 de Reportes: **MERGED** el 20/09/2026.
 
