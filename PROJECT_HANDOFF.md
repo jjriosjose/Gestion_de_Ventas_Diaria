@@ -12,7 +12,8 @@
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
 2. `docs/CHAT_CONTINUATION_2026-09-20.md`
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
-4. `docs/SUPABASE_CAPACITY_2026-09-20.md`
+4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
+5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
 
 Luego consultar documentos específicos del módulo a modificar.
 
@@ -31,7 +32,7 @@ Nunca asumir que una funcionalidad o migración existe solo porque fue mencionad
 ## Snapshot al 20/09/2026
 
 - Repo: `jjriosjose/Gestion_de_Ventas_Diaria`
-- main: `9d5497a59d8a91a3c8bb956b5285a79a57bcd715`
+- main: `df3c6836c5113896ecebfb228101af48b323a80b`
 - app: **0.6.5-beta.16.3.9**
 - producción Cloudflare: **0.6.5-beta.16.3.9**
 - Cloudflare Version ID: `96bfb579-8ed2-47cb-8029-15ef67fed492`
