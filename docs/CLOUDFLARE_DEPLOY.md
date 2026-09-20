@@ -1,12 +1,10 @@
 # Despliegue Cloudflare — Gestión de Ventas Diaria
 
-Baseline auditado: **V0.6.4**.
+Baseline productivo confirmado: **0.6.5-beta.16.3.9**
 
-El proyecto usa Cloudflare Workers + Static Assets mediante `@cloudflare/vite-plugin`, `wrangler.jsonc` y Wrangler.
+Frontend: Cloudflare Workers + Static Assets.
 
-Backend de datos: **Supabase**. Cloudflare no sustituye PostgreSQL/Auth/RLS/Storage/PostGIS.
-
----
+Backend: Supabase. Cloudflare no sustituye PostgreSQL/Auth/RLS/Storage/PostGIS.
 
 ## Producción actual
 
@@ -14,60 +12,56 @@ URL:
 
 `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Último Version ID V0.6.4 confirmado antes de esta actualización documental:
+Último deploy confirmado por el usuario:
 
-`9ec25487-eee2-432e-8d13-1c0b09c52028`
+- versión: **0.6.5-beta.16.3.9**
+- Current Version ID: `96bfb579-8ed2-47cb-8029-15ef67fed492`
+- Wrangler observado: `4.125.0`
+- deploy manual mediante `npm run deploy`
 
-Deploy observado:
+Código reconciliado posteriormente en `main`:
 
-- Windows.
-- Wrangler `4.125.0` en el último release V0.6.4.
-- ejecución manual desde repositorio local sincronizado.
+- merge PR #67: `9d5497a59d8a91a3c8bb956b5285a79a57bcd715`
+- `package.json`: 0.6.5-beta.16.3.9
 
----
+**No desplegar nuevamente solo para “igualar” el merge**, porque la versión funcional 16.3.9 ya está productiva y validada. Un futuro deploy debe corresponder a un cambio nuevo autorizado.
 
-## Flujo real recomendado
+## Flujo obligatorio
 
-1. Desarrollar en rama feature.
-2. Ejecutar build y pruebas.
-3. Abrir PR.
-4. Validar localmente con el usuario cuando corresponda.
-5. Merge aprobado a `main`.
-6. GitHub Desktop → `main` → `Fetch origin` / `Pull origin` si aparece.
-7. Confirmar working tree limpio.
-8. En CMD, dentro del repositorio:
+1. crear rama feature;
+2. implementar alcance mínimo;
+3. build/CI;
+4. QA local obligatorio;
+5. abrir PR;
+6. aprobación;
+7. merge a `main`;
+8. sincronizar GitHub Desktop `main`;
+9. confirmar working tree limpio;
+10. ejecutar:
 
 ```bash
 npm run build
-```
-
-9. Si el build finaliza correctamente:
-
-```bash
 npm run deploy
 ```
 
-10. Registrar la URL y el `Current Version ID` entregado por Wrangler.
-11. Hacer smoke test de producción.
-12. Actualizar `PROJECT_HANDOFF.md`, `CHANGELOG.md` y `docs/REQUIREMENTS_STATUS.md` cuando sea un release funcional.
+11. registrar Current Version ID;
+12. smoke test productivo;
+13. actualizar checkpoint de continuidad.
 
----
+La excepción 16.3.9 donde el usuario autorizó saltar QA local fue puntual.
 
-## Importante: no asumir autodeploy
+## No asumir autodeploy
 
-Aunque el repositorio pueda estar conectado a Cloudflare, el proceso productivo confirmado actualmente es el deploy manual con Wrangler.
+El flujo productivo confirmado es manual con Wrangler.
 
-Por tanto:
+- merge ≠ deploy;
+- commit documental ≠ artefacto productivo;
+- una rama feature nunca debe ser el origen normal de producción;
+- confirmar versión mediante salida real de deploy y QA.
 
-- merge a `main` **no significa automáticamente producción**;
-- un commit documental posterior puede existir en `main` sin que Cloudflare esté ejecutando ese commit;
-- la versión productiva se confirma por la salida real de Wrangler/Cloudflare y su Version ID.
+## Mensaje Wrangler esperado
 
----
-
-## Configuración redirigida de Wrangler
-
-En builds Vite/Cloudflare actuales, Wrangler puede mostrar mensajes como:
+Puede aparecer:
 
 ```text
 Using redirected Wrangler configuration.
@@ -76,59 +70,25 @@ Original user's configuration: wrangler.jsonc
 Deploy configuration file: .wrangler\deploy\config.json
 ```
 
-Eso ha sido observado como comportamiento normal del flujo actual.
-
----
-
-## PWA / caché después del deploy
-
-En producción se mantiene Service Worker/PWA.
-
-Después de actualizar frontend:
-
-- usar `Ctrl + F5` si se sospecha caché anterior;
-- o cerrar/reabrir la PWA/navegador.
-
-En desarrollo local V0.6.4 evita que el Service Worker productivo controle `localhost`, `127.0.0.1` o `::1`.
-
----
-
-## Cuándo detener operación
-
-No todos los deploys requieren cerrar la app.
-
-### Visual/frontend compatible
-
-Los usuarios pueden continuar y refrescar después del deploy.
-
-### Cambios de Auth/RLS/esquema/reglas críticas
-
-Coordinar ventana breve y evitar operaciones críticas durante el cambio.
-
-### Cambios profundos de rutas/visitas
-
-Evitar desplegar mientras existan visitas abiertas o jornadas críticas activas, salvo compatibilidad confirmada.
-
----
+Es comportamiento observado del stack actual.
 
 ## Rollback
 
-Conservar siempre en `PROJECT_HANDOFF.md`:
+Antes de un release de riesgo registrar:
 
-- Version ID actual;
-- Version ID anterior conocido;
-- commit de aplicación desplegado;
-- referencia de rollback si existe.
+- versión actual;
+- Current Version ID actual;
+- Git SHA de `main`;
+- versión/Version ID anterior;
+- migraciones asociadas.
 
-No hacer rollback improvisado únicamente desde un commit documental; primero identificar el **último artefacto de aplicación** que realmente estuvo desplegado.
-
----
+No hacer rollback improvisado de frontend si el backend ya cambió de forma incompatible.
 
 ## Seguridad
 
-- No guardar tokens de Cloudflare en GitHub/documentación.
-- No guardar secrets de Supabase.
-- No guardar archivos `.env` privados.
-- Cloudflare no necesita acceso a credenciales de base de datos si el frontend consume Supabase mediante configuración pública autorizada + RLS.
+Nunca versionar:
+- tokens Cloudflare;
+- secrets Supabase;
+- service role keys;
+- archivos `.env` privados.
 
-Ver también `docs/DEPLOYMENT_CHECKLIST.md`.
