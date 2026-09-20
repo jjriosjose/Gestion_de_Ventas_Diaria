@@ -32,7 +32,7 @@ Nunca asumir que una funcionalidad o migración existe solo porque fue mencionad
 ## Snapshot al 20/09/2026
 
 - Repo: `jjriosjose/Gestion_de_Ventas_Diaria`
-- main: `df3c6836c5113896ecebfb228101af48b323a80b`
+- baseline de código/runtime 16.3.9: `df3c6836c5113896ecebfb228101af48b323a80b` (HEAD puede avanzar por documentación)
 - app: **0.6.5-beta.16.3.9**
 - producción Cloudflare: **0.6.5-beta.16.3.9**
 - Cloudflare Version ID: `96bfb579-8ed2-47cb-8029-15ef67fed492`
