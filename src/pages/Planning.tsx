@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, CalendarPlus, ChevronDown, ChevronUp, FilterX, LoaderCircle, LocateFixed, Map as MapIcon, Search, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, CalendarPlus, ChevronDown, ChevronUp, FilterX, LoaderCircle, LocateFixed, Map as MapIcon, Pencil, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { orderByNearest, uniqueSorted } from '../lib/spatial'
@@ -26,6 +26,7 @@ type PlanningListView = 'SELECTED' | 'AVAILABLE'
 type RouteOrderDirection = 'NEAR_FIRST' | 'FAR_FIRST'
 type RouteOriginMode = 'SELECTION_CENTER' | 'MY_LOCATION'
 type PlanningPoint = { latitude:number; longitude:number }
+type EditablePlan = { id:string; employee_id:string; route_date:string; title?:string|null; target_visits?:number|null; status:string; created_at:string }
 
 const PLANNING_CLIENT_COLUMNS = 'id,company_code,codempr,client_type,legal_name,v_cartera,g_cartera,vendor_employee_id,manager_employee_id,region,province,municipality,sector_id,phone1,mobile,latitude,longitude,geo_status,last_invoice_date'
 const PLANNING_POSITION_CACHE_MS = 120_000
@@ -49,11 +50,13 @@ function planningCurrentPosition():Promise<PlanningPoint>{
 }
 
 const hasGps=(client:Client)=>client.latitude!=null&&client.longitude!=null
+const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Santo_Domingo'})
 
 export function Planning() {
   const { employee } = useAuth()
   const canManagePlanning = hasPermission(employee, 'planning.manage')
   const canOverridePortfolio = canManagePlanning
+  const isAdmin = Boolean(employee?.active&&employee.app_role==='Administrador')
 
   const [vendors,setVendors]=useState<Employee[]>([])
   const [managers,setManagers]=useState<Employee[]>([])
@@ -90,8 +93,12 @@ export function Planning() {
   const [ordering,setOrdering]=useState(false)
   const [orderFeedback,setOrderFeedback]=useState('')
   const [busy,setBusy]=useState(false)
+  const [editablePlans,setEditablePlans]=useState<EditablePlan[]>([])
+  const [editingPlanId,setEditingPlanId]=useState('')
+  const [loadingPlan,setLoadingPlan]=useState(false)
 
   const selectedVendor=vendors.find(item=>item.id===vendor)
+  const editingPlan=editablePlans.find(item=>item.id===editingPlanId)||null
 
   useEffect(()=>{
     void Promise.all([
@@ -114,11 +121,12 @@ export function Planning() {
   },[canManagePlanning,employee?.employee_type,employee?.id,vendor])
 
   useEffect(()=>{
+    if(editingPlanId)return
     setSelected([])
     setSelectionView('AVAILABLE')
     setFocusPoint(null)
     setOrderFeedback('')
-  },[vendor,includeOutsidePortfolio,date])
+  },[vendor,includeOutsidePortfolio,date,editingPlanId])
 
   useEffect(()=>{
     if(!vendor){setClients([]);return}
@@ -131,16 +139,35 @@ export function Planning() {
     return()=>{cancelled=true}
   },[vendor,includeOutsidePortfolio])
 
+  const refreshEditablePlans=async()=>{
+    if(!isAdmin||!vendor){setEditablePlans([]);return}
+    const{data,error}=await supabase.from('route_plans')
+      .select('id,employee_id,route_date,title,target_visits,status,created_at')
+      .eq('employee_id',vendor)
+      .eq('plan_type','VISITAS')
+      .eq('route_mode','PLANIFICADA')
+      .in('status',['BORRADOR','PLANIFICADA'])
+      .order('route_date',{ascending:false})
+      .limit(100)
+    if(error)throw error
+    setEditablePlans((data||[]) as EditablePlan[])
+  }
+
+  useEffect(()=>{
+    void refreshEditablePlans().catch(error=>alert(error instanceof Error?error.message:'No fue posible cargar las planificaciones editables'))
+  },[isAdmin,vendor])
+
+
   useEffect(()=>{
     if(!date){setPlannedIds(new Set());return}
     void(async()=>{
       const{data:plans}=await supabase.from('route_plans').select('id').eq('route_date',date).eq('plan_type','VISITAS').neq('status','CANCELADA')
-      const planIds=(plans||[]).map((i:any)=>i.id)
+      const planIds=(plans||[]).map((i:any)=>i.id).filter((id:string)=>id!==editingPlanId)
       if(!planIds.length)return setPlannedIds(new Set())
       const{data:stops}=await supabase.from('route_stops').select('client_id').in('route_plan_id',planIds).not('client_id','is',null)
       setPlannedIds(new Set((stops||[]).map((i:any)=>i.client_id).filter(Boolean)))
     })()
-  },[date])
+  },[date,editingPlanId])
 
   useEffect(()=>{
     if(!territoryFilter){setTerritoryClientIds(null);return}
