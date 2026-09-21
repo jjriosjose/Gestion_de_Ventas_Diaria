@@ -15,7 +15,7 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - El vendedor asignado no se cambia durante edición.
 - Migración Supabase `20260921193736_admin_edit_unstarted_visit_plans` aplicada en producción.
 - PR #76; Build validation #1107 SUCCESS.
-- Estado: frontend mergeado en `main`, pendiente deploy Cloudflare/QA.
+- Estado: desplegado en Cloudflare el 21/09/2026; Current Version ID `7f68230c-8e26-444d-acb5-b9cdd5aaccc6`; QA productivo pendiente.
 
 ## 0.6.5-beta.16.3.11 — Selección manual continua en Planificación
 
