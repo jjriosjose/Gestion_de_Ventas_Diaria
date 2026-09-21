@@ -77,6 +77,41 @@ Estado:
 - Cloudflare Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`;
 - QA funcional productivo: pendiente.
 
+## Beta.16.3.12 — Edición administrativa de planificaciones — BACKEND PRODUCTIVO / FRONTEND PENDIENTE DEPLOY
+
+Objetivo: permitir exclusivamente a usuarios con `app_role='Administrador'` editar planificaciones de visitas que todavía no han iniciado.
+
+Capacidades:
+- cargar una planificación existente;
+- cambiar fecha de ejecución;
+- agregar clientes;
+- quitar clientes;
+- reordenar clientes;
+- eliminar la planificación completa.
+
+Protecciones:
+- solo `VISITAS` + `route_mode='PLANIFICADA'`;
+- solo estados `BORRADOR` / `PLANIFICADA`;
+- bloquea si existe `route_session`;
+- bloquea si una parada tiene visita o estado distinto de `PENDIENTE`;
+- nueva fecha debe ser hoy o futura;
+- evita clientes duplicados;
+- rechaza clientes ya planificados en otra ruta para la fecha destino;
+- vendedor queda bloqueado durante edición;
+- actualización de fecha + paradas es transaccional en RPC.
+
+Backend:
+- migración Supabase `20260921193736_admin_edit_unstarted_visit_plans`: APLICADA;
+- RPC `admin_update_unstarted_visit_plan`;
+- RPC `admin_delete_unstarted_visit_plan`.
+
+Frontend:
+- versión **0.6.5-beta.16.3.12**;
+- PR #76 MERGED;
+- Build validation #1107 SUCCESS;
+- merge funcional `6e38e351392cdfa073df4d06c01885ce67041b2d`;
+- Cloudflare aún mantiene 16.3.11 hasta deploy manual.
+
 ## Validaciones productivas recientes
 
 ### 16.3.10
