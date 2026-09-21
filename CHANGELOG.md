@@ -6,6 +6,17 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.16.3.10 — Eliminación administrativa de tareas de Captación
+
+- Administrador/Supervisor puede eliminar tareas de Captación no iniciadas desde el módulo Captación.
+- Reutiliza el RPC protegido `delete_unstarted_route_plan`; no introduce una nueva migración Supabase.
+- Solo aplica a tareas `BORRADOR` / `PLANIFICADA` sin jornada ni actividad operacional.
+- La interfaz bloquea la eliminación si ya existen prospectos captados para preservar trazabilidad histórica.
+- Mejora inmediata para administrar tareas de Captación que actualmente pueden interferir con Jornada Libre.
+- La lógica de `start_open_journey` que debe ignorar `CAPTACION` queda pendiente para una actualización separada.
+- PR #71; Build validation #1091 SUCCESS.
+- Estado al 21/09/2026: mergeado en `main`, pendiente de deploy Cloudflare y QA productivo.
+
 ## 0.6.5-beta.12.2.6 — Route Ordering UX
 
 - Planificación sustituye el botón ambiguo `Ordenar` por `Cercanos primero` y `Lejanos primero`.
