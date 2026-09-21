@@ -15,7 +15,7 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - Mejora inmediata para administrar tareas de Captación que actualmente pueden interferir con Jornada Libre.
 - La lógica de `start_open_journey` que debe ignorar `CAPTACION` queda pendiente para una actualización separada.
 - PR #71; Build validation #1091 SUCCESS.
-- Estado al 21/09/2026: mergeado en `main`, pendiente de deploy Cloudflare y QA productivo.
+- Estado al 21/09/2026: desplegado en Cloudflare; Current Version ID `7afaf094-a837-4771-b5fe-b86c77974d85`. QA productivo pendiente.
 
 ## 0.6.5-beta.12.2.6 — Route Ordering UX
 
