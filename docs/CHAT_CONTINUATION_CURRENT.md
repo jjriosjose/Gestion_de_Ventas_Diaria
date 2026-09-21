@@ -28,12 +28,11 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 - PR #71: **MERGED**
 - Build validation #1091: **SUCCESS**.
 
-Cloudflare aún continúa en **0.6.5-beta.16.3.9** hasta ejecutar el deploy manual de 16.3.10.
-
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- versión validada: **0.6.5-beta.16.3.9**
-- Current Version ID: `96bfb579-8ed2-47cb-8029-15ef67fed492`
+- versión desplegada: **0.6.5-beta.16.3.10**
+- Current Version ID: `7afaf094-a837-4771-b5fe-b86c77974d85`
+- deploy manual confirmado por el usuario el 21/09/2026 con Wrangler 4.125.0.
 
 Supabase:
 - proyecto: `Gestion de Ventas Diaria`
@@ -44,7 +43,7 @@ Supabase:
 
 Todos los datos operativos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
 
-## Beta.16.3.10 — Admin elimina tareas de Captación — MERGED / PENDIENTE DEPLOY
+## Beta.16.3.10 — Admin elimina tareas de Captación — PRODUCTIVO / QA PENDIENTE
 
 Motivo inmediato: `Eceballos` tenía una tarea `CAPTACION` para el 21/09 que el RPC de Jornada Libre interpreta incorrectamente como una ruta planificada y bloquea `start_open_journey`. La corrección lógica del RPC queda pendiente para una entrega separada.
 
@@ -56,9 +55,15 @@ Cambio 16.3.10:
 - el backend sigue bloqueando planes con sesiones o actividad de paradas.
 - no se eliminó automáticamente la tarea actual de Eduar.
 
-Producción seguirá en 16.3.9 hasta deploy manual y QA.
+Producción ya está en 16.3.10. Falta QA productivo: eliminar una tarea de Captación no iniciada desde Admin y luego validar Jornada Libre con `Eceballos`.
 
 ## Validaciones productivas recientes
+
+### 16.3.10
+- deploy Cloudflare: **OK**.
+- eliminación administrativa de tarea Captación: **QA pendiente**.
+- validación posterior de Jornada Libre de `Eceballos`: **QA pendiente**.
+
 
 ### 16.3.8
 - Gestor registra monto al cerrar Showroom: **OK**.
