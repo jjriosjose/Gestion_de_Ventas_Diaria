@@ -23,15 +23,15 @@ Fecha: **21/09/2026 (RD)**
 Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 `main`:
-- versión de código: **0.6.5-beta.16.3.10**
-- merge funcional: `9b43fd08ec180b12e877d64c8ac073d7c2ba6c33`
-- PR #71: **MERGED**
-- Build validation #1091: **SUCCESS**.
+- versión de código: **0.6.5-beta.16.3.12**
+- merge funcional: `6e38e351392cdfa073df4d06c01885ce67041b2d`
+- PR #76: **MERGED**
+- Build validation #1107: **SUCCESS**.
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- versión desplegada: **0.6.5-beta.16.3.11**
-- Current Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`
+- versión desplegada: **0.6.5-beta.16.3.12**
+- Current Version ID: `7f68230c-8e26-444d-acb5-b9cdd5aaccc6`
 - deploy manual confirmado por el usuario el 21/09/2026 con Wrangler 4.125.0.
 
 Supabase:
@@ -77,7 +77,7 @@ Estado:
 - Cloudflare Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`;
 - QA funcional productivo: pendiente.
 
-## Beta.16.3.12 — Edición administrativa de planificaciones — BACKEND PRODUCTIVO / FRONTEND PENDIENTE DEPLOY
+## Beta.16.3.12 — Edición administrativa de planificaciones — PRODUCTIVO / QA PENDIENTE
 
 Objetivo: permitir exclusivamente a usuarios con `app_role='Administrador'` editar planificaciones de visitas que todavía no han iniciado.
 
@@ -110,9 +110,19 @@ Frontend:
 - PR #76 MERGED;
 - Build validation #1107 SUCCESS;
 - merge funcional `6e38e351392cdfa073df4d06c01885ce67041b2d`;
-- Cloudflare aún mantiene 16.3.11 hasta deploy manual.
+- Cloudflare 16.3.12 desplegado el 21/09/2026.
+- Current Version ID: `7f68230c-8e26-444d-acb5-b9cdd5aaccc6`.
+- QA funcional productivo: pendiente.
 
 ## Validaciones productivas recientes
+
+### 16.3.12
+- deploy Cloudflare: **OK**.
+- edición administrativa de planificaciones: **QA pendiente**.
+- cambio de fecha de ejecución: **QA pendiente**.
+- agregar/quitar/reordenar clientes: **QA pendiente**.
+- eliminación de planificación no iniciada: **QA pendiente**.
+
 
 ### 16.3.10
 - deploy Cloudflare: **OK**.
