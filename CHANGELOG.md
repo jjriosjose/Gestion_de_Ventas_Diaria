@@ -6,6 +6,17 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.16.3.12 — Edición administrativa de planificaciones
+
+- Solo usuarios `Administrador` pueden editar rutas de visita no iniciadas.
+- Permite cambiar fecha de ejecución, agregar, quitar y reordenar clientes.
+- Permite eliminar la planificación completa antes de iniciar.
+- Backend transaccional con validación de jornada, actividad de paradas, duplicados y conflictos de clientes por fecha.
+- El vendedor asignado no se cambia durante edición.
+- Migración Supabase `20260921193736_admin_edit_unstarted_visit_plans` aplicada en producción.
+- PR #76; Build validation #1107 SUCCESS.
+- Estado: frontend mergeado en `main`, pendiente deploy Cloudflare/QA.
+
 ## 0.6.5-beta.16.3.11 — Selección manual continua en Planificación
 
 - Al seleccionar manualmente un cliente, Planificación ya no cambia automáticamente a la pestaña "Seleccionados".
