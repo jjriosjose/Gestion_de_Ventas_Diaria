@@ -1,6 +1,6 @@
 # Continuación actual — Gestión de Ventas Diaria
 
-Fecha: **20/09/2026 (RD)**
+Fecha: **21/09/2026 (RD)**
 
 > **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN CUALQUIER CHAT NUEVO.**
 >
@@ -23,10 +23,12 @@ Fecha: **20/09/2026 (RD)**
 Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 `main`:
-- baseline de código/runtime 16.3.9 (incluye lockfile sync): `df3c6836c5113896ecebfb228101af48b323a80b`
-- los commits documentales posteriores pueden mover HEAD sin cambiar runtime
-- versión `package.json`: **0.6.5-beta.16.3.9**
-- PR #67 de Reportes: **MERGED** el 20/09/2026.
+- versión de código: **0.6.5-beta.16.3.10**
+- merge funcional: `9b43fd08ec180b12e877d64c8ac073d7c2ba6c33`
+- PR #71: **MERGED**
+- Build validation #1091: **SUCCESS**.
+
+Cloudflare aún continúa en **0.6.5-beta.16.3.9** hasta ejecutar el deploy manual de 16.3.10.
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
@@ -41,6 +43,20 @@ Supabase:
 - plan: **Free**
 
 Todos los datos operativos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
+
+## Beta.16.3.10 — Admin elimina tareas de Captación — MERGED / PENDIENTE DEPLOY
+
+Motivo inmediato: `Eceballos` tenía una tarea `CAPTACION` para el 21/09 que el RPC de Jornada Libre interpreta incorrectamente como una ruta planificada y bloquea `start_open_journey`. La corrección lógica del RPC queda pendiente para una entrega separada.
+
+Cambio 16.3.10:
+- Administrador/Supervisor puede eliminar desde Captación una tarea no iniciada.
+- reutiliza `delete_unstarted_route_plan`; no agrega DDL.
+- solo permite estados `BORRADOR` / `PLANIFICADA`.
+- UI bloquea eliminar si la tarea ya tiene prospectos captados, preservando trazabilidad.
+- el backend sigue bloqueando planes con sesiones o actividad de paradas.
+- no se eliminó automáticamente la tarea actual de Eduar.
+
+Producción seguirá en 16.3.9 hasta deploy manual y QA.
 
 ## Validaciones productivas recientes
 
