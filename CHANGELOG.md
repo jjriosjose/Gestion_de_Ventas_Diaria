@@ -6,6 +6,17 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.16.3.11 — Selección manual continua en Planificación
+
+- Al seleccionar manualmente un cliente, Planificación ya no cambia automáticamente a la pestaña "Seleccionados".
+- El buscador y los filtros permanecen activos para continuar seleccionando clientes uno por uno.
+- Los clientes seleccionados se acumulan normalmente y pueden revisarse desde la pestaña "Seleccionados".
+- No cambia selección por mapa/radio/polígono, ordenamiento, creación de ruta ni Supabase.
+- PR #74; Build validation #1097 SUCCESS.
+- Desplegado en Cloudflare el 21/09/2026.
+- Current Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`.
+- QA productivo del flujo manual: pendiente.
+
 ## 0.6.5-beta.16.3.10 — Eliminación administrativa de tareas de Captación
 
 - Administrador/Supervisor puede eliminar tareas de Captación no iniciadas desde el módulo Captación.

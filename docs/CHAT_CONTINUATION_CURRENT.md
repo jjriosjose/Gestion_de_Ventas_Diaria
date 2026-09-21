@@ -30,8 +30,8 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- versión desplegada: **0.6.5-beta.16.3.10**
-- Current Version ID: `7afaf094-a837-4771-b5fe-b86c77974d85`
+- versión desplegada: **0.6.5-beta.16.3.11**
+- Current Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`
 - deploy manual confirmado por el usuario el 21/09/2026 con Wrangler 4.125.0.
 
 Supabase:
@@ -56,6 +56,26 @@ Cambio 16.3.10:
 - no se eliminó automáticamente la tarea actual de Eduar.
 
 Producción ya está en 16.3.10. Falta QA productivo: eliminar una tarea de Captación no iniciada desde Admin y luego validar Jornada Libre con `Eceballos`.
+
+## Beta.16.3.11 — Selección manual continua en Planificación — PRODUCTIVO / QA PENDIENTE
+
+Objetivo: permitir planificar clientes manualmente uno por uno sin que la aplicación cambie automáticamente a la pestaña "Seleccionados" después de cada selección.
+
+Cambio:
+- al seleccionar manualmente un cliente, la vista actual permanece abierta;
+- buscador y filtros permanecen activos;
+- el cliente seleccionado queda acumulado en la ruta;
+- el usuario puede buscar y seleccionar inmediatamente otro cliente;
+- la pestaña "Seleccionados" sigue disponible para revisión manual;
+- no cambia selección por mapa/radio/polígono, ordenamiento ni creación de la planificación;
+- sin cambios Supabase.
+
+Estado:
+- PR #74: MERGED;
+- Build validation #1097: SUCCESS;
+- merge funcional: `fd7fbff5fb956d621a458a30fba4202a406c44df`;
+- Cloudflare Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`;
+- QA funcional productivo: pendiente.
 
 ## Validaciones productivas recientes
 
