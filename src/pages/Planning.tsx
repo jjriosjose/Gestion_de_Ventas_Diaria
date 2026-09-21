@@ -212,10 +212,8 @@ export function Planning() {
   const clearOrderFeedback=()=>setOrderFeedback('')
   const toggleClient=(id:string)=>{
     if(!canManagePlanning||ordering)return
-    const adding=!selected.includes(id)
     setSelected(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id])
     clearOrderFeedback()
-    if(adding)openSelectedView()
   }
   const addAreaSelection=(ids:string[])=>{
     if(!canManagePlanning||ordering)return
