@@ -268,6 +268,81 @@ export function Planning() {
     setFocusPoint([client.latitude,client.longitude])
   }
 
+  const cancelEditing=()=>{
+    setEditingPlanId('')
+    setSelected([])
+    setSelectionView('AVAILABLE')
+    setFocusPoint(null)
+    setOrderFeedback('')
+  }
+
+  const loadPlanForEditing=async(planId:string)=>{
+    if(!isAdmin)return
+    if(!planId){cancelEditing();return}
+    const plan=editablePlans.find(item=>item.id===planId)
+    if(!plan)return
+    setLoadingPlan(true)
+    try{
+      const[{data:stops,error:stopError},{data:sessions,error:sessionError}]=await Promise.all([
+        supabase.from('route_stops').select('client_id,stop_order,status,visit_id').eq('route_plan_id',plan.id).order('stop_order'),
+        supabase.from('route_sessions').select('id').eq('route_plan_id',plan.id).limit(1)
+      ])
+      if(stopError||sessionError)throw stopError||sessionError
+      if((sessions||[]).length)throw new Error('Esta planificación ya tiene una jornada asociada y no puede editarse.')
+      if((stops||[]).some((stop:any)=>stop.visit_id||stop.status!=='PENDIENTE'))throw new Error('Esta planificación ya tiene actividad de ejecución y no puede editarse.')
+      const ids=(stops||[]).map((stop:any)=>stop.client_id).filter(Boolean)
+      const loadedIds=new Set(clients.map(client=>client.id))
+      if(ids.some((id:string)=>!loadedIds.has(id)))setIncludeOutsidePortfolio(true)
+      setEditingPlanId(plan.id)
+      setDate(plan.route_date)
+      setSelected(ids)
+      setSelectionPanelOpen(true)
+      setSelectionView('SELECTED')
+      setQ('')
+      setOrderFeedback('')
+    }catch(error){
+      alert(error instanceof Error?error.message:'No se pudo cargar la planificación para edición')
+    }finally{setLoadingPlan(false)}
+  }
+
+  const saveEditing=async()=>{
+    if(!isAdmin||!editingPlanId)return
+    if(!date)return alert('Selecciona la fecha de ejecución.')
+    if(date<today())return alert('La nueva fecha de ejecución debe ser hoy o futura.')
+    if(!selected.length)return alert('La planificación debe conservar al menos un cliente.')
+    if(ordering)return
+    setBusy(true)
+    try{
+      const{error}=await supabase.rpc('admin_update_unstarted_visit_plan',{
+        p_plan_id:editingPlanId,
+        p_route_date:date,
+        p_client_ids:selected
+      })
+      if(error)throw new Error(error.message)
+      await refreshEditablePlans()
+      cancelEditing()
+      alert('Planificación actualizada correctamente.')
+    }catch(error){
+      alert(error instanceof Error?error.message:'No se pudo actualizar la planificación')
+    }finally{setBusy(false)}
+  }
+
+  const deleteEditing=async()=>{
+    if(!isAdmin||!editingPlanId)return
+    const plan=editingPlan
+    if(!window.confirm(`¿Eliminar definitivamente esta planificación${plan?.title?` ("${plan.title}")`:''}? Solo se permite si nunca ha iniciado.`))return
+    setBusy(true)
+    try{
+      const{error}=await supabase.rpc('admin_delete_unstarted_visit_plan',{p_plan_id:editingPlanId})
+      if(error)throw new Error(error.message)
+      await refreshEditablePlans()
+      cancelEditing()
+      alert('Planificación eliminada correctamente.')
+    }catch(error){
+      alert(error instanceof Error?error.message:'No se pudo eliminar la planificación')
+    }finally{setBusy(false)}
+  }
+
   const orderSelected=async(direction:RouteOrderDirection)=>{
     if(!canManagePlanning||selected.length<2||ordering)return
     setOrdering(true)
@@ -320,6 +395,7 @@ export function Planning() {
       setSelected([])
       setSelectionView('AVAILABLE')
       setOrderFeedback('')
+      await refreshEditablePlans()
       alert('Planificación creada correctamente. Puedes verla desde Rutas.')
     }catch(error){alert(error instanceof Error?error.message:'No se pudo crear la planificación')}
     finally{setBusy(false)}
@@ -335,15 +411,18 @@ export function Planning() {
   </div>
 
   return <div className="page-stack">
-    <div className="page-head"><div><span className="eyebrow">PLANIFICACIÓN TERRITORIAL</span><h2>{canManagePlanning?'Crear jornada':'Consultar planificación'}</h2><p>Planifica rutas de visitas por cartera, división territorial, zonas guardadas y cercanía visual.</p></div></div>
+    <div className="page-head"><div><span className="eyebrow">PLANIFICACIÓN TERRITORIAL</span><h2>{editingPlanId?'Editar planificación':canManagePlanning?'Crear jornada':'Consultar planificación'}</h2><p>{editingPlanId?'Modifica fecha, clientes y secuencia antes de que la jornada inicie.':'Planifica rutas de visitas por cartera, división territorial, zonas guardadas y cercanía visual.'}</p></div></div>
     <div className="planner-v2">
       <aside className="panel planner-sidebar">
         <h3>{canManagePlanning?'Configuración':'Modo consulta'}</h3>
         <div className="route-manager-note"><b>Planificación de visitas:</b> esta pantalla crea únicamente rutas de visita. Las tareas de prospección se gestionan desde el módulo Captación.</div>
-        <label>Vendedor<select value={vendor} onChange={e=>setVendor(e.target.value)}><option value="">Seleccionar...</option>{vendors.map(i=><option value={i.id} key={i.id}>{i.full_name}</option>)}</select></label>
-        <label>Fecha<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+        <label>Vendedor<select value={vendor} disabled={Boolean(editingPlanId)} onChange={e=>setVendor(e.target.value)}><option value="">Seleccionar...</option>{vendors.map(i=><option value={i.id} key={i.id}>{i.full_name}</option>)}</select></label>
+        {isAdmin&&vendor&&<label>Planificación existente<select value={editingPlanId} disabled={loadingPlan||busy} onChange={e=>void loadPlanForEditing(e.target.value)}><option value="">Nueva planificación</option>{editablePlans.map(plan=><option key={plan.id} value={plan.id}>{plan.route_date} · {plan.title||'Ruta de visitas'} · {plan.target_visits||0} visitas</option>)}</select></label>}
+        <label>{editingPlanId?'Fecha de ejecución':'Fecha'}<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+        {editingPlanId&&<div className="route-manager-note"><b><Pencil size={15}/> Edición administrativa</b><span>Puedes cambiar la fecha, agregar, quitar o reordenar clientes. El vendedor permanece bloqueado y solo se guardará si la ruta nunca inició.</span></div>}
         {canManagePlanning?<>{canOverridePortfolio&&vendor&&<label className="checkbox"><input type="checkbox" checked={includeOutsidePortfolio} onChange={e=>setIncludeOutsidePortfolio(e.target.checked)}/> Incluir clientes fuera de esta cartera</label>}<div className="selected-summary-grid"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Con GPS</span><strong>{selectedGpsCount}</strong></div><div className="selected-summary-card"><span>Sin GPS</span><strong>{selected.length-selectedGpsCount}</strong></div></div></>:<div className="empty-state"><b>Vista global habilitada</b></div>}
-        {canManagePlanning&&<button className="primary full" disabled={busy||ordering||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={18}/>{busy?'Creando...':ordering?'Ordenando...':'Crear planificación'}</button>}
+        {canManagePlanning&&<button className="primary full" disabled={busy||ordering||loadingPlan||!vendor||!selected.length} onClick={()=>void (editingPlanId?saveEditing():create())}>{editingPlanId?<Save size={18}/>:<CalendarPlus size={18}/>} {busy?(editingPlanId?'Guardando...':'Creando...'):ordering?'Ordenando...':editingPlanId?'Guardar cambios':'Crear planificación'}</button>}
+        {isAdmin&&editingPlanId&&<div className="button-row"><button className="secondary compact" disabled={busy||ordering} onClick={cancelEditing}><X size={15}/> Cancelar edición</button><button className="secondary compact" disabled={busy||ordering} onClick={()=>void deleteEditing()}><Trash2 size={15}/> Eliminar</button></div>}
       </aside>
 
       <main className="planner-main">
@@ -373,7 +452,7 @@ export function Planning() {
 
             <div className="planning-selection-toolbar">
               <div className="segmented compact-segmented planning-selection-tabs"><button className={selectionView==='SELECTED'?'active':''} onClick={()=>setSelectionView('SELECTED')}>Seleccionados · {selected.length}</button><button className={selectionView==='AVAILABLE'?'active':''} onClick={()=>setSelectionView('AVAILABLE')}>Disponibles · {filteredClients.length}</button></div>
-              <div className="button-row">{selectedOutsideFilterCount>0&&<button className="secondary compact" disabled={ordering} onClick={removeOutsideCurrentFilter}><FilterX size={15}/> Quitar fuera de filtro ({selectedOutsideFilterCount})</button>}<button className="secondary compact" disabled={!selected.length||ordering} onClick={clearSelection}><X size={15}/> Limpiar</button>{canManagePlanning&&<button className="primary compact" disabled={busy||ordering||!vendor||!selected.length} onClick={()=>void create()}><CalendarPlus size={15}/>{busy?'Creando...':ordering?'Ordenando...':`Crear planificación · ${selected.length}`}</button>}</div>
+              <div className="button-row">{selectedOutsideFilterCount>0&&<button className="secondary compact" disabled={ordering} onClick={removeOutsideCurrentFilter}><FilterX size={15}/> Quitar fuera de filtro ({selectedOutsideFilterCount})</button>}<button className="secondary compact" disabled={!selected.length||ordering} onClick={clearSelection}><X size={15}/> Limpiar</button>{canManagePlanning&&<button className="primary compact" disabled={busy||ordering||loadingPlan||!vendor||!selected.length} onClick={()=>void (editingPlanId?saveEditing():create())}>{editingPlanId?<Save size={15}/>:<CalendarPlus size={15}/>} {busy?(editingPlanId?'Guardando...':'Creando...'):ordering?'Ordenando...':editingPlanId?`Guardar cambios · ${selected.length}`:`Crear planificación · ${selected.length}`}</button>}</div>
             </div>
 
             <div className="selected-summary-grid planning-selection-summary"><div className="selected-summary-card"><span>Seleccionados</span><strong>{selected.length}</strong></div><div className="selected-summary-card"><span>Dentro del filtro actual</span><strong>{selectedInFilterCount}</strong></div><div className="selected-summary-card"><span>Fuera del filtro actual</span><strong>{selectedOutsideFilterCount}</strong></div></div>
