@@ -6,6 +6,7 @@ import { exportPdf, exportXlsx } from '../lib/export'
 import { ClientTypeFilter } from '../components/ClientTypeFilter'
 import type { ClientTypeFilterValue } from '../components/ClientTypeFilter'
 import type { Employee } from '../types'
+import '../styles/crm-v051.css'
 
 const CALL_RESULTS = [
   ['CONTACTADO', 'Contactado'],
@@ -61,6 +62,7 @@ export function Calls() {
   const [clientFilter, setClientFilter] = useState('')
   const [callerFilter, setCallerFilter] = useState('')
   const [resultFilter, setResultFilter] = useState('')
+  const [directionFilter, setDirectionFilter] = useState('')
   const [crmFilter, setCrmFilter] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -143,11 +145,12 @@ export function Calls() {
     if (clientFilter && r.client_id !== clientFilter) return false
     if (callerFilter && r.employee_id !== callerFilter) return false
     if (resultFilter && r.result !== resultFilter) return false
+    if (directionFilter && r.call_direction !== directionFilter) return false
     if (from && new Date(r.occurred_at) < new Date(`${from}T00:00:00`)) return false
     if (to && new Date(r.occurred_at) > new Date(`${to}T23:59:59`)) return false
     if (q.trim()) { const needle = q.trim().toLowerCase(); const hay = `${r.clients?.legal_name || ''} ${r.clients?.codempr || ''} ${r.contact_name || ''} ${r.notes || ''}`.toLowerCase(); if (!hay.includes(needle)) return false }
     return true
-  }), [rows, clientType, vendorFilter, managerFilter, clientFilter, callerFilter, resultFilter, from, to, q])
+  }), [rows, clientType, vendorFilter, managerFilter, clientFilter, callerFilter, resultFilter, directionFilter, from, to, q])
 
   const today = new Date().toISOString().slice(0, 10)
   const todayRows = visibleCalls.filter(r => String(r.occurred_at || '').slice(0, 10) === today)
@@ -182,6 +185,22 @@ export function Calls() {
     })
   }
 
+  const setDateRange=(preset:'TODAY'|'YESTERDAY'|'LAST_7'|'MONTH'|'ALL')=>{
+    if(preset==='ALL'){setFrom('');setTo('');return}
+    const now=new Date()
+    const toInput=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
+    if(preset==='TODAY'){
+      const value=toInput(now);setFrom(value);setTo(value);return
+    }
+    if(preset==='YESTERDAY'){
+      const d=new Date(now);d.setDate(d.getDate()-1);const value=toInput(d);setFrom(value);setTo(value);return
+    }
+    if(preset==='LAST_7'){
+      const start=new Date(now);start.setDate(start.getDate()-6);setFrom(toInput(start));setTo(toInput(now));return
+    }
+    const start=new Date(now.getFullYear(),now.getMonth(),1);setFrom(toInput(start));setTo(toInput(now))
+  }
+
   const report = visibleCalls.map(r => ({ Fecha: new Date(r.occurred_at).toLocaleString('es-DO'), TipoCliente: r.clients?.client_type || '', EjecutadaPor: r.caller?.full_name || '', Vendedor: employeeName(r.clients?.vendor_employee_id), Gestor: employeeName(r.clients?.manager_employee_id), Cliente: r.clients?.legal_name || r.prospects?.legal_name || '', Resultado: labelResult(r.result), Contacto: r.contact_name || '', Duracion: r.duration_seconds || '', Showroom: r.appointment_created ? 'Sí' : 'No', ProximaAccion: labelNextAction(r.next_action), Seguimiento: r.follow_up_date || '', Observacion: r.notes || '' }))
 
   const chooseClient = (id: string) => { setSelectedClientId(id); window.setTimeout(() => document.getElementById('crm-workbench')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30) }
@@ -192,7 +211,12 @@ export function Calls() {
 
     <div className="kpi-grid compact-kpis"><div className="kpi-card"><div className="kpi-icon"><PhoneCall/></div><div><span>Llamadas visibles</span><strong>{visibleCalls.length}</strong><small>{todayRows.length} hoy</small></div></div><div className="kpi-card"><div className="kpi-icon"><CalendarClock/></div><div><span>Showroom</span><strong>{showroomCount}</strong><small>solicitudes / interés</small></div></div><div className="kpi-card"><div className="kpi-icon"><Users/></div><div><span>Seguimientos</span><strong>{followupCount}</strong><small>pendientes o programados</small></div></div><div className="kpi-card"><div className="kpi-icon"><ShoppingBag/></div><div><span>Compraron</span><strong>{purchaseCount}</strong><small>reportados en llamada</small></div></div></div>
 
-    <div className="panel planner-filter-panel"><div className="planner-filter-grid"><div className="search-field"><Search size={18}/><input value={q} onChange={e => setQ(e.target.value)} placeholder="Cliente, código, teléfono, contacto, provincia..."/></div><ClientTypeFilter value={clientType} onChange={setClientType}/><select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}><option value="">Todos los vendedores</option>{vendors.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={managerFilter} onChange={e => setManagerFilter(e.target.value)}><option value="">Todos los gestores</option>{managers.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={clientFilter} onChange={e => setClientFilter(e.target.value)}><option value="">Todos los clientes ({basePortfolio.length})</option>{basePortfolio.slice(0, 500).map(c => <option key={c.id} value={c.id}>{c.legal_name} · {c.codempr}</option>)}</select><select value={crmFilter} onChange={e => setCrmFilter(e.target.value)}>{CRM_FILTERS.map(([value, label]) => <option value={value} key={value || 'all'}>{label}</option>)}</select><select value={callerFilter} onChange={e => setCallerFilter(e.target.value)}><option value="">Ejecutada por cualquiera</option>{employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={resultFilter} onChange={e => setResultFilter(e.target.value)}><option value="">Todos los resultados de llamada</option>{CALL_RESULTS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><input type="date" value={from} onChange={e => setFrom(e.target.value)}/><input type="date" value={to} onChange={e => setTo(e.target.value)}/></div><div className="planner-filter-actions"><div className="meta"><span>{filteredPortfolio.length} clientes CRM</span>{clientType&&<span>{clientType}</span>}<span>{visibleCalls.length} llamadas</span></div><button className="secondary" onClick={() => { setQ(''); setClientType(''); setVendorFilter(''); setManagerFilter(''); setClientFilter(''); setCallerFilter(''); setResultFilter(''); setCrmFilter(''); setFrom(''); setTo('') }}>Limpiar filtros</button></div></div>
+    <div className="panel planner-filter-panel"><div className="planner-filter-grid"><div className="search-field"><Search size={18}/><input value={q} onChange={e => setQ(e.target.value)} placeholder="Cliente, código, teléfono, contacto, provincia..."/></div><ClientTypeFilter value={clientType} onChange={setClientType}/><select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}><option value="">Todos los vendedores</option>{vendors.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={managerFilter} onChange={e => setManagerFilter(e.target.value)}><option value="">Todos los gestores</option>{managers.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={clientFilter} onChange={e => setClientFilter(e.target.value)}><option value="">Todos los clientes ({basePortfolio.length})</option>{basePortfolio.slice(0, 500).map(c => <option key={c.id} value={c.id}>{c.legal_name} · {c.codempr}</option>)}</select><select value={crmFilter} onChange={e => setCrmFilter(e.target.value)}>{CRM_FILTERS.map(([value, label]) => <option value={value} key={value || 'all'}>{label}</option>)}</select><select value={callerFilter} onChange={e => setCallerFilter(e.target.value)}><option value="">Ejecutada por cualquiera</option>{employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={resultFilter} onChange={e => setResultFilter(e.target.value)}><option value="">Todos los resultados de llamada</option>{CALL_RESULTS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><select value={directionFilter} onChange={e=>setDirectionFilter(e.target.value)}><option value="">Entrantes y salientes</option><option value="SALIENTE">Solo salientes</option><option value="ENTRANTE">Solo entrantes</option></select></div>
+      <div className="call-period-filter">
+        <div className="call-period-title"><div><b>Período de llamadas</b><span>El rango aplica a KPIs, historial, Excel y PDF.</span></div><div className="call-period-presets"><button type="button" onClick={()=>setDateRange('TODAY')}>Hoy</button><button type="button" onClick={()=>setDateRange('YESTERDAY')}>Ayer</button><button type="button" onClick={()=>setDateRange('LAST_7')}>Últimos 7 días</button><button type="button" onClick={()=>setDateRange('MONTH')}>Este mes</button><button type="button" onClick={()=>setDateRange('ALL')}>Todo</button></div></div>
+        <div className="call-period-dates"><label><span>Desde</span><input type="date" value={from} onChange={e => setFrom(e.target.value)}/></label><label><span>Hasta</span><input type="date" value={to} onChange={e => setTo(e.target.value)}/></label>{(from||to)&&<span className="call-period-active">Filtro activo: {from||'inicio'} → {to||'hoy'}</span>}</div>
+      </div>
+      <div className="planner-filter-actions"><div className="meta"><span>{filteredPortfolio.length} clientes CRM</span>{clientType&&<span>{clientType}</span>}<span>{visibleCalls.length} llamadas</span></div><button className="secondary" onClick={() => { setQ(''); setClientType(''); setVendorFilter(''); setManagerFilter(''); setClientFilter(''); setCallerFilter(''); setResultFilter(''); setDirectionFilter(''); setCrmFilter(''); setFrom(''); setTo('') }}>Limpiar filtros</button></div></div>
 
     {loadError && <div className="panel"><b>No fue posible cargar todos los datos del CRM.</b><span>{loadError}</span></div>}
 
