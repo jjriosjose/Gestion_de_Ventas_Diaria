@@ -43,3 +43,18 @@
   .call-detail-grid{grid-template-columns:1fr}
   .call-history-head{align-items:flex-start}
 }
+
+
+.call-period-filter{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--surface-2) 45%,var(--surface))}
+.call-period-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.call-period-title>div:first-child{display:flex;flex-direction:column;gap:2px}
+.call-period-title b{font-size:11px;color:var(--text)}
+.call-period-title span{font-size:9px;color:var(--muted)}
+.call-period-presets{display:flex;gap:6px;flex-wrap:wrap}
+.call-period-presets button{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:6px 10px;font-size:9px;font-weight:800;cursor:pointer}
+.call-period-presets button:hover{border-color:color-mix(in srgb,var(--brand) 35%,var(--border));color:var(--brand)}
+.call-period-dates{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}
+.call-period-dates label{display:flex;flex-direction:column;gap:4px;min-width:170px}
+.call-period-dates label>span{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.call-period-active{font-size:9px;font-weight:800;color:var(--brand);padding:8px 10px;border-radius:999px;background:var(--brand-soft)}
+@media(max-width:700px){.call-period-title{align-items:flex-start}.call-period-dates label{min-width:calc(50% - 6px)}}
