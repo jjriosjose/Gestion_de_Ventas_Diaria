@@ -58,3 +58,14 @@
 .call-period-dates label>span{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .call-period-active{font-size:9px;font-weight:800;color:var(--brand);padding:8px 10px;border-radius:999px;background:var(--brand-soft)}
 @media(max-width:700px){.call-period-title{align-items:flex-start}.call-period-dates label{min-width:calc(50% - 6px)}}
+
+
+.call-period-summary{padding:14px 0 4px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.call-period-summary-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.call-period-summary-head>div{display:flex;flex-direction:column;gap:3px}
+.call-period-summary-head b{font-size:13px;color:var(--text)}
+.call-period-summary-head small{font-size:9px;color:var(--muted)}
+.call-period-kpis{margin:0 0 10px}
+.call-period-kpis .kpi-card{min-height:96px}
+.call-history-limit-note{padding:10px 12px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);font-size:10px;background:var(--surface-2)}
+@media(max-width:700px){.call-period-summary-head{align-items:flex-start}.call-period-kpis{grid-template-columns:1fr 1fr}}
