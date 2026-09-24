@@ -69,3 +69,17 @@
 .call-period-kpis .kpi-card{min-height:96px}
 .call-history-limit-note{padding:10px 12px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);font-size:10px;background:var(--surface-2)}
 @media(max-width:700px){.call-period-summary-head{align-items:flex-start}.call-period-kpis{grid-template-columns:1fr 1fr}}
+
+
+.call-client-period-summary{margin-bottom:12px;padding:12px;border:1px solid color-mix(in srgb,var(--brand) 22%,var(--border));border-radius:14px;background:color-mix(in srgb,var(--brand-soft) 35%,var(--surface))}
+.call-client-period-title{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.call-client-period-title>div{display:flex;flex-direction:column;gap:2px}
+.call-client-period-title span{font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+.call-client-period-title b{font-size:11px;color:var(--text)}
+.call-client-period-title small{font-size:9px;color:var(--muted)}
+.call-client-period-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.call-client-period-kpi{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface)}
+.call-client-period-kpi>span{font-size:9px;text-transform:uppercase;letter-spacing:.05em;font-weight:800;color:var(--muted)}
+.call-client-period-kpi>strong{font-size:18px;line-height:1;color:var(--text)}
+.call-client-period-kpi>small{font-size:9px;color:var(--muted)}
+@media(max-width:700px){.call-client-period-grid{grid-template-columns:1fr}.call-client-period-title{align-items:flex-start}}
