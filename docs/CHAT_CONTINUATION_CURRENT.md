@@ -47,6 +47,8 @@ Cloudflare:
 - commit de código productivo protegido: `5395400e4469636b258f67c03eb2eb69416c9d5a`
 - `main` puede contener commits documentales posteriores; verificar HEAD vivo antes de modificar
 - baseline productivo protegido actualizado a **0.6.5-beta.16.3.15**
+- PR #91 cierre de baseline/documentación: **MERGED**
+- PR #92 QA productivo 16.3.15: **MERGED / APROBADO**
 
 Supabase:
 - proyecto: `Gestion de Ventas Diaria`
