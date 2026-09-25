@@ -49,6 +49,38 @@ Todos los datos operativos actuales siguen siendo **TEST** hasta declaración ex
 
 
 
+## Beta.16.3.15-test.1 — QA Data Isolation V1 — EN PRUEBA / NO PRODUCCIÓN
+
+Objetivo: impedir de forma estructural que pruebas locales, ramas feature o previews escriban datos en Supabase/Storage productivo.
+
+Protecciones:
+- host productivo canónico usa Supabase producción;
+- localhost/preview usa Supabase QA si está configurado;
+- sin Supabase QA, localhost queda en **producción solo lectura**;
+- frontend envía `x-karaka-environment: production|qa`;
+- Supabase productivo detecta además `localhost`, `127.0.0.1`, `::1` y Workers preview por Origin/Referer, incluso desde código local antiguo;
+- trigger `zz_qa_write_guard` protege las tablas públicas actuales contra INSERT/UPDATE/DELETE desde QA;
+- Storage productivo usa políticas RLS restrictivas para impedir INSERT/UPDATE/DELETE desde QA;
+- la UI muestra banner visible de MODO PRUEBA;
+- `npm run deploy` queda bloqueado fuera de `main`, con cambios locales, main desalineado o versión `test`;
+- documentación: `docs/QA_DATA_ISOLATION_V1.md`.
+
+Migraciones aplicadas en Supabase productivo:
+- `20260925160308_qa_data_isolation_production_write_guard`;
+- `20260925160509_qa_data_isolation_storage_guard`.
+
+Validación backend:
+- localhost clasifica como `qa`;
+- host productivo clasifica como `production`;
+- 42 tablas públicas quedaron cubiertas por `zz_qa_write_guard`;
+- Storage tiene 3 políticas RESTRICTIVE QA.
+
+Estado:
+- rama: `feature/qa-data-isolation-v1`;
+- versión: **0.6.5-beta.16.3.15-test.1**;
+- Supabase Development Branch: **PENDIENTE DE CREAR**;
+- hasta crear staging, pruebas locales con escritura deben permanecer bloqueadas.
+
 ## Beta.16.3.14 — Captación Operativa dentro de Rutas — PRODUCTIVO / QA PRODUCTIVO EN CURSO
 
 Objetivo: permitir captación oportunista dentro de una Ruta Planificada o Jornada Libre sin crear una jornada paralela y con seguimiento completo en Tracking/Jornadas.
@@ -246,7 +278,7 @@ Deploy Cloudflare confirmado actualmente es manual con `npm run deploy`; merge a
 ## P0/P1 abiertos
 
 1. **Reproducibilidad Supabase**: migraciones remotas vs archivos GitHub no están reconciliadas uno-a-uno. Antes de disaster recovery/Go-Live se requiere schema diff y rebuild test.
-2. **Staging P0**: no existe Supabase branch/staging separado. El QA local de 16.3.14 escribió datos TEST en producción y fue necesario limpiarlos con la migración `20260925152837`. **No realizar nuevas pruebas funcionales con escritura desde localhost contra Supabase productivo.** Crear Supabase Development Branch antes de la próxima fase de Captación Programada.
+2. **Staging P0**: no existe aún Supabase Development Branch. Desde `qa_data_isolation_production_write_guard` + `qa_data_isolation_storage_guard`, localhost/QA ya no puede escribir en Supabase/Storage productivo. Falta crear la base QA separada para reanudar pruebas funcionales con escritura.
 3. **Security/RLS**: SELECT demasiado amplio en varias tablas; Storage de fotos/evidencias necesita scoping por rol/propiedad.
 4. **SECURITY DEFINER**: Supabase Advisor mantiene hallazgos en vistas/RPC.
 5. **QA automatizado**: insuficiente.
@@ -288,7 +320,7 @@ Decisión actual:
 ## Próximo paso exacto
 
 1. Confirmar visualmente en producción que la Jornada Libre de Virmania muestre `TIENDA AMARILLA, SRL` como primera visita y `EL BOMBAZO` como segunda/actual, y que las captaciones QA no aparezcan.
-2. Crear **Supabase Development Branch / staging** antes de continuar con pruebas funcionales de Captación Programada.
+2. Completar QA de `feature/qa-data-isolation-v1` y crear **Supabase Development Branch / staging** antes de continuar con pruebas funcionales de Captación Programada.
 3. Completar QA productivo de Captación Operativa usando únicamente datos válidos o una prueba controlada explícitamente autorizada.
 4. Ejecutar QA productivo pendiente de **0.6.5-beta.16.3.13** en Historial de Llamadas.
 5. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
