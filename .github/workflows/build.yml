@@ -23,5 +23,7 @@ jobs:
         run: npm install
       - name: Protected release baseline
         run: npm run release:integrity
+      - name: Validate production deploy guard
+        run: node --check scripts/production-deploy-guard.mjs
       - name: TypeScript + Vite build
         run: npm run build
