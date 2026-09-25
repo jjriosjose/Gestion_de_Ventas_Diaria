@@ -1,6 +1,6 @@
 # Despliegue Cloudflare — Gestión de Ventas Diaria
 
-Baseline productivo protegido al 25/09/2026: **0.6.5-beta.16.3.14**
+Baseline productivo protegido al 25/09/2026: **0.6.5-beta.16.3.15**
 
 > Este número sirve como baseline mínimo conocido. Antes de cada deploy verificar siempre `package.json`, `package-lock.json`, `release/production-baseline.json`, GitHub `main` y el estado real de producción. Nunca desplegar basándose solo en un número escrito en documentación.
 
@@ -16,16 +16,18 @@ URL:
 
 Último deploy confirmado:
 
-- versión: **0.6.5-beta.16.3.14**
-- Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
-- `main` protegido de referencia: `6f1eda95d3c903d15f805ced59916382b0ec488b`
+- versión: **0.6.5-beta.16.3.15**
+- Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`
+- `main` protegido de referencia: `5395400e4469636b258f67c03eb2eb69416c9d5a`
 - deploy manual mediante `npm run deploy`
 
-No desplegar nuevamente 16.3.14 solo para “igualar” documentación. Un deploy debe corresponder a un cambio nuevo aprobado o a una recuperación explícita.
+No desplegar nuevamente 16.3.15 solo para “igualar” documentación. Un deploy debe corresponder a un cambio nuevo aprobado o a una recuperación explícita.
 
 ## Guard de producción
 
 `npm run deploy` ejecuta automáticamente `predeploy` → `npm run release:guard`.
+
+El guard detecta automáticamente Git del PATH o, en Windows, el Git incluido en GitHub Desktop.
 
 El deploy se bloquea si:
 
@@ -47,6 +49,7 @@ No saltar este guard ejecutando `wrangler deploy` directamente como procedimient
 - versión idéntica en `package.json` y `package-lock.json`;
 - módulos/rutas críticas todavía presentes;
 - Captación Operativa 16.3.14 todavía presente;
+- UX/TMS/Mapa incorporados en 16.3.15 todavía presentes;
 - Historial detallado de Llamadas 16.3.13 todavía presente;
 - Logística y rutas principales todavía en `App.tsx`;
 - migraciones críticas todavía versionadas;
