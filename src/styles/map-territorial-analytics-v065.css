@@ -50,7 +50,7 @@
 @media(max-width:760px){
 .map-analytics-trigger{top:58px;right:10px;bottom:auto;min-width:unset;max-width:calc(100% - 20px);padding:9px 10px}
 .map-analytics-trigger-icon{width:32px;height:32px}.map-analytics-trigger b{font-size:11px}.map-analytics-trigger small{font-size:9px}
-.map-analytics-panel{position:fixed;top:calc(var(--topbar) + 8px);left:10px;right:10px;bottom:82px;width:auto;max-height:none;border-radius:18px;overscroll-behavior:contain}
+.map-analytics-panel{position:absolute;top:58px;left:10px;right:10px;bottom:12px;width:auto;max-height:none;border-radius:18px;overscroll-behavior:contain}
 .map-analytics-head{padding:12px 13px 10px;flex:0 0 auto}.map-analytics-head .eyebrow{font-size:8px;letter-spacing:.12em;margin-bottom:4px}.map-analytics-head h3{font-size:18px}.map-analytics-head p{font-size:10px;margin-top:4px}.map-analytics-close{width:32px;height:32px}
 .map-analytics-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:9px 10px;flex:0 0 auto}.map-analytics-kpis>div{padding:8px}.map-analytics-kpis span,.map-analytics-kpis small{font-size:8.5px}.map-analytics-kpis b{font-size:15px}
 .map-analytics-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 10px 8px;padding:4px;overflow:visible;flex:0 0 auto}.map-analytics-tabs button{min-width:0;padding:7px 4px;font-size:9px;white-space:normal;line-height:1.15}
