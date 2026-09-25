@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarClock, ChevronDown, ChevronUp, History, PhoneCall, Search, ShoppingBag, UserRoundCheck, Users } from 'lucide-react'
+import { CalendarClock, History, PhoneCall, Search, ShoppingBag, UserRoundCheck, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { exportPdf, exportXlsx } from '../lib/export'
 import { ClientTypeFilter } from '../components/ClientTypeFilter'
 import type { ClientTypeFilterValue } from '../components/ClientTypeFilter'
 import type { Employee } from '../types'
-import '../styles/crm-v051.css'
 
 const CALL_RESULTS = [
   ['CONTACTADO', 'Contactado'],
@@ -62,11 +61,9 @@ export function Calls() {
   const [clientFilter, setClientFilter] = useState('')
   const [callerFilter, setCallerFilter] = useState('')
   const [resultFilter, setResultFilter] = useState('')
-  const [directionFilter, setDirectionFilter] = useState('')
   const [crmFilter, setCrmFilter] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [expandedCallIds, setExpandedCallIds] = useState<Set<string>>(() => new Set())
 
   const load = async () => {
     setLoading(true)
@@ -75,7 +72,7 @@ export function Calls() {
       const [callRes, visitRes, appointmentRes, staffRes, portfolio] = await Promise.all([
         supabase.from('calls').select('*,clients(id,codempr,legal_name,client_type,vendor_employee_id,manager_employee_id),prospects(prospect_code,legal_name),caller:employees!calls_employee_id_fkey(full_name,employee_type)').order('occurred_at', { ascending: false }).limit(3000),
         supabase.from('visits').select('id,client_id,employee_id,started_at,ended_at,received,purchase_result,result,no_purchase_reason,contact_name,next_action,follow_up_date,notes,clients(client_type),operator:employees!visits_employee_id_fkey(full_name)').not('ended_at', 'is', null).order('ended_at', { ascending: false }).limit(5000),
-        supabase.from('appointments').select('id,client_id,status,appointment_at,requested_appointment_at,source_type,employee_id,assigned_manager_id,requested_by_employee_id,created_from_call_id,created_at,clients(client_type)').order('created_at', { ascending: false }).limit(3000),
+        supabase.from('appointments').select('id,client_id,status,appointment_at,requested_appointment_at,source_type,employee_id,assigned_manager_id,requested_by_employee_id,created_at,clients(client_type)').order('created_at', { ascending: false }).limit(3000),
         supabase.from('employees').select('*').eq('active', true).order('full_name'),
         loadPortfolio(),
       ])
@@ -102,7 +99,6 @@ export function Calls() {
   const lastCallByClient = useMemo(() => { const map = new Map<string, any>(); rows.forEach(row => { if (row.client_id && !map.has(row.client_id)) map.set(row.client_id, row) }); return map }, [rows])
   const lastVisitByClient = useMemo(() => { const map = new Map<string, any>(); visits.forEach(row => { if (row.client_id && !map.has(row.client_id)) map.set(row.client_id, row) }); return map }, [visits])
   const latestAppointmentByClient = useMemo(() => { const map = new Map<string, any>(); appointments.forEach(row => { if (row.client_id && !map.has(row.client_id)) map.set(row.client_id, row) }); return map }, [appointments])
-  const appointmentByCallId = useMemo(() => { const map = new Map<string, any>(); appointments.forEach(row => { if (row.created_from_call_id) map.set(row.created_from_call_id, row) }); return map }, [appointments])
 
   const basePortfolio = useMemo(() => clients.filter(c => {
     if (clientType && c.client_type !== clientType) return false
@@ -145,12 +141,11 @@ export function Calls() {
     if (clientFilter && r.client_id !== clientFilter) return false
     if (callerFilter && r.employee_id !== callerFilter) return false
     if (resultFilter && r.result !== resultFilter) return false
-    if (directionFilter && r.call_direction !== directionFilter) return false
     if (from && new Date(r.occurred_at) < new Date(`${from}T00:00:00`)) return false
     if (to && new Date(r.occurred_at) > new Date(`${to}T23:59:59`)) return false
     if (q.trim()) { const needle = q.trim().toLowerCase(); const hay = `${r.clients?.legal_name || ''} ${r.clients?.codempr || ''} ${r.contact_name || ''} ${r.notes || ''}`.toLowerCase(); if (!hay.includes(needle)) return false }
     return true
-  }), [rows, clientType, vendorFilter, managerFilter, clientFilter, callerFilter, resultFilter, directionFilter, from, to, q])
+  }), [rows, clientType, vendorFilter, managerFilter, clientFilter, callerFilter, resultFilter, from, to, q])
 
   const today = new Date().toISOString().slice(0, 10)
   const todayRows = visibleCalls.filter(r => String(r.occurred_at || '').slice(0, 10) === today)
@@ -158,48 +153,6 @@ export function Calls() {
   const purchaseCount = visibleCalls.filter(r => r.result === 'COMPRO').length
   const followupCount = visibleCalls.filter(r => ['LLAMAR_MAS_TARDE', 'SEGUIMIENTO'].includes(r.result) || r.follow_up_date).length
   const selectedClient = clients.find(c => c.id === selectedClientId) || null
-  const allVisibleCallsExpanded = visibleCalls.length > 0 && visibleCalls.every(row => expandedCallIds.has(row.id))
-  const toggleCallDetail = (id:string) => setExpandedCallIds(current => {
-    const next = new Set(current)
-    if(next.has(id)) next.delete(id)
-    else next.add(id)
-    return next
-  })
-  const toggleAllCallDetails = () => {
-    if(allVisibleCallsExpanded){
-      setExpandedCallIds(current => {
-        const next = new Set(current)
-        visibleCalls.forEach(row => next.delete(row.id))
-        return next
-      })
-      return
-    }
-    if(visibleCalls.length > 250){
-      alert('Hay más de 250 llamadas visibles. Acota los filtros para usar “Expandir todos” sin sobrecargar la pantalla.')
-      return
-    }
-    setExpandedCallIds(current => {
-      const next = new Set(current)
-      visibleCalls.forEach(row => next.add(row.id))
-      return next
-    })
-  }
-
-  const setDateRange=(preset:'TODAY'|'YESTERDAY'|'LAST_7'|'MONTH'|'ALL')=>{
-    if(preset==='ALL'){setFrom('');setTo('');return}
-    const now=new Date()
-    const toInput=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
-    if(preset==='TODAY'){
-      const value=toInput(now);setFrom(value);setTo(value);return
-    }
-    if(preset==='YESTERDAY'){
-      const d=new Date(now);d.setDate(d.getDate()-1);const value=toInput(d);setFrom(value);setTo(value);return
-    }
-    if(preset==='LAST_7'){
-      const start=new Date(now);start.setDate(start.getDate()-6);setFrom(toInput(start));setTo(toInput(now));return
-    }
-    const start=new Date(now.getFullYear(),now.getMonth(),1);setFrom(toInput(start));setTo(toInput(now))
-  }
 
   const report = visibleCalls.map(r => ({ Fecha: new Date(r.occurred_at).toLocaleString('es-DO'), TipoCliente: r.clients?.client_type || '', EjecutadaPor: r.caller?.full_name || '', Vendedor: employeeName(r.clients?.vendor_employee_id), Gestor: employeeName(r.clients?.manager_employee_id), Cliente: r.clients?.legal_name || r.prospects?.legal_name || '', Resultado: labelResult(r.result), Contacto: r.contact_name || '', Duracion: r.duration_seconds || '', Showroom: r.appointment_created ? 'Sí' : 'No', ProximaAccion: labelNextAction(r.next_action), Seguimiento: r.follow_up_date || '', Observacion: r.notes || '' }))
 
@@ -211,12 +164,7 @@ export function Calls() {
 
     <div className="kpi-grid compact-kpis"><div className="kpi-card"><div className="kpi-icon"><PhoneCall/></div><div><span>Llamadas visibles</span><strong>{visibleCalls.length}</strong><small>{todayRows.length} hoy</small></div></div><div className="kpi-card"><div className="kpi-icon"><CalendarClock/></div><div><span>Showroom</span><strong>{showroomCount}</strong><small>solicitudes / interés</small></div></div><div className="kpi-card"><div className="kpi-icon"><Users/></div><div><span>Seguimientos</span><strong>{followupCount}</strong><small>pendientes o programados</small></div></div><div className="kpi-card"><div className="kpi-icon"><ShoppingBag/></div><div><span>Compraron</span><strong>{purchaseCount}</strong><small>reportados en llamada</small></div></div></div>
 
-    <div className="panel planner-filter-panel"><div className="planner-filter-grid"><div className="search-field"><Search size={18}/><input value={q} onChange={e => setQ(e.target.value)} placeholder="Cliente, código, teléfono, contacto, provincia..."/></div><ClientTypeFilter value={clientType} onChange={setClientType}/><select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}><option value="">Todos los vendedores</option>{vendors.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={managerFilter} onChange={e => setManagerFilter(e.target.value)}><option value="">Todos los gestores</option>{managers.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={clientFilter} onChange={e => setClientFilter(e.target.value)}><option value="">Todos los clientes ({basePortfolio.length})</option>{basePortfolio.slice(0, 500).map(c => <option key={c.id} value={c.id}>{c.legal_name} · {c.codempr}</option>)}</select><select value={crmFilter} onChange={e => setCrmFilter(e.target.value)}>{CRM_FILTERS.map(([value, label]) => <option value={value} key={value || 'all'}>{label}</option>)}</select><select value={callerFilter} onChange={e => setCallerFilter(e.target.value)}><option value="">Ejecutada por cualquiera</option>{employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={resultFilter} onChange={e => setResultFilter(e.target.value)}><option value="">Todos los resultados de llamada</option>{CALL_RESULTS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><select value={directionFilter} onChange={e=>setDirectionFilter(e.target.value)}><option value="">Entrantes y salientes</option><option value="SALIENTE">Solo salientes</option><option value="ENTRANTE">Solo entrantes</option></select></div>
-      <div className="call-period-filter">
-        <div className="call-period-title"><div><b>Período de llamadas</b><span>El rango aplica a KPIs, historial, Excel y PDF.</span></div><div className="call-period-presets"><button type="button" onClick={()=>setDateRange('TODAY')}>Hoy</button><button type="button" onClick={()=>setDateRange('YESTERDAY')}>Ayer</button><button type="button" onClick={()=>setDateRange('LAST_7')}>Últimos 7 días</button><button type="button" onClick={()=>setDateRange('MONTH')}>Este mes</button><button type="button" onClick={()=>setDateRange('ALL')}>Todo</button></div></div>
-        <div className="call-period-dates"><label><span>Desde</span><input type="date" value={from} onChange={e => setFrom(e.target.value)}/></label><label><span>Hasta</span><input type="date" value={to} onChange={e => setTo(e.target.value)}/></label>{(from||to)&&<span className="call-period-active">Filtro activo: {from||'inicio'} → {to||'hoy'}</span>}</div>
-      </div>
-      <div className="planner-filter-actions"><div className="meta"><span>{filteredPortfolio.length} clientes CRM</span>{clientType&&<span>{clientType}</span>}<span>{visibleCalls.length} llamadas</span></div><button className="secondary" onClick={() => { setQ(''); setClientType(''); setVendorFilter(''); setManagerFilter(''); setClientFilter(''); setCallerFilter(''); setResultFilter(''); setDirectionFilter(''); setCrmFilter(''); setFrom(''); setTo('') }}>Limpiar filtros</button></div></div>
+    <div className="panel planner-filter-panel"><div className="planner-filter-grid"><div className="search-field"><Search size={18}/><input value={q} onChange={e => setQ(e.target.value)} placeholder="Cliente, código, teléfono, contacto, provincia..."/></div><ClientTypeFilter value={clientType} onChange={setClientType}/><select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}><option value="">Todos los vendedores</option>{vendors.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={managerFilter} onChange={e => setManagerFilter(e.target.value)}><option value="">Todos los gestores</option>{managers.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={clientFilter} onChange={e => setClientFilter(e.target.value)}><option value="">Todos los clientes ({basePortfolio.length})</option>{basePortfolio.slice(0, 500).map(c => <option key={c.id} value={c.id}>{c.legal_name} · {c.codempr}</option>)}</select><select value={crmFilter} onChange={e => setCrmFilter(e.target.value)}>{CRM_FILTERS.map(([value, label]) => <option value={value} key={value || 'all'}>{label}</option>)}</select><select value={callerFilter} onChange={e => setCallerFilter(e.target.value)}><option value="">Ejecutada por cualquiera</option>{employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}</select><select value={resultFilter} onChange={e => setResultFilter(e.target.value)}><option value="">Todos los resultados de llamada</option>{CALL_RESULTS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><input type="date" value={from} onChange={e => setFrom(e.target.value)}/><input type="date" value={to} onChange={e => setTo(e.target.value)}/></div><div className="planner-filter-actions"><div className="meta"><span>{filteredPortfolio.length} clientes CRM</span>{clientType&&<span>{clientType}</span>}<span>{visibleCalls.length} llamadas</span></div><button className="secondary" onClick={() => { setQ(''); setClientType(''); setVendorFilter(''); setManagerFilter(''); setClientFilter(''); setCallerFilter(''); setResultFilter(''); setCrmFilter(''); setFrom(''); setTo('') }}>Limpiar filtros</button></div></div>
 
     {loadError && <div className="panel"><b>No fue posible cargar todos los datos del CRM.</b><span>{loadError}</span></div>}
 
@@ -227,61 +175,7 @@ export function Calls() {
       <div id="crm-workbench" className="panel" style={{ position: 'sticky', top: 12 }}>{!selectedClient && <div className="empty-state"><PhoneCall size={28}/><b>Selecciona un cliente para gestionar</b><span>Filtra la cartera y pulsa un cliente. No tendrás que volver a buscarlo en otra ventana.</span></div>}{selectedClient && <ClientWorkbench key={selectedClient.id} employeeId={employee?.id || ''} client={selectedClient} employees={employees} lastCall={lastCallByClient.get(selectedClient.id)} lastVisit={lastVisitByClient.get(selectedClient.id)} appointment={latestAppointmentByClient.get(selectedClient.id)} onSaved={() => void load()}/>}</div>
     </div>}
 
-    {view === 'HISTORY' && <section className="panel call-history-panel">
-      <div className="panel-head call-history-head">
-        <div><b>Historial de llamadas</b><span>{visibleCalls.length.toLocaleString()} registro(s) visibles. Pulsa una gestión para consultar el resultado completo.</span></div>
-        <div className="button-row">
-          <button className="secondary compact" disabled={!visibleCalls.length} onClick={toggleAllCallDetails}>{allVisibleCallsExpanded?<><ChevronUp size={15}/> Contraer todos</>:<><ChevronDown size={15}/> Expandir todos</>}</button>
-        </div>
-      </div>
-      <div className="cards-list call-history-list">
-        {visibleCalls.length === 0 && <div className="empty-state"><b>No hay llamadas con los filtros actuales.</b><span>Modifica los filtros o el rango de fechas para ampliar la búsqueda.</span></div>}
-        {visibleCalls.map(r => {
-          const expanded=expandedCallIds.has(r.id)
-          const callAppointment=appointmentByCallId.get(r.id)
-          const purchaseAmount=r.purchase_amount?Number(r.purchase_amount):0
-          return <article className={`call-history-card ${expanded?'expanded':''}`} key={r.id}>
-            <button type="button" className="call-history-summary" onClick={()=>toggleCallDetail(r.id)} aria-expanded={expanded}>
-              <div className="activity-icon"><PhoneCall/></div>
-              <div className="call-history-summary-main">
-                <div className="call-history-title-row">
-                  <b>{r.clients?.legal_name || r.prospects?.legal_name || 'Gestión telefónica'}</b>
-                  <span className={`call-result-badge ${callResultTone(r.result)}`}>{labelResult(r.result)}</span>
-                </div>
-                <span>{r.caller?.full_name || 'Usuario'} · {new Date(r.occurred_at).toLocaleString('es-DO')}</span>
-                <small>{r.clients?.client_type||'SIN TIPO'} · V: {employeeName(r.clients?.vendor_employee_id)} · G: {employeeName(r.clients?.manager_employee_id)}</small>
-                <div className="call-history-highlights">
-                  {purchaseAmount>0&&<strong>RD$ {purchaseAmount.toLocaleString('es-DO',{maximumFractionDigits:2})}</strong>}
-                  {r.next_action&&<span>{labelNextAction(r.next_action)}{r.follow_up_date?` · ${new Date(r.follow_up_date+'T00:00:00').toLocaleDateString('es-DO')}`:''}</span>}
-                  {r.appointment_created&&<span>Showroom solicitado</span>}
-                </div>
-              </div>
-              <div className="call-history-toggle">{expanded?<ChevronUp size={20}/>:<ChevronDown size={20}/>}<span>{expanded?'Ocultar':'Ver gestión'}</span></div>
-            </button>
-            {expanded&&<div className="call-history-detail">
-              <div className="call-detail-grid">
-                <CallDetail label="Resultado de gestión" value={labelResult(r.result)} strong/>
-                <CallDetail label="Tipo de llamada" value={callDirectionLabel(r.call_direction)}/>
-                <CallDetail label="Ejecutada por" value={r.caller?.full_name || '—'}/>
-                <CallDetail label="Fecha y hora" value={new Date(r.occurred_at).toLocaleString('es-DO')}/>
-                <CallDetail label="Persona contactada" value={r.contact_name || 'No registrada'}/>
-                <CallDetail label="Teléfono utilizado" value={r.phone_used || 'No registrado'}/>
-                <CallDetail label="Duración" value={callDurationLabel(r.duration_seconds)}/>
-                <CallDetail label="Venta registrada" value={purchaseAmount>0?`RD$ ${purchaseAmount.toLocaleString('es-DO',{maximumFractionDigits:2})}`:'Sin monto registrado'} strong={purchaseAmount>0}/>
-                <CallDetail label="Próxima acción" value={labelNextAction(r.next_action)}/>
-                <CallDetail label="Fecha de seguimiento" value={r.follow_up_date?new Date(r.follow_up_date+'T00:00:00').toLocaleDateString('es-DO'):'Sin fecha'}/>
-                <CallDetail label="Showroom" value={r.appointment_created?(callAppointment?`${showroomStatusLabel(callAppointment.status)}${callAppointment.appointment_at?` · ${new Date(callAppointment.appointment_at).toLocaleString('es-DO')}`:''}`:'Solicitud creada'):'No generado'}/>
-                <CallDetail label="Código cliente" value={r.clients?.codempr || '—'}/>
-              </div>
-              <div className="call-detail-note">
-                <span>Observación de la gestión</span>
-                <p>{r.notes || 'Sin observaciones registradas.'}</p>
-              </div>
-            </div>}
-          </article>
-        })}
-      </div>
-    </section>}
+    {view === 'HISTORY' && <div className="cards-list">{visibleCalls.length === 0 && <div className="panel empty-state"><b>No hay llamadas con los filtros actuales.</b></div>}{visibleCalls.map(r => <div className="activity-card" key={r.id}><div className="activity-icon"><PhoneCall/></div><div className="activity-main"><b>{r.clients?.legal_name || r.prospects?.legal_name || 'Gestión telefónica'}</b><span>{r.caller?.full_name || 'Usuario'} · {new Date(r.occurred_at).toLocaleString('es-DO')}</span><small>{r.clients?.client_type||'SIN TIPO'} · V: {employeeName(r.clients?.vendor_employee_id)} · G: {employeeName(r.clients?.manager_employee_id)} · {labelResult(r.result)}{r.contact_name ? ` · ${r.contact_name}` : ''}</small>{r.next_action && <small>Próxima acción: {labelNextAction(r.next_action)}{r.follow_up_date ? ` · ${r.follow_up_date}` : ''}</small>}{r.notes && <small>{r.notes}</small>}</div>{r.appointment_created && <span className="badge success"><CalendarClock size={13}/> Showroom</span>}</div>)}</div>}
   </div>
 }
 
@@ -312,41 +206,6 @@ function ClientWorkbench({ employeeId, client, employees, lastCall, lastVisit, a
   }
 
   return <div><div className="panel-head"><div><span className="eyebrow">CLIENTE 360</span><b>{client.legal_name}</b><span>{client.codempr} · {client.client_type||'SIN TIPO'} · {client.phone1 || client.mobile || 'Sin teléfono'}</span></div><span className="badge">{employeeName(client.manager_employee_id)}</span></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10, marginBottom: 14 }}><div className="info-box"><PhoneCall size={17}/><div><b>Última llamada</b><span>{lastCall ? `${new Date(lastCall.occurred_at).toLocaleString('es-DO')} · ${labelResult(lastCall.result)}` : 'Nunca'}</span></div></div><div className="info-box"><UserRoundCheck size={17}/><div><b>Última visita</b><span>{lastVisit ? `${new Date(lastVisit.ended_at).toLocaleString('es-DO')} · ${lastVisit.operator?.full_name || employeeName(lastVisit.employee_id)}` : 'Nunca'}</span></div></div><div className="info-box"><ShoppingBag size={17}/><div><b>Resultado visita</b><span>{lastVisit?.purchase_result || lastVisit?.result || 'Sin gestión'}</span></div></div><div className="info-box"><CalendarClock size={17}/><div><b>Showroom</b><span>{appointment ? appointment.status.replaceAll('_', ' ') : 'Sin cita'}</span></div></div></div>{lastVisit?.notes && <div className="selected-client" style={{ marginBottom: 14 }}><div><b>Nota de la última visita</b><span>{lastVisit.notes}</span></div></div>}<div className="form-grid"><label>Resultado / gestión<select value={result} onChange={e => setResult(e.target.value)}>{CALL_RESULTS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>Persona contactada<input value={contact} onChange={e => setContact(e.target.value)} placeholder="Nombre / cargo"/></label><label>Duración aproximada (min)<input type="number" min="0" value={duration} onChange={e => setDuration(e.target.value)}/></label><label>Próxima acción<select value={nextAction} onChange={e => setNextAction(e.target.value)}>{NEXT_ACTIONS.map(([value, label]) => <option value={value} key={value || 'none'}>{label}</option>)}</select></label><label>Fecha seguimiento<input type="date" value={followUp} onChange={e => setFollowUp(e.target.value)}/></label>{result === 'INTERESADO_SHOWROOM' && <label>Fecha/hora tentativa showroom<input type="datetime-local" value={showroomDate} onChange={e => setShowroomDate(e.target.value)}/></label>}{result === 'INTERESADO_SHOWROOM' && <div className="span-2 info-box"><CalendarClock size={18}/><div><b>Validación de showroom</b><span>{client.manager_employee_id?`La solicitud quedará pendiente para ${employeeName(client.manager_employee_id)}. No contará como cita pactada hasta confirmarse.`:'El cliente no tiene V-Gestor. La solicitud se conservará y Dirección recibirá la alerta para asignarla.'}</span></div></div>}<label className="span-2">Observación<textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Necesidad, objeción, compromiso, información solicitada..."/></label></div><div className="modal-actions"><button className="primary" disabled={busy} onClick={() => void save()}>{busy ? 'Guardando...' : 'Guardar gestión CRM'}</button></div></div>
-}
-
-function CallDetail({label,value,strong=false}:{label:string;value:string;strong?:boolean}){
-  return <div className="call-detail-item"><span>{label}</span>{strong?<strong>{value}</strong>:<b>{value}</b>}</div>
-}
-
-function callResultTone(value?:string){
-  if(value==='COMPRO')return 'success'
-  if(['NO_COMPRO','NO_INTERESADO','TELEFONO_INCORRECTO'].includes(value||''))return 'danger'
-  if(['SEGUIMIENTO','LLAMAR_MAS_TARDE'].includes(value||''))return 'warning'
-  if(value==='INTERESADO_SHOWROOM')return 'info'
-  return 'neutral'
-}
-
-function callDirectionLabel(value?:string){
-  if(value==='ENTRANTE')return 'Entrante'
-  if(value==='SALIENTE')return 'Saliente'
-  return value||'No registrada'
-}
-
-function callDurationLabel(seconds?:number|null){
-  if(!seconds)return 'No registrada'
-  const total=Math.max(0,Math.round(Number(seconds)))
-  if(total<60)return `${total} s`
-  const minutes=Math.floor(total/60)
-  const remaining=total%60
-  if(minutes<60)return remaining?`${minutes} min ${remaining} s`:`${minutes} min`
-  const hours=Math.floor(minutes/60)
-  const mins=minutes%60
-  return mins?`${hours} h ${mins} min`:`${hours} h`
-}
-
-function showroomStatusLabel(value?:string){
-  if(!value)return 'Solicitud creada'
-  return value.replaceAll('_',' ').toLocaleLowerCase('es').replace(/^./,char=>char.toUpperCase())
 }
 
 function labelResult(value?: string) { return CALL_RESULTS.find(([code]) => code === value)?.[1] || value || 'Sin resultado' }
