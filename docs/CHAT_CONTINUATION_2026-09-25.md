@@ -1,5 +1,12 @@
 # Continuación — Gestión de Ventas Diaria — 25/09/2026
 
+> **CHECKPOINT HISTÓRICO — 16.3.14. NO USAR COMO ESTADO ACTUAL.**
+>
+> Para continuidad actual leer:
+> 1. `docs/CHAT_CONTINUATION_CURRENT.md`
+> 2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
+> 3. `docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
+
 > Checkpoint fechado. Para el estado vivo leer primero `docs/CHAT_CONTINUATION_CURRENT.md`.
 > Fuente de verdad: **GitHub main → Supabase vivo → Cloudflare productivo → documentación → historial del chat**.
 

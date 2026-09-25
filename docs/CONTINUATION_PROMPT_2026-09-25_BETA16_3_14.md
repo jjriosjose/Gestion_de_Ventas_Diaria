@@ -1,5 +1,9 @@
 # Prompt de continuidad — 25/09/2026 — beta.16.3.14
 
+> **PROMPT HISTÓRICO — NO USAR PARA CONTINUIDAD ACTUAL.**
+>
+> Usar: `docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`.
+
 Continúa el proyecto **Gestión de Ventas Diaria** del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`.
 
 Antes de modificar cualquier cosa:

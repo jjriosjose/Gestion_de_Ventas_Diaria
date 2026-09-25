@@ -57,9 +57,11 @@ La rama contiene ideas útiles para retomar luego:
 - selección automática de entorno;
 - banner MODO PRUEBA;
 - variables `VITE_SUPABASE_QA_*`;
-- deploy guard.
+- deploy guard experimental de esa rama.
 
-No asumir que esas funciones existen en `main`.
+No asumir que el selector QA/banner/variables de esa rama existen en `main`.
+
+**Aclaración importante:** el Production Deploy Guard sí existe hoy en `main`, pero fue promovido de forma independiente mediante PR #87/#90. No depende de PR #85.
 
 ## Regla hasta crear staging
 
@@ -77,3 +79,10 @@ No asumir que esas funciones existen en `main`.
 5. Probar migraciones y datos TEST en staging.
 6. Reconsiderar qué partes de PR #85 siguen siendo necesarias.
 7. Mantener separados código promovible y datos QA.
+
+## Estado verificado 25/09/2026
+
+- 42 tablas públicas continúan protegidas por `zz_qa_write_guard`.
+- Storage mantiene 3 políticas RESTRICTIVE QA.
+- producción actual: `0.6.5-beta.16.3.15`.
+- staging/Development Branch sigue pendiente.

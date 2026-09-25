@@ -10,7 +10,7 @@
 ## LEER PRIMERO
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-25.md`
+2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
 4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
 5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
@@ -18,7 +18,7 @@
 7. Módulo específico que se vaya a modificar.
 
 Prompt recomendado:
-`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md`
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
 
 ## Fuente de verdad
 
@@ -52,7 +52,10 @@ Nunca asumir que una funcionalidad, PR o migración existe solo porque fue menci
 - baseline ejecutable: `release/production-baseline.json`
 - PR #89 responsive UX/TMS/mapa: **MERGED / PRODUCTIVO**
 - PR #90 Windows Git deploy guard: **MERGED**
-- `main` de referencia: `5395400e4469636b258f67c03eb2eb69416c9d5a`
+- commit de código productivo protegido: `5395400e4469636b258f67c03eb2eb69416c9d5a`
+- QA productivo 16.3.15: **APROBADO en PC y teléfono**
+- PR #91 cierre de baseline: **MERGED**
+- PR #92 cierre de QA productivo: **MERGED**
 
 ## Incidente de datos importante
 
@@ -70,7 +73,7 @@ Nunca volver a limpiar una sesión completa sin validar:
 - actividad posterior.
 
 Ver:
-`docs/CHAT_CONTINUATION_2026-09-25.md`
+`docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
 
 ## Disciplina de desarrollo
 
@@ -105,4 +108,4 @@ Deploy Cloudflare:
 
 ## Prompt de continuidad recomendado
 
-> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25.md`. Verifica GitHub main, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.15. PR #85 está pausado/cerrado y no debe mergearse por memoria. Verifica las migraciones QA guards ya vivas en Supabase. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.
+> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`. Verifica GitHub main, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.15. PR #85 está pausado/cerrado y no debe mergearse por memoria. Verifica las migraciones QA guards ya vivas en Supabase. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.

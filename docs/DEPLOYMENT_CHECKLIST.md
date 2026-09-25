@@ -1,6 +1,6 @@
 # Checklist de publicación — Gestión de Ventas Diaria
 
-Baseline productivo protegido al 25/09/2026: **0.6.5-beta.16.3.14**.
+Baseline productivo protegido al 25/09/2026: **0.6.5-beta.16.3.15**.
 
 > Nunca usar este número como única fuente. Antes de cada release verificar `main`, `package.json`, `package-lock.json`, `release/production-baseline.json`, Supabase vivo y Cloudflare.
 
@@ -40,7 +40,10 @@ El control de integridad protege:
 - Historial de Llamadas;
 - módulos logísticos;
 - migraciones críticas;
-- ausencia de vistas productivas `*_test`.
+- ausencia de vistas productivas `*_test`;
+- Login/TMS/Tracking visibles de 16.3.15;
+- Mapa territorial responsive;
+- Acerca del sistema y separación versión visible/build técnico.
 
 Para desarrollo local:
 
@@ -127,6 +130,8 @@ npm run deploy
 
 El `predeploy` ejecuta el Production Deploy Guard.
 
+En Windows, el guard detecta Git del PATH o el Git incluido con GitHub Desktop.
+
 Debe validar automáticamente:
 
 - rama = `main`;
@@ -154,8 +159,8 @@ URL:
 
 Baseline confirmado previo a nuevos releases:
 
-- versión: **0.6.5-beta.16.3.14**
-- Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
+- versión: **0.6.5-beta.16.3.15**
+- Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`
 
 ---
 
@@ -207,7 +212,7 @@ Evitar cambios profundos mientras existan operaciones críticas abiertas salvo c
 Después de un release productivo:
 
 - actualizar `docs/CHAT_CONTINUATION_CURRENT.md`;
-- actualizar checkpoint fechado;
+- actualizar checkpoint fechado actual (no reutilizar uno de una versión anterior);
 - actualizar `PROJECT_HANDOFF.md` cuando corresponda;
 - actualizar `CHANGELOG.md`;
 - registrar versión + Current Version ID;
