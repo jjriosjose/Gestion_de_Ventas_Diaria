@@ -6,6 +6,23 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.16.3.14 — Captación Operativa dentro de Rutas
+
+- Captación oportunista dentro de Ruta Planificada o Jornada Libre sin crear una jornada paralela.
+- Llegada y salida con GPS/hora, duración real y resultado de gestión.
+- Solo el resultado `CAPTADO` crea prospecto; los intentos no captados conservan trazabilidad sin contaminar `prospects`.
+- Tracking agrega estado **En captación**, eventos `CAPTURE_START` / `CAPTURE_END`, filtros y formulario detallado de cada captación.
+- Jornadas incorpora gestiones, prospectos y tiempo de captación; traslado/espera se recalcula excluyendo ese tiempo.
+- Fotos/evidencias ligadas al prospecto; fallo de subida no invalida una gestión ya finalizada.
+- Hardening backend para impedir solapamientos Captación ↔ Visita/Eventualidad/Cierre.
+- `start_open_journey` deja de tratar tareas `CAPTACION` como rutas planificadas de VISITAS.
+- `link_prospect_route_session` deja de asociar captaciones libres a jornadas de VISITAS equivocadas.
+- Vistas productivas finales: `executive_tracking_events_v2` y `executive_route_journeys_v5` (`security_invoker=true`).
+- Migraciones aplicadas: `20260925024317_capture_operational_v2_test_foundation` y `20260925145033_capture_operational_v2_production_hardening`.
+- PR #82; Build validation #1188 SUCCESS; QA local aprobado el 25/09/2026.
+- Estado: **mergeado en main** mediante `43520095e9349314e3974bd0f4dc19d0cb552824`; deploy Cloudflare y QA productivo pendientes.
+- Captación Programada completa queda fuera de alcance y será la siguiente fase.
+
 ## 0.6.5-beta.16.3.13 — Historial detallado de llamadas y métricas por período
 
 - Historial de llamadas desplegable sobre la pantalla productiva real `CallsV2`.
