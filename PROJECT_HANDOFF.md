@@ -3,19 +3,21 @@
 
 > **Índice estable de continuidad.**
 >
-> Este archivo ya no debe duplicar cientos de líneas de estado que quedan obsoletas. El checkpoint actual se mantiene en documentos fechados y en `CHAT_CONTINUATION_CURRENT.md`.
+> Este archivo no duplica todo el estado del proyecto. El checkpoint vivo se mantiene en `docs/CHAT_CONTINUATION_CURRENT.md`.
 >
 > Nunca guardar secretos, contraseñas, tokens, service keys ni credenciales sensibles.
 
 ## LEER PRIMERO
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-20.md`
+2. `docs/CHAT_CONTINUATION_2026-09-25.md`
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
 4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
 5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
+6. Módulo específico que se vaya a modificar.
 
-Luego consultar documentos específicos del módulo a modificar.
+Prompt recomendado:
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md`
 
 ## Fuente de verdad
 
@@ -24,45 +26,74 @@ Si existe discrepancia:
 1. GitHub `main`.
 2. Supabase vivo.
 3. Cloudflare productivo.
-4. documentación actual.
-5. historial de conversación/documentos antiguos.
+4. `docs/CHAT_CONTINUATION_CURRENT.md`.
+5. checkpoint fechado más reciente.
+6. documentación histórica.
+7. historial de conversación.
 
-Nunca asumir que una funcionalidad o migración existe solo porque fue mencionada anteriormente.
+Nunca asumir que una funcionalidad, PR o migración existe solo porque fue mencionada.
 
-## Snapshot al 20/09/2026
+## Snapshot al 25/09/2026
 
 - Repo: `jjriosjose/Gestion_de_Ventas_Diaria`
-- baseline de código/runtime 16.3.9: `df3c6836c5113896ecebfb228101af48b323a80b` (HEAD puede avanzar por documentación)
-- app: **0.6.5-beta.16.3.9**
-- producción Cloudflare: **0.6.5-beta.16.3.9**
-- Cloudflare Version ID: `96bfb579-8ed2-47cb-8029-15ef67fed492`
-- Supabase: `ccvzosnhxitfeochnflr`, **ACTIVE_HEALTHY**, plan **Free**
-- datos actuales: **TEST**
-- Go-Live: **NO declarado**
+- app en `main`: **0.6.5-beta.16.3.14**
+- producción Cloudflare: **0.6.5-beta.16.3.14**
+- Cloudflare Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
+- Supabase ref: `ccvzosnhxitfeochnflr`
+- plan Supabase: **Free**
+- Go-Live real: **NO declarado**
+- Captación Operativa dentro de Rutas: **PRODUCTIVA**
+- Captación Programada operacional: **PENDIENTE**
+- PR #85 QA Isolation frontend/local staging: **PAUSADO / CLOSED / NO MERGED**
+- guards QA backend y Storage: **YA VIVOS EN SUPABASE PRODUCTIVO**
+
+## Incidente de datos importante
+
+El 25/09 el QA local escribió captaciones TEST en producción.
+La limpieza posterior eliminó accidentalmente una visita real de Virmania a TIENDA AMARILLA.
+
+La visita real fue restaurada desde `audit_log` y validada.
+
+Nunca volver a limpiar una sesión completa sin validar:
+- visitas;
+- captaciones;
+- GPS;
+- auditoría;
+- dependencias;
+- actividad posterior.
+
+Ver:
+`docs/CHAT_CONTINUATION_2026-09-25.md`
 
 ## Disciplina de desarrollo
 
 Flujo normal:
 
-`feature → CI/build → QA local → PR → aprobación → merge → deploy → QA producción`
+`feature → CI/build → QA aislado → PR → aprobación → merge → deploy → QA producción`
 
-No trabajar directo sobre `main` salvo hotfix explícitamente autorizado.
+Hasta tener staging:
+- localhost/QA no debe escribir en producción;
+- los guards backend deben permanecer activos;
+- no desactivarlos para facilitar pruebas.
 
-No ejecutar DDL/SQL destructivo ni limpiar datos sin autorización específica.
+Deploy Cloudflare:
+- manual;
+- desde `main`;
+- merge no equivale a deploy.
 
 ## Bloqueadores antes de Go-Live
 
-- reconciliar migraciones GitHub ↔ Supabase;
-- staging separado;
+- staging/Development Branch;
+- reconciliación GitHub migrations ↔ Supabase;
+- rebuild/disaster-recovery test;
 - RLS/Storage hardening;
 - pruebas automatizadas críticas;
 - branch protection;
 - atomicidad de cierres/importaciones;
 - estrategia backup/restore;
 - resolver modelo de tiempo grupal Showroom y venta canónica;
-- revisar audit_log y geo performance.
+- revisar `audit_log` y geo performance.
 
 ## Prompt de continuidad recomendado
 
-> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-20.md`. Verifica GitHub main, Supabase y producción antes de modificar. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.
-
+> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25.md`. Verifica GitHub main, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.14. PR #85 está pausado/cerrado y no debe mergearse por memoria. Verifica las migraciones QA guards ya vivas en Supabase. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.
