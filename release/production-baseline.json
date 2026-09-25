@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "production_version": "0.6.5-beta.16.3.14",
+  "confirmed_main_commit": "6f1eda95d3c903d15f805ced59916382b0ec488b",
+  "cloudflare_version_id": "9f5528db-cf99-4a17-92b3-4ff85d9e9e98",
+  "confirmed_at": "2026-09-25",
+  "required_files": {
+    "src/App.tsx": [
+      "path=\"clientes\"",
+      "path=\"mapa\"",
+      "path=\"planificacion\"",
+      "path=\"rutas\"",
+      "path=\"jornadas\"",
+      "path=\"tracking\"",
+      "path=\"captacion\"",
+      "path=\"cobertura\"",
+      "path=\"visitas\"",
+      "path=\"llamadas\"",
+      "path=\"agenda\"",
+      "path=\"recepcion\"",
+      "path=\"logistica\"",
+      "path=\"logistica/historial\"",
+      "path=\"logistica/accesos\"",
+      "path=\"logistica/incidencias\"",
+      "path=\"reportes\"",
+      "path=\"calidad-datos\"",
+      "path=\"administracion\"",
+      "path=\"configuracion\""
+    ],
+    "src/pages/Routes.tsx": [
+      "RouteCaptureModal",
+      "Captar prospecto",
+      "activeCapture"
+    ],
+    "src/pages/Tracking.tsx": [
+      "TrackingCaptureManagement",
+      "EN_CAPTACION",
+      "CAPTURE_START",
+      "CAPTURE_END"
+    ],
+    "src/components/TrackingCaptureManagement.tsx": [
+      "Detalle de captaciones",
+      "Código prospecto",
+      "Interés comercial",
+      "Evidencias"
+    ],
+    "src/pages/Journeys.tsx": [
+      "executive_route_journeys_v5",
+      "capture_seconds",
+      "capture_completed_count"
+    ],
+    "src/pages/CallsV2.tsx": [
+      "directionFilter",
+      "setFrom",
+      "setTo",
+      "Compras registradas",
+      "Visitas Showroom",
+      "Historial de llamadas",
+      "Resumen del cliente en el período"
+    ],
+    "src/pages/Logistics.tsx": [
+      "Logística"
+    ],
+    "src/pages/DeliveryHistory.tsx": [
+      "Historial"
+    ]
+  },
+  "required_migrations": [
+    "20260925024317_capture_operational_v2_test_foundation.sql",
+    "20260925145033_capture_operational_v2_production_hardening.sql",
+    "20260925152837_cleanup_capture_operational_v2_qa_data_20260925.sql",
+    "20260925154251_repair_virmania_real_visit_after_qa_cleanup_20260925.sql",
+    "20260925160308_qa_data_isolation_production_write_guard.sql",
+    "20260925160509_qa_data_isolation_storage_guard.sql"
+  ],
+  "forbidden_source_tokens": [
+    "executive_tracking_events_v2_test",
+    "executive_route_journeys_v5_test"
+  ]
+}
