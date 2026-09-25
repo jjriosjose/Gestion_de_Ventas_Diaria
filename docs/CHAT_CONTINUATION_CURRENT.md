@@ -1,6 +1,6 @@
 # Continuación actual — Gestión de Ventas Diaria
 
-Fecha: **24/09/2026 (RD)**
+Fecha: **25/09/2026 (RD)**
 
 > **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN CUALQUIER CHAT NUEVO.**
 >
@@ -23,11 +23,12 @@ Fecha: **24/09/2026 (RD)**
 Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 `main`:
-- versión de código: **0.6.5-beta.16.3.13**
-- merge funcional: `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`
-- PR #79: **MERGED**
-- Build validation #1132: **SUCCESS**.
-- QA local 16.3.13: **APROBADO por el usuario el 24/09/2026**.
+- versión de código: **0.6.5-beta.16.3.14**
+- merge funcional: `43520095e9349314e3974bd0f4dc19d0cb552824`
+- PR #82: **MERGED**
+- Build validation #1188: **SUCCESS**.
+- QA local 16.3.14: **APROBADO por el usuario el 25/09/2026**.
+- Cloudflare todavía ejecuta **0.6.5-beta.16.3.13** hasta el deploy manual.
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
@@ -45,6 +46,52 @@ Supabase:
 
 Todos los datos operativos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
 
+
+
+## Beta.16.3.14 — Captación Operativa dentro de Rutas — MERGEADO / DEPLOY CLOUDFLARE PENDIENTE
+
+Objetivo: permitir captación oportunista dentro de una Ruta Planificada o Jornada Libre sin crear una jornada paralela y con seguimiento completo en Tracking/Jornadas.
+
+Cambio:
+- botón **Captar prospecto** dentro de una jornada activa;
+- llegada con GPS/hora e inicio de cronómetro;
+- formulario completo solo al pulsar **Finalizar captación**;
+- salida con GPS/hora y duración real;
+- resultado comercial independiente de creación de prospecto;
+- solo `CAPTADO` crea registro en `prospects`;
+- evidencia fotográfica asociada al prospecto;
+- Tracking agrega `CAPTURE_START` / `CAPTURE_END`, estado **En captación**, filtros y detalle completo de la gestión;
+- Jornadas separa tiempo de captación del traslado/espera residual;
+- Tracking muestra formulario completo: resultado, código, contacto, teléfono, tipo, interés, observaciones, horas, duración, GPS y evidencias.
+
+Hardening:
+- nueva entidad `capture_interactions`;
+- RLS: vendedor propietario o permiso Tracking;
+- una captación activa bloquea nueva visita, eventualidad y cierre de jornada;
+- visita/eventualidad activa bloquea iniciar captación;
+- `start_open_journey` ya ignora planes `CAPTACION` al decidir si existe una ruta planificada de VISITAS;
+- `link_prospect_route_session` ya no enlaza captaciones libres a sesiones de VISITAS;
+- fallo de subida de fotos no invalida una captación ya finalizada;
+- vistas finales `executive_tracking_events_v2` y `executive_route_journeys_v5` con `security_invoker=true`.
+
+Backend:
+- migración `20260925024317_capture_operational_v2_test_foundation`: aplicada;
+- migración `20260925145033_capture_operational_v2_production_hardening`: aplicada;
+- Supabase conserva los datos TEST; no hubo limpieza destructiva.
+
+Estado:
+- versión **0.6.5-beta.16.3.14**;
+- PR #82: **MERGED**;
+- merge: `43520095e9349314e3974bd0f4dc19d0cb552824`;
+- Build validation #1188: **SUCCESS**;
+- QA local: **APROBADO**;
+- captaciones abiertas al cierre del QA: **0**;
+- Cloudflare productivo: **0.6.5-beta.16.3.13**;
+- deploy 16.3.14: **PENDIENTE**;
+- QA productivo 16.3.14: pendiente después del deploy.
+
+Fuera de alcance actual:
+- ejecución completa de **Captación Programada** como jornada `CAPTACION`; será la siguiente fase.
 
 ## Beta.16.3.13 — Historial detallado de llamadas — PRODUCTIVO / QA PRODUCTIVO PENDIENTE
 
@@ -72,7 +119,7 @@ Estado:
 
 ## Beta.16.3.10 — Admin elimina tareas de Captación — PRODUCTIVO / QA PENDIENTE
 
-Motivo inmediato: `Eceballos` tenía una tarea `CAPTACION` para el 21/09 que el RPC de Jornada Libre interpreta incorrectamente como una ruta planificada y bloquea `start_open_journey`. La corrección lógica del RPC queda pendiente para una entrega separada.
+Motivo histórico: `Eceballos` tenía una tarea `CAPTACION` para el 21/09 que el RPC de Jornada Libre interpretaba incorrectamente como una ruta planificada. **Este defecto quedó corregido en 16.3.14**: `start_open_journey` ahora solo considera planes `VISITAS` / `MIXTA` para bloquear Jornada Libre.
 
 Cambio 16.3.10:
 - Administrador/Supervisor puede eliminar desde Captación una tarea no iniciada.
@@ -230,9 +277,11 @@ Decisión actual:
 
 ## Próximo paso exacto
 
-1. Ejecutar QA productivo de **0.6.5-beta.16.3.13** en Historial de Llamadas: detalle, filtros, resumen de período y resumen por cliente.
-2. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
-3. Diseñar staging/rebuild test.
-4. Iniciar hardening de seguridad por módulos y con pruebas por rol.
-5. Proteger `main` cuando el flujo de CI requerido esté definido.
+1. Desplegar **0.6.5-beta.16.3.14** a Cloudflare desde `main` usando `npm run deploy` y registrar el Current Version ID.
+2. Ejecutar QA productivo de Captación Operativa en Rutas, Tracking y Jornadas.
+3. Ejecutar QA productivo pendiente de **0.6.5-beta.16.3.13** en Historial de Llamadas.
+4. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
+5. Diseñar staging/rebuild test.
+6. Iniciar hardening de seguridad por módulos y con pruebas por rol.
+7. Proteger `main` cuando el flujo de CI requerido esté definido.
 
