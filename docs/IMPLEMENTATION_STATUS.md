@@ -1,5 +1,7 @@
 # Estado de implementación — Gestión de Ventas Diaria
 
+> **AVISO DE CONTINUIDAD — 25/09/2026:** este archivo conserva un snapshot histórico centrado en V0.6.4. **NO usarlo como estado productivo actual.** El estado vivo es `docs/CHAT_CONTINUATION_CURRENT.md` y `docs/CHAT_CONTINUATION_2026-09-25.md`. Producción actual: **0.6.5-beta.16.3.14**.
+
 **Baseline auditado:** V0.6.4  
 **Fecha de auditoría documental:** 2026-08-25
 
