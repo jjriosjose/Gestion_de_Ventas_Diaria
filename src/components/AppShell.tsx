@@ -10,12 +10,11 @@ import { useAuth } from '../context/AuthContext'
 import { hasAnyAdminPermission, hasPermission, profileForEmployee, type PermissionKey } from '../lib/access'
 import { NotificationCenterBell } from './NotificationCenterBell'
 import { InteractiveTour } from './InteractiveTour'
-import packageInfo from '../../package.json'
+import { APP_VERSION } from '../lib/appVersion'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon, permission: PermissionKey | 'ADMIN_ANY']
 type NavGroup = { label: string; items: NavItem[] }
 type ViewDensity = 'auto' | 'comfortable' | 'compact'
-const APP_VERSION=packageInfo.version
 const VIEW_DENSITY_KEY='karaka-view-density'
 
 const groups: NavGroup[] = [
@@ -76,7 +75,7 @@ export function AppShell() {
       const items = group.items.filter((item) => allowed(item[3])); if (!items.length) return null
       return <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{items.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setDrawer(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><Icon size={19}/><span>{label}</span></NavLink>)}</div>
     })}</nav>
-    <div className="app-version">Versión {APP_VERSION}</div>
+    <div className="app-version" title={`Versión técnica ${APP_VERSION.technical}`}>{APP_VERSION.compact}{APP_VERSION.isTest ? ' · PRUEBA' : ''}</div>
     <button className="logout nav-item" onClick={() => void logout()}><LogOut size={19}/><span>Cerrar sesión</span></button>
   </>
 
