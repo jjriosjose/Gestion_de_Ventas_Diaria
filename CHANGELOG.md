@@ -21,7 +21,10 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - Migraciones aplicadas: `20260925024317_capture_operational_v2_test_foundation` y `20260925145033_capture_operational_v2_production_hardening`.
 - PR #82; Build validation #1188 SUCCESS; QA local aprobado el 25/09/2026.
 - Estado: **PRODUCTIVO** en Cloudflare desde el 25/09/2026; Current Version ID `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`.
-- Los datos de QA local que habían quedado visibles en producción fueron retirados mediante `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`; verificación posterior en 0 registros QA.
+- Las captaciones/prospectos QA del 25/09 fueron retirados mediante `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`.
+- Esa limpieza eliminó también por error una visita real de Virmania a `TIENDA AMARILLA, SRL`; fue reconstruida inmediatamente desde `audit_log` mediante `20260925154251_repair_virmania_real_visit_after_qa_cleanup_20260925`.
+- Estado final validado: `TIENDA AMARILLA, SRL` 10:35–11:09 como primera visita; `EL BOMBAZO` 11:34 como segunda visita actualmente abierta; 0 captaciones QA restauradas.
+- El GPS original de TIENDA AMARILLA fue restaurado; el evento de calidad geográfica se recreó como `PENDIENTE` sin inventar campos detectados no auditados.
 - Captación Programada completa queda fuera de alcance y será la siguiente fase.
 - Regla añadida: próximas pruebas funcionales con escritura deben ejecutarse contra Supabase Development Branch/staging, no contra producción.
 
