@@ -16,6 +16,8 @@ Aplicación:
 - commit de código productivo protegido: `5395400e4469636b258f67c03eb2eb69416c9d5a`
 - último cierre documental previo a este checkpoint: `9db173a3316f12bd4daebbcf19241bae605623f0`
 - QA productivo visual: **APROBADO en PC y teléfono**
+- PR #91 cierre de baseline/documentación: **MERGED**
+- PR #92 cierre de QA productivo: **MERGED**
 - módulos revisados visualmente: Login, Rutas, Mapa/Análisis territorial y resto de módulos sin fallas visibles reportadas.
 
 Supabase:
