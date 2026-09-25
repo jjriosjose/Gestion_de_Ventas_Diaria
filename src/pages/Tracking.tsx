@@ -51,7 +51,7 @@ export function Tracking(){
    const[a,b,c]=await Promise.all([
     supabase.from('executive_tracking_snapshot_v2').select('*').eq('route_date',requestDate).order('full_name'),
     supabase.from('executive_tracking_stops_v1').select('*').eq('route_date',requestDate).order('employee_id').order('stop_order'),
-    supabase.from('executive_tracking_events_v2_test').select('*').eq('route_date',requestDate).order('event_at',{ascending:true})
+    supabase.from('executive_tracking_events_v2').select('*').eq('route_date',requestDate).order('event_at',{ascending:true})
    ])
    if(requestId!==loadSequence.current)return
    const err=a.error||b.error||c.error
