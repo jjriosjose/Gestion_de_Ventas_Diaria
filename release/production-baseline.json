@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "production_version": "0.6.5-beta.16.3.14",
-  "confirmed_main_commit": "6f1eda95d3c903d15f805ced59916382b0ec488b",
-  "cloudflare_version_id": "9f5528db-cf99-4a17-92b3-4ff85d9e9e98",
+  "production_version": "0.6.5-beta.16.3.15",
+  "confirmed_main_commit": "5395400e4469636b258f67c03eb2eb69416c9d5a",
+  "cloudflare_version_id": "d221fada-8015-4840-b01a-5c2ec4d88880",
   "confirmed_at": "2026-09-25",
   "required_files": {
     "src/App.tsx": [
@@ -63,6 +63,29 @@
     ],
     "src/pages/DeliveryHistory.tsx": [
       "Historial"
+    ],
+    "src/pages/Login.tsx": [
+      "Logística / TMS",
+      "Tracking",
+      "APP_VERSION"
+    ],
+    "src/lib/appVersion.ts": [
+      "technicalVersion",
+      "display",
+      "buildDisplay"
+    ],
+    "src/pages/Settings.tsx": [
+      "Acerca del sistema",
+      "APP_VERSION"
+    ],
+    "src/styles/open-field-journeys.css": [
+      "route-capture-list .empty-state",
+      "Jornada libre: estados vacíos compactos"
+    ],
+    "src/styles/map-territorial-analytics-v065.css": [
+      "map-analytics-panel",
+      "map-analytics-body",
+      "@media(max-width:760px)"
     ]
   },
   "required_migrations": [

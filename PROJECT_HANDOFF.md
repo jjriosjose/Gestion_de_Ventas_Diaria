@@ -37,9 +37,9 @@ Nunca asumir que una funcionalidad, PR o migración existe solo porque fue menci
 ## Snapshot al 25/09/2026
 
 - Repo: `jjriosjose/Gestion_de_Ventas_Diaria`
-- app en `main`: **0.6.5-beta.16.3.14**
-- producción Cloudflare: **0.6.5-beta.16.3.14**
-- Cloudflare Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
+- app en `main`: **0.6.5-beta.16.3.15**
+- producción Cloudflare: **0.6.5-beta.16.3.15**
+- Cloudflare Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`
 - Supabase ref: `ccvzosnhxitfeochnflr`
 - plan Supabase: **Free**
 - Go-Live real: **NO declarado**
@@ -50,6 +50,9 @@ Nunca asumir que una funcionalidad, PR o migración existe solo porque fue menci
 - release hardening PR #87: **MERGED**
 - Production Deploy Guard: **ACTIVO EN MAIN**
 - baseline ejecutable: `release/production-baseline.json`
+- PR #89 responsive UX/TMS/mapa: **MERGED / PRODUCTIVO**
+- PR #90 Windows Git deploy guard: **MERGED**
+- `main` de referencia: `5395400e4469636b258f67c03eb2eb69416c9d5a`
 
 ## Incidente de datos importante
 
@@ -102,4 +105,4 @@ Deploy Cloudflare:
 
 ## Prompt de continuidad recomendado
 
-> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25.md`. Verifica GitHub main, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.14. PR #85 está pausado/cerrado y no debe mergearse por memoria. Verifica las migraciones QA guards ya vivas en Supabase. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.
+> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25.md`. Verifica GitHub main, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.15. PR #85 está pausado/cerrado y no debe mergearse por memoria. Verifica las migraciones QA guards ya vivas en Supabase. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.

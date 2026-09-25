@@ -6,6 +6,21 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.16.3.15 — Responsive UX, TMS y Análisis territorial
+
+- Login actualizado a 8 capacidades: Clientes, Rutas, Captación, Logística / TMS, Llamadas, Visitas, Tracking y Mapas.
+- Responsive revisado en PC y teléfono.
+- Versión visible simplificada a `v0.6.5 Beta` sin perder el build técnico.
+- Nuevo bloque Configuración → Acerca del sistema.
+- Estados vacíos de Captación/Jornada Libre compactados en móvil.
+- Análisis territorial del Mapa reorganizado para mostrar más regiones y aprovechar mejor el espacio en PC/teléfono.
+- Sin cambios Supabase, migraciones, Auth ni RLS.
+- PR #89; Build validation #1251 SUCCESS.
+- Desplegado el 25/09/2026.
+- Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`.
+- Baseline productivo actualizado a 16.3.15.
+- PR #90 posterior endurece el Production Deploy Guard para detectar Git incluido en GitHub Desktop en Windows; Build validation #1253 SUCCESS.
+
 ## Nota operacional — 25/09/2026 — Release hardening anti-regresión
 
 - PR #87 **MERGED**; merge `3e9b60239f84fdb8429135421eee48d0ea9bf2b1`.
