@@ -32,7 +32,10 @@ GitHub `main`:
 - versión: **0.6.5-beta.16.3.14**
 - merge funcional: `43520095e9349314e3974bd0f4dc19d0cb552824`
 - PR #82: **MERGED**
-- Build validation #1188: **SUCCESS**
+- Build validation funcional #1188: **SUCCESS**
+- Release hardening PR #87: **MERGED**
+- release-hardening merge: `3e9b60239f84fdb8429135421eee48d0ea9bf2b1`
+- Build validation #1214 (hardening): **SUCCESS**
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
@@ -46,6 +49,34 @@ Supabase:
 - plan actual: **Free**
 - Go-Live real: **NO declarado**
 - los datos operativos siguen considerándose de prueba hasta declaración explícita del usuario
+
+## Release hardening — YA MERGEADO EN MAIN
+
+PR #87: **MERGED**.
+
+No cambia pantallas ni lógica comercial y no requiere deploy por sí solo.
+
+Protecciones añadidas:
+- `release/production-baseline.json` protege el baseline **0.6.5-beta.16.3.14**;
+- `docs/PRODUCTION_BASELINE.md` documenta el baseline humano;
+- `npm run release:integrity` valida capacidades/migraciones críticas antes del build;
+- Build validation ejecuta el control anti-regresión;
+- `npm run deploy` ejecuta automáticamente `predeploy → release:guard`;
+- deploy bloqueado fuera de `main`;
+- deploy bloqueado con working tree sucio;
+- deploy bloqueado si `main` local ≠ `origin/main`;
+- deploy bloqueado si el historial no contiene el baseline productivo protegido;
+- deploy bloqueado para versiones `test`;
+- deploy bloqueado si `package.json` y `package-lock.json` no coinciden;
+- referencias productivas a vistas `*_test` son rechazadas por CI.
+
+Documentación actualizada:
+- `docs/CLOUDFLARE_DEPLOY.md`
+- `docs/DEPLOYMENT_CHECKLIST.md`
+- `docs/PRODUCTION_BASELINE.md`
+
+Regla:
+> No ejecutar `wrangler deploy` directamente para saltar el guard. El comando productivo normal es `npm run deploy`.
 
 ## 0.6.5-beta.16.3.14 — Captación Operativa dentro de Rutas
 
@@ -202,6 +233,8 @@ Hasta crear staging:
 
 Deploy Cloudflare:
 - manual con `npm run deploy`;
+- `npm run deploy` está protegido por Production Deploy Guard;
+- nunca usar `wrangler deploy` para saltar el guard;
 - merge a `main` NO implica deploy.
 
 ## P0/P1 abiertos
