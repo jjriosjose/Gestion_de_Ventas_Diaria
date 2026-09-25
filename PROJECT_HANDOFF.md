@@ -54,6 +54,8 @@ Nunca asumir que una funcionalidad, PR o migración existe solo porque fue menci
 - PR #90 Windows Git deploy guard: **MERGED**
 - commit de código productivo protegido: `5395400e4469636b258f67c03eb2eb69416c9d5a`
 - QA productivo 16.3.15: **APROBADO en PC y teléfono**
+- PR #91 cierre de baseline: **MERGED**
+- PR #92 cierre de QA productivo: **MERGED**
 
 ## Incidente de datos importante
 
