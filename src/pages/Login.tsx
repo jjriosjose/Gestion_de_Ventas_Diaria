@@ -9,25 +9,29 @@ import {
   LockKeyhole,
   MapPinned,
   Phone,
+  Radar,
   Route,
   ShieldCheck,
+  Truck,
   UserRound,
   UsersRound,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import packageInfo from '../../package.json'
+import { APP_VERSION } from '../lib/appVersion'
 import '../styles/operational-v059.css'
 import '../styles/login-v065.css'
 
 const REMEMBERED_USER_KEY = 'karaka-login-username'
 
 const loginFeatures = [
-  { icon: UsersRound, title: 'Clientes', text: 'Consulta y segmenta tu base de clientes.' },
-  { icon: Route, title: 'Rutas', text: 'Planifica y optimiza tus rutas de visita.' },
-  { icon: Funnel, title: 'Captación', text: 'Registra oportunidades y nuevos clientes.' },
-  { icon: Phone, title: 'Llamadas', text: 'Da seguimiento a tus llamadas comerciales.' },
-  { icon: ClipboardCheck, title: 'Visitas', text: 'Registra visitas y acuerdos en campo.' },
-  { icon: MapPinned, title: 'Mapas', text: 'Visualiza tu cobertura en mapas interactivos.' },
+  { icon: UsersRound, title: 'Clientes', text: 'Gestiona y segmenta tu cartera comercial.' },
+  { icon: Route, title: 'Rutas', text: 'Planifica y optimiza las visitas de campo.' },
+  { icon: Funnel, title: 'Captación', text: 'Registra oportunidades y nuevos prospectos.' },
+  { icon: Truck, title: 'Logística / TMS', text: 'Gestiona entregas, seguimiento e incidencias.' },
+  { icon: Phone, title: 'Llamadas', text: 'Centraliza la gestión telefónica comercial.' },
+  { icon: ClipboardCheck, title: 'Visitas', text: 'Registra actividad y resultados en campo.' },
+  { icon: Radar, title: 'Tracking', text: 'Supervisa jornadas y actividad operativa.' },
+  { icon: MapPinned, title: 'Mapas', text: 'Analiza cobertura y territorio comercial.' },
 ]
 
 export function Login() {
@@ -70,7 +74,7 @@ export function Login() {
       <div className="login-v065-story-copy">
         <span className="login-v065-eyebrow">GESTIÓN DE VENTAS DIARIA</span>
         <h1>Impulsa tu operación<br/>comercial, todos los días.</h1>
-        <p>Gestiona clientes, rutas y actividades en campo desde una sola plataforma diseñada para tu equipo.</p>
+        <p>Centraliza tu gestión comercial, operación en campo y logística desde una sola plataforma diseñada para tu equipo.</p>
       </div>
 
       <div className="login-v065-features">
@@ -139,7 +143,10 @@ export function Login() {
           <div><b>¿Necesitas ayuda?</b><p>Solicita a un administrador que te asigne una nueva clave. La recuperación automática por WhatsApp todavía no está habilitada.</p></div>
         </div>
 
-        <small className="login-v065-version">Versión {packageInfo.version}</small>
+        <div className="login-v065-version" title={`Versión técnica ${APP_VERSION.technical}`}>
+          <span>{APP_VERSION.display}</span>
+          {APP_VERSION.isTest && <strong>PRUEBA</strong>}
+        </div>
       </form>
     </section>
   </main>
