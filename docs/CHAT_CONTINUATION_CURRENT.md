@@ -1,6 +1,6 @@
 # Continuación actual — Gestión de Ventas Diaria
 
-Fecha: **21/09/2026 (RD)**
+Fecha: **24/09/2026 (RD)**
 
 > **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN CUALQUIER CHAT NUEVO.**
 >
@@ -23,10 +23,11 @@ Fecha: **21/09/2026 (RD)**
 Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 `main`:
-- versión de código: **0.6.5-beta.16.3.12**
-- merge funcional: `6e38e351392cdfa073df4d06c01885ce67041b2d`
-- PR #76: **MERGED**
-- Build validation #1107: **SUCCESS**.
+- versión de código: **0.6.5-beta.16.3.13**
+- merge funcional: `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`
+- PR #79: **MERGED**
+- Build validation #1132: **SUCCESS**.
+- QA local 16.3.13: **APROBADO por el usuario el 24/09/2026**.
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
@@ -42,6 +43,29 @@ Supabase:
 - plan: **Free**
 
 Todos los datos operativos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
+
+
+## Beta.16.3.13 — Historial detallado de llamadas — MERGEADO / DEPLOY CLOUDFLARE PENDIENTE
+
+Objetivo: permitir revisar en detalle las gestiones telefónicas por cliente y por Gestor, manteniendo contexto acumulado dentro del período filtrado.
+
+Cambio:
+- la ruta real `/llamadas` usa `CallsV2`; la implementación experimental inicial en `Calls.tsx` no se mostraba y fue retirada antes del merge;
+- historial desplegable por llamada con ejecutor, fecha/hora, Entrante/Saliente, contacto, teléfono, duración, resultado, compra/monto, próxima acción, seguimiento, Showroom, código de cliente y observaciones;
+- filtro de dirección de llamada y período Desde/Hasta;
+- resumen general del período: llamadas, compras registradas, monto de compras y visitas reales al Showroom;
+- resumen por cliente dentro de cada tarjeta para el mismo período: cantidad de llamadas, compras/monto y visitas reales al Showroom;
+- las visitas Showroom se cuentan desde `showroom_sessions.started_at`, no desde interés o solicitud de cita;
+- sin migraciones, RLS ni cambios Edge Functions.
+
+Estado:
+- versión **0.6.5-beta.16.3.13**;
+- PR #79: **MERGED**;
+- merge: `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`;
+- Build validation #1132: **SUCCESS**;
+- QA local: **APROBADO**;
+- Cloudflare productivo continúa en **0.6.5-beta.16.3.12** hasta ejecutar `npm run deploy` desde `main` actualizado;
+- QA productivo 16.3.13: pendiente después del deploy.
 
 ## Beta.16.3.10 — Admin elimina tareas de Captación — PRODUCTIVO / QA PENDIENTE
 
@@ -195,8 +219,10 @@ Decisión actual:
 
 ## Próximo paso exacto
 
-1. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
-2. Diseñar staging/rebuild test.
-3. Iniciar hardening de seguridad por módulos y con pruebas por rol.
-4. Proteger `main` cuando el flujo de CI requerido esté definido.
+1. Desplegar **0.6.5-beta.16.3.13** a Cloudflare desde `main` con `npm run deploy` y registrar el Current Version ID.
+2. Ejecutar QA productivo de Historial de Llamadas: detalle, filtros, resumen de período y resumen por cliente.
+3. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
+4. Diseñar staging/rebuild test.
+5. Iniciar hardening de seguridad por módulos y con pruebas por rol.
+6. Proteger `main` cuando el flujo de CI requerido esté definido.
 

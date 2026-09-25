@@ -6,6 +6,18 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## 0.6.5-beta.16.3.13 — Historial detallado de llamadas y métricas por período
+
+- Historial de llamadas desplegable sobre la pantalla productiva real `CallsV2`.
+- Detalle por gestión: ejecutor, fecha/hora, dirección, contacto, teléfono, duración, resultado, compra/monto, próxima acción, seguimiento, Showroom, cliente y observaciones.
+- Resumen general condicionado por filtros/período: llamadas, compras registradas, monto y visitas reales al Showroom.
+- Resumen por cliente dentro del detalle: llamadas del período, compras/monto y visitas reales al Showroom.
+- Showroom se contabiliza con sesiones reales iniciadas (`showroom_sessions.started_at`), no por intención o cita pendiente.
+- Se eliminó antes del merge el código experimental de `Calls.tsx` porque la ruta activa usa `CallsV2`.
+- Sin migraciones Supabase, RLS ni Edge Functions.
+- PR #79; Build validation #1132 SUCCESS; QA local aprobado el 24/09/2026.
+- Estado: **mergeado en main** mediante `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`; deploy Cloudflare y QA productivo pendientes.
+
 ## 0.6.5-beta.16.3.12 — Edición administrativa de planificaciones
 
 - Solo usuarios `Administrador` pueden editar rutas de visita no iniciadas.
