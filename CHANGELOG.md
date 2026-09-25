@@ -6,6 +6,16 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## Nota operacional — 25/09/2026 — Aislamiento QA backend
+
+- Supabase productivo recibió las protecciones `20260925160308_qa_data_isolation_production_write_guard` y `20260925160509_qa_data_isolation_storage_guard`.
+- 42 tablas públicas quedaron protegidas contra escrituras de requests clasificados como QA/local.
+- Storage productivo recibió políticas RESTRICTIVE para INSERT/UPDATE/DELETE desde QA.
+- Estas protecciones backend están **vivas en producción** y se versionan en GitHub mediante el checkpoint documental del 25/09.
+- El frontend experimental `0.6.5-beta.16.3.15-test.1` NO fue promovido: PR #85 quedó **CLOSED / PAUSADO / NO MERGED**.
+- Docker/Supabase local quedó descartado por ahora; el usuario prevé revisar membresía Supabase la próxima semana y entonces evaluar Development Branch/staging.
+- Regla hasta staging: no ejecutar QA local con escritura contra producción; `QA_WRITE_BLOCKED` es comportamiento esperado.
+
 ## 0.6.5-beta.16.3.14 — Captación Operativa dentro de Rutas
 
 - Captación oportunista dentro de Ruta Planificada o Jornada Libre sin crear una jornada paralela.
