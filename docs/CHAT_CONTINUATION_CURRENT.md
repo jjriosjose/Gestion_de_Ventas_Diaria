@@ -19,7 +19,7 @@ Fecha: **25/09/2026 (RD)**
 8. Para retomar QA/staging: `docs/QA_DATA_ISOLATION_V1.md`.
 
 Prompt listo para un chat nuevo:
-`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md`
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md` *(histórico; estado vivo en este archivo)*
 
 `PROJECT_HANDOFF.md` es el índice estable y debe apuntar a este checkpoint.
 
@@ -29,7 +29,7 @@ Repositorio:
 `jjriosjose/Gestion_de_Ventas_Diaria`
 
 GitHub `main`:
-- versión: **0.6.5-beta.16.3.14**
+- versión: **0.6.5-beta.16.3.15**
 - merge funcional: `43520095e9349314e3974bd0f4dc19d0cb552824`
 - PR #82: **MERGED**
 - Build validation funcional #1188: **SUCCESS**
@@ -39,9 +39,13 @@ GitHub `main`:
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- versión desplegada: **0.6.5-beta.16.3.14**
-- Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
+- versión desplegada: **0.6.5-beta.16.3.15**
+- Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`
 - deploy manual confirmado el 25/09/2026 con `npm run deploy`
+- PR #89 (UX responsive/TMS/mapa): **MERGED**
+- PR #90 (guard GitHub Desktop Windows): **MERGED**
+- merge actual de `main`: `5395400e4469636b258f67c03eb2eb69416c9d5a`
+- baseline productivo protegido actualizado a **0.6.5-beta.16.3.15**
 
 Supabase:
 - proyecto: `Gestion de Ventas Diaria`
@@ -57,7 +61,7 @@ PR #87: **MERGED**.
 No cambia pantallas ni lógica comercial y no requiere deploy por sí solo.
 
 Protecciones añadidas:
-- `release/production-baseline.json` protege el baseline **0.6.5-beta.16.3.14**;
+- `release/production-baseline.json` protege el baseline **0.6.5-beta.16.3.15**;
 - `docs/PRODUCTION_BASELINE.md` documenta el baseline humano;
 - `npm run release:integrity` valida capacidades/migraciones críticas antes del build;
 - Build validation ejecuta el control anti-regresión;
@@ -77,6 +81,31 @@ Documentación actualizada:
 
 Regla:
 > No ejecutar `wrangler deploy` directamente para saltar el guard. El comando productivo normal es `npm run deploy`.
+
+## 0.6.5-beta.16.3.15 — UX responsive / Login / TMS / Mapa
+
+**PRODUCTIVO.**
+
+Cambios incluidos:
+- Login renovado con 8 capacidades: Clientes, Rutas, Captación, Logística / TMS, Llamadas, Visitas, Tracking y Mapas.
+- Responsive validado en PC y teléfono.
+- Versión visible simplificada a **v0.6.5 Beta** conservando versión/build técnico.
+- Configuración agrega **Acerca del sistema**.
+- Estados vacíos de Captación/Jornada Libre compactados en móvil.
+- Análisis territorial del Mapa reorganizado para aprovechar mejor el área útil en PC y teléfono.
+- Sin cambios Supabase, migraciones, RLS ni Auth.
+
+Release:
+- PR #89: MERGED.
+- Build validation #1251: SUCCESS.
+- deploy productivo: 25/09/2026.
+- Cloudflare Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`.
+
+Hardening posterior:
+- PR #90: MERGED.
+- El Production Deploy Guard detecta automáticamente Git incluido en GitHub Desktop en Windows.
+- Build validation #1253: SUCCESS.
+- No cambia la app productiva; protege futuros deploys.
 
 ## 0.6.5-beta.16.3.14 — Captación Operativa dentro de Rutas
 
@@ -284,6 +313,6 @@ Si el usuario YA activó membresía Supabase:
 6. después iniciar Captación Programada.
 
 Si el usuario TODAVÍA NO activó membresía:
-- mantener producción en **0.6.5-beta.16.3.14**;
+- mantener producción en **0.6.5-beta.16.3.15**;
 - no hacer pruebas locales con escritura;
 - continuar solo con análisis/diseño/documentación hasta decidir staging.
