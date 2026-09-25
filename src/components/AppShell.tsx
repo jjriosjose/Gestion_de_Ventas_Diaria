@@ -11,6 +11,7 @@ import { hasAnyAdminPermission, hasPermission, profileForEmployee, type Permissi
 import { NotificationCenterBell } from './NotificationCenterBell'
 import { InteractiveTour } from './InteractiveTour'
 import packageInfo from '../../package.json'
+import { DATA_ENVIRONMENT, DATA_ENVIRONMENT_DETAIL, DATA_ENVIRONMENT_LABEL } from '../lib/supabase'
 
 type NavItem = [to: string, label: string, Icon: LucideIcon, permission: PermissionKey | 'ADMIN_ANY']
 type NavGroup = { label: string; items: NavItem[] }
@@ -70,20 +71,24 @@ export function AppShell() {
   const prepareTour = () => { setCollapsed(false); setDrawer(false); setViewOpen(false) }
   const densityDescription=densityMode==='auto'?`Automática · ${dense?'compacta':'cómoda'} para ${viewport.width}×${viewport.height}`:densityMode==='compact'?'Compacta · máxima área de trabajo':'Cómoda · mayor separación visual'
 
+  const qaMode=DATA_ENVIRONMENT!=='production'
+  const qaReadOnly=DATA_ENVIRONMENT==='qa-readonly-production'
+
   const sidebar = <>
     <div className="brand-block"><img src="/logo-karaka.png" /><div className="brand-copy"><b>Gestion de Ventas</b><span>Diaria</span></div></div>
     <nav>{groups.map((group) => {
       const items = group.items.filter((item) => allowed(item[3])); if (!items.length) return null
       return <div className="nav-group" key={group.label}><span className="nav-label">{group.label}</span>{items.map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/'} onClick={() => setDrawer(false)} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><Icon size={19}/><span>{label}</span></NavLink>)}</div>
     })}</nav>
-    <div className="app-version">Versión {APP_VERSION}</div>
+    <div className="app-version"><span>Versión {APP_VERSION}</span>{qaMode&&<b className={`env-chip ${qaReadOnly?'readonly':'isolated'}`}>{DATA_ENVIRONMENT_LABEL}</b>}</div>
     <button className="logout nav-item" onClick={() => void logout()}><LogOut size={19}/><span>Cerrar sesión</span></button>
   </>
 
   return <div className={`app-layout ${collapsed ? 'collapsed' : ''} ${dense ? 'density-compact' : 'density-comfortable'} ${densityMode==='auto'?'density-auto':''}`} data-view-density={densityMode}>
     <aside className="sidebar">{sidebar}<button className="collapse-btn" title={collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'} aria-label={collapsed ? 'Mostrar menú lateral' : 'Ocultar menú lateral'} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <ChevronRight/> : <ChevronLeft/>}</button></aside>
     <div className={`mobile-drawer ${drawer ? 'open' : ''}`}><div className="drawer-panel"><button className="drawer-close" onClick={() => setDrawer(false)}><X/></button>{sidebar}</div><button className="drawer-backdrop" onClick={() => setDrawer(false)} aria-label="Cerrar menú"/></div>
-    <main className="main-area">
+    <main className={`main-area ${qaMode?'qa-environment-active':''}`}>
+      {qaMode&&<div className={`qa-environment-banner ${qaReadOnly?'readonly':'isolated'}`}><AlertTriangle size={16}/><div><b>{qaReadOnly?'MODO PRUEBA SEGURO':'MODO PRUEBA · BASE AISLADA'}</b><span>{DATA_ENVIRONMENT_DETAIL}</span></div></div>}
       <header className="topbar"><button className="mobile-menu" onClick={() => setDrawer(true)}><Menu/></button><div><span className="eyebrow">ALMACENES KARAKA</span><h1>{title}</h1></div><div className="top-actions" style={{ position: 'relative' }}>
         <InteractiveTour availablePaths={availableTourPaths} onStart={prepareTour}/>
         <NotificationCenterBell onOpen={() => setViewOpen(false)}/>
