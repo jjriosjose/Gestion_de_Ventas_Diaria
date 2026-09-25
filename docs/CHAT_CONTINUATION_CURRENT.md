@@ -10,7 +10,7 @@ Fecha: **25/09/2026 (RD)**
 ## Orden de lectura obligatorio
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-25.md`
+2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
 4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
 5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
@@ -19,7 +19,7 @@ Fecha: **25/09/2026 (RD)**
 8. Para retomar QA/staging: `docs/QA_DATA_ISOLATION_V1.md`.
 
 Prompt listo para un chat nuevo:
-`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md` *(histórico; estado vivo en este archivo)*
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
 
 `PROJECT_HANDOFF.md` es el índice estable y debe apuntar a este checkpoint.
 
@@ -44,7 +44,8 @@ Cloudflare:
 - deploy manual confirmado el 25/09/2026 con `npm run deploy`
 - PR #89 (UX responsive/TMS/mapa): **MERGED**
 - PR #90 (guard GitHub Desktop Windows): **MERGED**
-- merge actual de `main`: `5395400e4469636b258f67c03eb2eb69416c9d5a`
+- commit de código productivo protegido: `5395400e4469636b258f67c03eb2eb69416c9d5a`
+- `main` puede contener commits documentales posteriores; verificar HEAD vivo antes de modificar
 - baseline productivo protegido actualizado a **0.6.5-beta.16.3.15**
 
 Supabase:
@@ -251,7 +252,7 @@ Productivo:
 - visitas reales a Showroom.
 
 QA local aprobado.
-QA productivo completo sigue marcado como pendiente si se retoma ese módulo.
+Las capacidades de Llamadas continúan protegidas por `release:integrity`; si se modifica el módulo, repetir QA específico antes de promover.
 
 ## Workflow obligatorio
 
@@ -318,3 +319,11 @@ Si el usuario TODAVÍA NO activó membresía:
 - mantener producción en **0.6.5-beta.16.3.15**;
 - no hacer pruebas locales con escritura;
 - continuar solo con análisis/diseño/documentación hasta decidir staging.
+
+## Continuidad preparada para próximo chat
+
+- checkpoint actual: `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
+- prompt actual: `docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
+- checkpoint anterior `docs/CHAT_CONTINUATION_2026-09-25.md`: histórico de 16.3.14; no usar como estado vivo.
+- baseline ejecutable: `release/production-baseline.json`
+- baseline humano: `docs/PRODUCTION_BASELINE.md`
