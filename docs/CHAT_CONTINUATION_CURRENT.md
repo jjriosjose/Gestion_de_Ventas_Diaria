@@ -78,8 +78,11 @@ Hardening:
 Backend:
 - migración `20260925024317_capture_operational_v2_test_foundation`: aplicada;
 - migración `20260925145033_capture_operational_v2_production_hardening`: aplicada;
-- migración `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`: aplicada para retirar exclusivamente la jornada QA de Virmania del 25/09 y sus dependencias TEST.
-- verificación posterior: 0 jornada QA, 0 captaciones QA, 0 prospectos QA y 0 visita QA; el cliente real `TIENDA AMARILLA, SRL` no fue eliminado.
+- migración `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`: aplicada para retirar captaciones/prospectos QA del 25/09. La limpieza también eliminó por error una visita real de Virmania (`TIENDA AMARILLA, SRL`) que compartía la misma sesión.
+- migración `20260925154251_repair_virmania_real_visit_after_qa_cleanup_20260925`: aplicada inmediatamente para reconstruir la visita real desde `audit_log` y fusionarla en la Jornada Libre real actual, sin recrear las captaciones QA.
+- estado reparado: `TIENDA AMARILLA, SRL` vuelve a ser la **primera visita** (10:35–11:09), `EL BOMBAZO` permanece como **segunda visita** iniciada a las 11:34 y abierta; las 4 captaciones QA continúan eliminadas.
+- GPS restaurado TIENDA AMARILLA: entrada `19.363489,-70.5729495` (±61.37 m), salida `19.3952554,-70.5241195` (±13.47 m), distancias originales 5,830.3 m / 627.5 m al punto maestro.
+- el evento de verificación geográfica perdido no tenía payload en `audit_log`; fue reconstruido de forma conservadora como `PENDIENTE`, usando GPS/distancia auditados y sin inventar área detectada.
 
 Estado:
 - versión **0.6.5-beta.16.3.14**;
@@ -92,7 +95,9 @@ Estado:
 - Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`;
 - deploy 16.3.14: **OK**;
 - QA productivo 16.3.14: **EN CURSO**;
-- datos generados durante QA local: **LIMPIADOS DE PRODUCCIÓN**.
+- datos de Captación QA: **LIMPIADOS DE PRODUCCIÓN**.
+- visita real `TIENDA AMARILLA, SRL`: **RESTAURADA Y VALIDADA** en la jornada actual de Virmania.
+- visita actual `EL BOMBAZO`: **INTACTA / ABIERTA**.
 
 Fuera de alcance actual:
 - ejecución completa de **Captación Programada** como jornada `CAPTACION`; será la siguiente fase.
@@ -282,7 +287,7 @@ Decisión actual:
 
 ## Próximo paso exacto
 
-1. Confirmar visualmente que la jornada/captaciones/prospectos QA del 25/09 ya no aparecen tras refrescar producción.
+1. Confirmar visualmente en producción que la Jornada Libre de Virmania muestre `TIENDA AMARILLA, SRL` como primera visita y `EL BOMBAZO` como segunda/actual, y que las captaciones QA no aparezcan.
 2. Crear **Supabase Development Branch / staging** antes de continuar con pruebas funcionales de Captación Programada.
 3. Completar QA productivo de Captación Operativa usando únicamente datos válidos o una prueba controlada explícitamente autorizada.
 4. Ejecutar QA productivo pendiente de **0.6.5-beta.16.3.13** en Historial de Llamadas.
