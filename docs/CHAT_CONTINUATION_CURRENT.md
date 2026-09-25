@@ -100,6 +100,8 @@ Release:
 - Build validation #1251: SUCCESS.
 - deploy productivo: 25/09/2026.
 - Cloudflare Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`.
+- QA productivo visual posterior al deploy: **APROBADO** en PC y teléfono por el usuario.
+- Login, Rutas, Mapa/Análisis territorial y demás módulos revisados sin fallas visibles.
 
 Hardening posterior:
 - PR #90: MERGED.

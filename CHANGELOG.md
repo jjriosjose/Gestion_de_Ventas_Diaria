@@ -18,6 +18,7 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - PR #89; Build validation #1251 SUCCESS.
 - Desplegado el 25/09/2026.
 - Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`.
+- QA productivo visual posterior al deploy: **APROBADO** en PC y teléfono; Login, Rutas, Mapa/Análisis territorial y demás módulos revisados sin fallas visibles.
 - Baseline productivo actualizado a 16.3.15.
 - PR #90 posterior endurece el Production Deploy Guard para detectar Git incluido en GitHub Desktop en Windows; Build validation #1253 SUCCESS.
 
