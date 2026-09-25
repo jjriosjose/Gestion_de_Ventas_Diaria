@@ -112,9 +112,13 @@ export function RouteCaptureModal({sessionId,activeInteraction,onClose,onChanged
         p_end_accuracy_m:p.accuracy
       })
       if(error)throw error
-      if(data?.prospect_id)await uploadPhotos(data.prospect_id)
+      let photoWarning=''
+      if(data?.prospect_id&&files.length){
+        try{await uploadPhotos(data.prospect_id)}
+        catch(photoError){photoWarning=photoError instanceof Error?photoError.message:'No fue posible cargar una o más fotografías.'}
+      }
       await onChanged(null)
-      alert(data?.prospect_id?'Captación finalizada y prospecto creado correctamente.':'Gestión de captación finalizada correctamente.')
+      alert((data?.prospect_id?'Captación finalizada y prospecto creado correctamente.':'Gestión de captación finalizada correctamente.')+(photoWarning?'\n\nLa gestión quedó guardada, pero hubo un problema con las fotografías: '+photoWarning:''))
       onClose()
     }catch(e){alert(e instanceof Error?e.message:'No se pudo finalizar la captación')}
     finally{setBusy(false)}
