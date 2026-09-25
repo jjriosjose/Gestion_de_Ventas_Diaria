@@ -67,7 +67,7 @@ export function TrackingCaptureManagement({snapshot,selectedCaptureId}:{snapshot
 
  if(!snapshot?.route_session_id)return null
  return <section className="panel tracking-capture-management">
-  <div className="tracking-visit-management-head"><div><span className="eyebrow">CAPTACIÓN COMERCIAL</span><b>Detalle de captaciones · {snapshot.full_name}</b><small>{rows.length} gestión(es) de captación en esta jornada · ruta y captación programada usan el mismo estándar de seguimiento</small></div><span className={'tracking-route-mode-chip '+(snapshot.route_mode==='LIBRE'?'free':'planned')}>{snapshot.route_mode==='LIBRE'?'L · LIBRE':'P · PLAN'}</span></div>
+  <div className="tracking-visit-management-head"><div><span className="eyebrow">CAPTACIÓN COMERCIAL</span><b>Detalle de captaciones · {snapshot.full_name}</b><small>{rows.length} gestión(es) de captación vinculada(s) a esta jornada</small></div><span className={'tracking-route-mode-chip '+(snapshot.route_mode==='LIBRE'?'free':'planned')}>{snapshot.route_mode==='LIBRE'?'L · LIBRE':'P · PLAN'}</span></div>
   {loading?<div className="tracking-visit-loading">Cargando formularios de captación...</div>:error?<div className="tracking-visit-error">{error}</div>:rows.length?<div className="tracking-visit-accordion">{rows.map((r:any,index:number)=>{
    const prospect=r.prospects||null,photos=r.photos||[],focused=selectedCaptureId===r.id
    return <details ref={node=>{itemRefs.current[r.id]=node}} key={r.id} className={'tracking-visit-item tracking-capture-item '+(focused?'focused':'')}>
