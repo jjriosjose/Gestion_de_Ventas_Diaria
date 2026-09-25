@@ -65,9 +65,8 @@ export function RouteCaptureModal({sessionId,activeInteraction,onClose,onChanged
         p_start_accuracy_m:p.accuracy
       })
       if(error)throw error
-      setInteraction(data)
-      await onChanged(data)
       onClose()
+      await onChanged(data)
     }catch(e){alert(e instanceof Error?e.message:'No se pudo iniciar la captación')}
     finally{setBusy(false)}
   }
