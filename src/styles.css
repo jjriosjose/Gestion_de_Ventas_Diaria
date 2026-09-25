@@ -32,3 +32,16 @@
 .status.coincide,.status.aprobada,.status.verificada{background:color-mix(in srgb,var(--success) 12%,transparent);color:var(--success)}
 .status.pendiente,.status.sin_verificar{background:color-mix(in srgb,var(--warning) 12%,transparent);color:var(--warning)}
 .status.rechazada,.status.sin_geo{background:color-mix(in srgb,var(--muted) 12%,transparent);color:var(--muted)}
+
+/* Version presentation + system about */
+.app-version{margin:6px 10px 8px;padding:7px 9px;border-radius:9px;background:var(--surface-2);color:var(--muted);font-size:9px;font-weight:750;letter-spacing:.02em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.collapsed .app-version{display:none}
+.system-about-panel{grid-column:1/-1}
+.system-about-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.system-about-grid>div{display:flex;flex-direction:column;gap:4px;padding:11px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
+.system-about-grid span{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.system-about-grid strong{font-size:12px;color:var(--text);overflow-wrap:anywhere}
+.system-about-grid strong.production{color:var(--success)}
+.system-about-grid strong.test{color:var(--brand)}
+.system-about-technical{font-size:9px;color:var(--muted);overflow-wrap:anywhere}
+@media(max-width:620px){.system-about-grid{grid-template-columns:1fr 1fr}.app-version{font-size:8px}}
