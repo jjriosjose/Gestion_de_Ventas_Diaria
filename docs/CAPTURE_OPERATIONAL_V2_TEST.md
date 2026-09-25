@@ -1,5 +1,7 @@
 # Captación Operativa V2 — Prueba aislada
 
+> **ESTADO FINAL:** este documento describe el QA histórico de Captación Operativa V2. La funcionalidad fue promovida a **0.6.5-beta.16.3.14** y está en producción. Las vistas productivas finales son `executive_tracking_events_v2` y `executive_route_journeys_v5`. Para estado actual leer `docs/CHAT_CONTINUATION_CURRENT.md`. No repetir esta prueba contra Supabase productivo.
+
 Fecha: 24/09/2026 (RD)
 
 ## Objetivo

@@ -4,295 +4,253 @@ Fecha: **25/09/2026 (RD)**
 
 > **DOCUMENTO MAESTRO ACTUAL. LEER PRIMERO EN CUALQUIER CHAT NUEVO.**
 >
-> Fuente de verdad, en este orden: **GitHub `main` → Supabase vivo → Cloudflare productivo → documentación actual → historial del chat**. Antes de escribir código, ejecutar SQL, mergear o desplegar, verificar el estado vivo.
+> Fuente de verdad, en este orden: **GitHub `main` → Supabase vivo → Cloudflare productivo → documentación actual → historial del chat**.
+> Antes de escribir código, ejecutar SQL, mergear o desplegar, verificar el estado vivo.
 
 ## Orden de lectura obligatorio
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-20.md`
+2. `docs/CHAT_CONTINUATION_2026-09-25.md`
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
 4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
 5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
-6. Para Logística/TMS: documentos `LOGISTICS_*.md` vigentes.
-7. Para reglas históricas de Rutas/Jornadas: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md` y `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`.
+6. Para Logística/TMS: `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`, `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` y documentos `LOGISTICS_*.md`.
+7. Para Rutas/Jornadas: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md` y `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`.
+8. Para retomar QA/staging: `docs/QA_DATA_ISOLATION_V1.md`.
 
-`PROJECT_HANDOFF.md` funciona como índice estable y apunta a este checkpoint. Documentos anteriores son contexto histórico y no prevalecen sobre estado vivo.
+Prompt listo para un chat nuevo:
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md`
+
+`PROJECT_HANDOFF.md` es el índice estable y debe apuntar a este checkpoint.
 
 ## Estado productivo actual
 
-Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
+Repositorio:
+`jjriosjose/Gestion_de_Ventas_Diaria`
 
-`main`:
-- versión de código: **0.6.5-beta.16.3.14**
+GitHub `main`:
+- versión: **0.6.5-beta.16.3.14**
 - merge funcional: `43520095e9349314e3974bd0f4dc19d0cb552824`
 - PR #82: **MERGED**
-- Build validation #1188: **SUCCESS**.
-- QA local 16.3.14: **APROBADO por el usuario el 25/09/2026**.
-- Cloudflare productivo: **0.6.5-beta.16.3.14**.
-- deploy manual confirmado por el usuario el 25/09/2026.
+- Build validation #1188: **SUCCESS**
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 - versión desplegada: **0.6.5-beta.16.3.14**
 - Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
-- deploy manual confirmado por el usuario el 25/09/2026 mediante `npm run deploy`.
-- `Fetch origin` no mostró `Pull origin` porque la copia local ya estaba alineada con `origin/main`; el deploy sí tomó 16.3.14, confirmado por la funcionalidad Captación visible en producción.
+- deploy manual confirmado el 25/09/2026 con `npm run deploy`
 
 Supabase:
 - proyecto: `Gestion de Ventas Diaria`
 - ref: `ccvzosnhxitfeochnflr`
-- región: `ca-central-1`
-- estado: **ACTIVE_HEALTHY**
-- plan: **Free**
+- plan actual: **Free**
+- Go-Live real: **NO declarado**
+- los datos operativos siguen considerándose de prueba hasta declaración explícita del usuario
 
-Todos los datos operativos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
+## 0.6.5-beta.16.3.14 — Captación Operativa dentro de Rutas
 
+**PRODUCTIVO.**
 
+Regla principal:
+- una sola jornada operativa por vendedor;
+- dentro de Ruta Planificada/Jornada Libre se pueden ejecutar secuencialmente visitas, captaciones y eventualidades;
+- no deben existir dos actividades operativas abiertas a la vez.
 
-## Beta.16.3.14 — Captación Operativa dentro de Rutas — PRODUCTIVO / QA PRODUCTIVO EN CURSO
+Flujo Captación:
+- `Captar prospecto`;
+- `Llegué / iniciar captación` registra GPS/hora y vuelve a Rutas;
+- Tracking muestra **En captación**;
+- `Finalizar captación` abre el formulario completo;
+- salida registra GPS/hora/duración/resultado;
+- solo `CAPTADO` crea `prospects`;
+- después vuelve a **En traslado**.
 
-Objetivo: permitir captación oportunista dentro de una Ruta Planificada o Jornada Libre sin crear una jornada paralela y con seguimiento completo en Tracking/Jornadas.
+Tracking productivo:
+- `CAPTURE_START`
+- `CAPTURE_END`
+- estado **En captación**
+- filtros Inicio/Fin captación
+- detalle completo de Captaciones: resultado, código, contacto, teléfono, tipo, interés, observaciones, horas, duración, GPS y evidencias
 
-Cambio:
-- botón **Captar prospecto** dentro de una jornada activa;
-- llegada con GPS/hora e inicio de cronómetro;
-- formulario completo solo al pulsar **Finalizar captación**;
-- salida con GPS/hora y duración real;
-- resultado comercial independiente de creación de prospecto;
-- solo `CAPTADO` crea registro en `prospects`;
-- evidencia fotográfica asociada al prospecto;
-- Tracking agrega `CAPTURE_START` / `CAPTURE_END`, estado **En captación**, filtros y detalle completo de la gestión;
-- Jornadas separa tiempo de captación del traslado/espera residual;
-- Tracking muestra formulario completo: resultado, código, contacto, teléfono, tipo, interés, observaciones, horas, duración, GPS y evidencias.
+Jornadas:
+- tiempo de captación separado;
+- captación ya no infla traslado/espera;
+- gestiones/prospectos de captación visibles.
 
-Hardening:
-- nueva entidad `capture_interactions`;
-- RLS: vendedor propietario o permiso Tracking;
-- una captación activa bloquea nueva visita, eventualidad y cierre de jornada;
-- visita/eventualidad activa bloquea iniciar captación;
-- `start_open_journey` ya ignora planes `CAPTACION` al decidir si existe una ruta planificada de VISITAS;
-- `link_prospect_route_session` ya no enlaza captaciones libres a sesiones de VISITAS;
-- fallo de subida de fotos no invalida una captación ya finalizada;
-- vistas finales `executive_tracking_events_v2` y `executive_route_journeys_v5` con `security_invoker=true`.
+Objetos:
+- `capture_interactions`
+- `start_route_capture_interaction`
+- `finish_route_capture_interaction`
+- `cancel_route_capture_interaction`
+- `executive_tracking_events_v2`
+- `executive_route_journeys_v5`
 
-Backend:
-- migración `20260925024317_capture_operational_v2_test_foundation`: aplicada;
-- migración `20260925145033_capture_operational_v2_production_hardening`: aplicada;
-- migración `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`: aplicada para retirar captaciones/prospectos QA del 25/09. La limpieza también eliminó por error una visita real de Virmania (`TIENDA AMARILLA, SRL`) que compartía la misma sesión.
-- migración `20260925154251_repair_virmania_real_visit_after_qa_cleanup_20260925`: aplicada inmediatamente para reconstruir la visita real desde `audit_log` y fusionarla en la Jornada Libre real actual, sin recrear las captaciones QA.
-- estado reparado: `TIENDA AMARILLA, SRL` vuelve a ser la **primera visita** (10:35–11:09), `EL BOMBAZO` permanece como **segunda visita** iniciada a las 11:34 y abierta; las 4 captaciones QA continúan eliminadas.
-- GPS restaurado TIENDA AMARILLA: entrada `19.363489,-70.5729495` (±61.37 m), salida `19.3952554,-70.5241195` (±13.47 m), distancias originales 5,830.3 m / 627.5 m al punto maestro.
-- el evento de verificación geográfica perdido no tenía payload en `audit_log`; fue reconstruido de forma conservadora como `PENDIENTE`, usando GPS/distancia auditados y sin inventar área detectada.
+Migraciones:
+- `20260925024317_capture_operational_v2_test_foundation`
+- `20260925145033_capture_operational_v2_production_hardening`
 
-Estado:
-- versión **0.6.5-beta.16.3.14**;
-- PR #82: **MERGED**;
-- merge: `43520095e9349314e3974bd0f4dc19d0cb552824`;
-- Build validation #1188: **SUCCESS**;
-- QA local: **APROBADO**;
-- captaciones abiertas al cierre del QA: **0**;
-- Cloudflare productivo: **0.6.5-beta.16.3.14**;
-- Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`;
-- deploy 16.3.14: **OK**;
-- QA productivo 16.3.14: **EN CURSO**;
-- datos de Captación QA: **LIMPIADOS DE PRODUCCIÓN**.
-- visita real `TIENDA AMARILLA, SRL`: **RESTAURADA Y VALIDADA** en la jornada actual de Virmania.
-- visita actual `EL BOMBAZO`: **INTACTA / ABIERTA**.
+## Incidente QA del 25/09 — cerrado y documentado
 
-Fuera de alcance actual:
-- ejecución completa de **Captación Programada** como jornada `CAPTACION`; será la siguiente fase.
+QA local escribió contra Supabase productivo y las captaciones TEST quedaron visibles en producción.
 
-## Beta.16.3.13 — Historial detallado de llamadas — PRODUCTIVO / QA PRODUCTIVO PENDIENTE
+Se retiraron:
+- `colmado manolito`
+- `test colmado`
+- `prueba -3`
+- `prueba secuencial`
+- prospectos QA asociados
 
-Objetivo: permitir revisar en detalle las gestiones telefónicas por cliente y por Gestor, manteniendo contexto acumulado dentro del período filtrado.
+Migración:
+- `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`
 
-Cambio:
-- la ruta real `/llamadas` usa `CallsV2`; la implementación experimental inicial en `Calls.tsx` no se mostraba y fue retirada antes del merge;
-- historial desplegable por llamada con ejecutor, fecha/hora, Entrante/Saliente, contacto, teléfono, duración, resultado, compra/monto, próxima acción, seguimiento, Showroom, código de cliente y observaciones;
-- filtro de dirección de llamada y período Desde/Hasta;
-- resumen general del período: llamadas, compras registradas, monto de compras y visitas reales al Showroom;
-- resumen por cliente dentro de cada tarjeta para el mismo período: cantidad de llamadas, compras/monto y visitas reales al Showroom;
-- las visitas Showroom se cuentan desde `showroom_sessions.started_at`, no desde interés o solicitud de cita;
-- sin migraciones, RLS ni cambios Edge Functions.
+La limpieza eliminó también por error una visita real de Virmania a `TIENDA AMARILLA, SRL`.
 
-Estado:
-- versión **0.6.5-beta.16.3.13**;
-- PR #79: **MERGED**;
-- merge: `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`;
-- Build validation #1132: **SUCCESS**;
-- QA local: **APROBADO**;
-- Cloudflare productivo: **0.6.5-beta.16.3.13**;
-- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`;
-- deploy: **OK** el 24/09/2026;
-- QA productivo 16.3.13: pendiente.
+Se reconstruyó desde `audit_log` mediante:
+- `20260925154251_repair_virmania_real_visit_after_qa_cleanup_20260925`
 
-## Beta.16.3.10 — Admin elimina tareas de Captación — PRODUCTIVO / QA PENDIENTE
+Secuencia real verificada posteriormente:
+1. `TIENDA AMARILLA, SRL` — finalizada.
+2. `EL BOMBAZO` — finalizada.
+3. `ALMACENES EL ENCANTO (STGO)` — inició después.
 
-Motivo histórico: `Eceballos` tenía una tarea `CAPTACION` para el 21/09 que el RPC de Jornada Libre interpretaba incorrectamente como una ruta planificada. **Este defecto quedó corregido en 16.3.14**: `start_open_journey` ahora solo considera planes `VISITAS` / `MIXTA` para bloquear Jornada Libre.
+**No asumir el estado actual de la tercera visita sin consultar Supabase.**
 
-Cambio 16.3.10:
-- Administrador/Supervisor puede eliminar desde Captación una tarea no iniciada.
-- reutiliza `delete_unstarted_route_plan`; no agrega DDL.
-- solo permite estados `BORRADOR` / `PLANIFICADA`.
-- UI bloquea eliminar si la tarea ya tiene prospectos captados, preservando trazabilidad.
-- el backend sigue bloqueando planes con sesiones o actividad de paradas.
-- no se eliminó automáticamente la tarea actual de Eduar.
+Regla permanente:
+> No limpiar una sesión completa por asociación temporal. Validar cada visita/captación, GPS, auditoría y dependencias antes de borrar.
 
-Producción ya está en 16.3.10. Falta QA productivo: eliminar una tarea de Captación no iniciada desde Admin y luego validar Jornada Libre con `Eceballos`.
+## Protección QA backend — YA VIVA EN PRODUCCIÓN
 
-## Beta.16.3.11 — Selección manual continua en Planificación — PRODUCTIVO / QA PENDIENTE
+Aunque el trabajo de staging se pausó, dos protecciones backend ya están aplicadas y forman parte del estado real de Supabase:
 
-Objetivo: permitir planificar clientes manualmente uno por uno sin que la aplicación cambie automáticamente a la pestaña "Seleccionados" después de cada selección.
+- `20260925160308_qa_data_isolation_production_write_guard`
+- `20260925160509_qa_data_isolation_storage_guard`
 
-Cambio:
-- al seleccionar manualmente un cliente, la vista actual permanece abierta;
-- buscador y filtros permanecen activos;
-- el cliente seleccionado queda acumulado en la ruta;
-- el usuario puede buscar y seleccionar inmediatamente otro cliente;
-- la pestaña "Seleccionados" sigue disponible para revisión manual;
-- no cambia selección por mapa/radio/polígono, ordenamiento ni creación de la planificación;
-- sin cambios Supabase.
+Estado verificado:
+- localhost / 127.0.0.1 / ::1 / request QA se clasifica como QA;
+- **42 tablas públicas** están protegidas por `zz_qa_write_guard`;
+- INSERT/UPDATE/DELETE QA contra producción quedan bloqueados;
+- Storage productivo tiene políticas RESTRICTIVE:
+  - `qa_storage_insert_guard`
+  - `qa_storage_update_guard`
+  - `qa_storage_delete_guard`
 
-Estado:
-- PR #74: MERGED;
-- Build validation #1097: SUCCESS;
-- merge funcional: `fd7fbff5fb956d621a458a30fba4202a406c44df`;
-- Cloudflare Version ID: `8fb51bc4-73c2-42bb-822b-e21a6041942d`;
-- QA funcional productivo: pendiente.
+Estas dos migraciones están versionadas en GitHub como parte de este checkpoint.
 
-## Beta.16.3.12 — Edición administrativa de planificaciones — PRODUCTIVO / QA PENDIENTE
+## QA Data Isolation frontend / staging — PAUSADO
 
-Objetivo: permitir exclusivamente a usuarios con `app_role='Administrador'` editar planificaciones de visitas que todavía no han iniciado.
+Rama:
+`feature/qa-data-isolation-v1`
 
-Capacidades:
-- cargar una planificación existente;
-- cambiar fecha de ejecución;
-- agregar clientes;
-- quitar clientes;
-- reordenar clientes;
-- eliminar la planificación completa.
+Versión experimental:
+`0.6.5-beta.16.3.15-test.1`
 
-Protecciones:
-- solo `VISITAS` + `route_mode='PLANIFICADA'`;
-- solo estados `BORRADOR` / `PLANIFICADA`;
-- bloquea si existe `route_session`;
-- bloquea si una parada tiene visita o estado distinto de `PENDIENTE`;
-- nueva fecha debe ser hoy o futura;
-- evita clientes duplicados;
-- rechaza clientes ya planificados en otra ruta para la fecha destino;
-- vendedor queda bloqueado durante edición;
-- actualización de fecha + paradas es transaccional en RPC.
+PR #85:
+- **CLOSED**
+- draft histórico
+- **NO MERGED**
+- **NO PRODUCCIÓN**
+- título: `[PAUSED] QA data isolation frontend / local staging`
 
-Backend:
-- migración Supabase `20260921193736_admin_edit_unstarted_visit_plans`: APLICADA;
-- RPC `admin_update_unstarted_visit_plan`;
-- RPC `admin_delete_unstarted_visit_plan`.
+Decisión del usuario:
+- no continuar por ahora con Docker/Supabase local;
+- no asumir ningún costo por ahora;
+- el usuario prevé activar membresía Supabase la próxima semana;
+- entonces se evaluará Development Branch/staging.
 
-Frontend:
-- versión **0.6.5-beta.16.3.12**;
-- PR #76 MERGED;
-- Build validation #1107 SUCCESS;
-- merge funcional `6e38e351392cdfa073df4d06c01885ce67041b2d`;
-- Cloudflare 16.3.12 desplegado el 21/09/2026.
-- Current Version ID: `7f68230c-8e26-444d-acb5-b9cdd5aaccc6`.
-- QA funcional productivo: pendiente.
+No reabrir ni mergear PR #85 por memoria.
 
-## Validaciones productivas recientes
+## Captación Programada — siguiente fase funcional
 
-### 16.3.13
-- deploy Cloudflare: **OK**.
-- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`.
-- Historial detallado de llamadas: **QA productivo pendiente**.
-- Resumen general de período: **QA productivo pendiente**.
-- Resumen acumulado por cliente: **QA productivo pendiente**.
-- Visitas reales Showroom desde `showroom_sessions.started_at`: **QA productivo pendiente**.
+Aún **NO implementada** como jornada operacional completa.
 
-### 16.3.12
-- deploy Cloudflare: **OK**.
-- edición administrativa de planificaciones: **QA pendiente**.
-- cambio de fecha de ejecución: **QA pendiente**.
-- agregar/quitar/reordenar clientes: **QA pendiente**.
-- eliminación de planificación no iniciada: **QA pendiente**.
+Pendiente:
+- iniciar/finalizar jornada `CAPTACION`;
+- tarea planificada → jornada de captación;
+- interacción por establecimiento;
+- GPS/tiempos/resultado;
+- historial de tareas;
+- detalle completo en Captación;
+- detalle completo también en Tracking;
+- no mezclar Captación Programada con jornada de VISITAS.
 
+Diseño acordado:
+- Captación dentro de Ruta/Jornada Libre = oportunidad comercial dentro de la misma jornada.
+- Captación Programada = módulo Captación + jornada `CAPTACION`.
+- Tracking = centro principal de supervisión diaria para ambos orígenes.
 
-### 16.3.10
-- deploy Cloudflare: **OK**.
-- eliminación administrativa de tarea Captación: **QA pendiente**.
-- validación posterior de Jornada Libre de `Eceballos`: **QA pendiente**.
+## Llamadas — 0.6.5-beta.16.3.13
 
+Productivo:
+- historial desplegable por cliente;
+- filtros período/dirección;
+- resumen general del período;
+- resumen acumulado por cliente;
+- compras/monto;
+- visitas reales a Showroom.
 
-### 16.3.8
-- Gestor registra monto al cerrar Showroom: **OK**.
-- alerta Recepción → Gestor en tiempo real: **OK**.
-- Gestor visualiza Reporte Ejecutivo completo sin Admin: **OK**.
+QA local aprobado.
+QA productivo completo sigue marcado como pendiente si se retoma ese módulo.
 
-### 16.3.9
-- Ventas monetarias por día y canal: **OK**.
-- Compras por día: **OK**.
-- Actividad de calle con visitas reales: **OK**.
-- Actividad CRM: **OK**.
-- Cobertura / Contactabilidad / tablas / detalle diario / exportación: **OK**.
+## Workflow obligatorio
 
-## Regla de workflow
+`feature branch → CI/build → QA aislado → PR → aprobación → merge → deploy → QA producción`
 
-Flujo normal obligatorio:
+Hasta crear staging:
+- **NO ejecutar QA local con escritura contra Supabase productivo**;
+- si localhost recibe `QA_WRITE_BLOCKED`, es comportamiento esperado;
+- no desactivar guards QA para “hacer que la prueba funcione”.
 
-`feature branch → build/CI → QA local → PR → aprobación → merge → deploy → QA producción`
-
-El usuario autorizó explícitamente saltar QA local solo para 16.3.9. **No convertir esa excepción en regla.**
-
-Deploy Cloudflare confirmado actualmente es manual con `npm run deploy`; merge a main no implica autodeploy.
+Deploy Cloudflare:
+- manual con `npm run deploy`;
+- merge a `main` NO implica deploy.
 
 ## P0/P1 abiertos
 
-1. **Reproducibilidad Supabase**: migraciones remotas vs archivos GitHub no están reconciliadas uno-a-uno. Antes de disaster recovery/Go-Live se requiere schema diff y rebuild test.
-2. **Staging P0**: no existe Supabase branch/staging separado. El QA local de 16.3.14 escribió datos TEST en producción y fue necesario limpiarlos con la migración `20260925152837`. **No realizar nuevas pruebas funcionales con escritura desde localhost contra Supabase productivo.** Crear Supabase Development Branch antes de la próxima fase de Captación Programada.
-3. **Security/RLS**: SELECT demasiado amplio en varias tablas; Storage de fotos/evidencias necesita scoping por rol/propiedad.
-4. **SECURITY DEFINER**: Supabase Advisor mantiene hallazgos en vistas/RPC.
-5. **QA automatizado**: insuficiente.
-6. **Branch protection**: `main` no está protegido.
-7. **Showroom concurrente**: duración se sobrecuenta cuando un Gestor atiende clientes simultáneos.
-8. **Venta canónica**: no existe todavía entidad única de venta/touchpoints.
-9. **Atomicidad**: cierre Showroom, cierre Visita e importación maestra necesitan endurecimiento transaccional.
-10. **audit_log**: ~101 MB; evitar snapshots geográficos grandes.
-11. **Geo performance**: principal hotspot observado.
-12. `package-lock.json` ya fue sincronizado a 16.3.9 mediante PR #69; Build validation #1083: SUCCESS.
+### P0
 
-## Supabase Free vs Pro
+1. **Staging/Development Branch** antes de nuevas pruebas funcionales con escritura.
+2. **Reconciliación GitHub migrations ↔ Supabase ledger/schema** antes de disaster recovery/Go-Live.
+3. **Rebuild/disaster-recovery test**.
+4. **Security/RLS/Storage** por rol/propiedad.
+5. **Branch protection** de `main`.
+6. No repetir migraciones por memoria.
 
-Uso 20/09:
-- DB: **164 MB**.
-- Storage: **14 MB**.
-- Auth: **13 usuarios**.
-- Development branches: **0**.
+### P1
 
-Decisión actual:
-- continuar **Free** durante desarrollo/hardening;
-- revisar DB/Storage/Egress periódicamente;
-- pasar a **Pro antes de Go-Live real**, principalmente por backups, continuidad y margen operativo.
+- QA automatizado crítico;
+- atomicidad de cierres/importaciones;
+- modelo canónico de ventas/touchpoints;
+- Showroom concurrente;
+- `audit_log` grande;
+- geo performance.
 
 ## Reglas críticas permanentes
 
-- No limpiar datos TEST sin plan + validación de dependencias + aprobación.
-- **No ejecutar QA local con escritura contra Supabase productivo.** Para nuevas pruebas usar Supabase Development Branch/staging; hasta crearlo, limitar localhost a validaciones sin escritura.
-- No repetir migraciones por memoria.
-- No modificar/recrear la Jornada Libre histórica de Rendy reparada el 16/09.
-- No otorgar Admin a Gestores para resolver acceso de Reportes.
+- GitHub `main`, Supabase vivo y Cloudflare productivo prevalecen.
+- No modificar directo `main` salvo hotfix explícito.
+- No limpiar datos sin plan + dependencias + aprobación.
+- No recrear una jornada histórica por memoria.
+- Visita adicional pertenece a la MISMA jornada activa.
+- Captación oportunista pertenece a la MISMA jornada activa.
+- Captación Programada será jornada `CAPTACION`.
 - Recepción controla presencia física; Gestor controla resultado comercial.
-- No inferir venta por intención `Realizar compra`.
+- No inferir venta por intención.
 - No introducir GPS continuo/polling masivo por defecto.
-- No hacer cambios RLS/security amplios sin pruebas por rol.
-- No desplegar una feature branch como procedimiento normal.
-- Si un chat nuevo contradice esta documentación, volver a consultar GitHub/Supabase/Cloudflare.
+- No hacer cambios RLS amplios sin pruebas por rol.
+- No desplegar feature branch como procedimiento normal.
+- Si un chat contradice este documento, volver a verificar servicios vivos.
 
-## Próximo paso exacto
+## Próximo paso exacto al retomar
 
-1. Confirmar visualmente en producción que la Jornada Libre de Virmania muestre `TIENDA AMARILLA, SRL` como primera visita y `EL BOMBAZO` como segunda/actual, y que las captaciones QA no aparezcan.
-2. Crear **Supabase Development Branch / staging** antes de continuar con pruebas funcionales de Captación Programada.
-3. Completar QA productivo de Captación Operativa usando únicamente datos válidos o una prueba controlada explícitamente autorizada.
-4. Ejecutar QA productivo pendiente de **0.6.5-beta.16.3.13** en Historial de Llamadas.
-5. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
-6. Diseñar rebuild test.
-7. Iniciar hardening de seguridad por módulos y con pruebas por rol.
-8. Proteger `main` cuando el flujo de CI requerido esté definido.
+Si el usuario YA activó membresía Supabase:
+1. verificar plan y condiciones actuales;
+2. evaluar/crear Development Branch o staging;
+3. validar las migraciones recientes en staging;
+4. configurar QA aislado;
+5. decidir si se reutiliza o se rehace parte del PR #85;
+6. después iniciar Captación Programada.
 
+Si el usuario TODAVÍA NO activó membresía:
+- mantener producción en **0.6.5-beta.16.3.14**;
+- no hacer pruebas locales con escritura;
+- continuar solo con análisis/diseño/documentación hasta decidir staging.
