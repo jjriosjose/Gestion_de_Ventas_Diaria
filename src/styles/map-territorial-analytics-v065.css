@@ -47,4 +47,15 @@
 .map-analytics-footer button{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;border:0;background:transparent;color:#c71f2d;font-size:10px;font-weight:800;cursor:pointer}
 
 @media(max-width:1050px){.map-analytics-panel{width:340px}.map-analytics-trigger{min-width:170px}}
-@media(max-width:760px){.map-analytics-trigger{top:auto;right:12px;bottom:14px;min-width:unset}.map-analytics-panel{top:auto;left:12px;right:12px;bottom:12px;width:auto;max-height:62%;border-radius:18px}.map-analytics-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.map-analytics-tabs{overflow-x:auto;grid-template-columns:repeat(4,minmax(76px,1fr))}.map-analytics-head{padding:14px}.map-analytics-body{padding-inline:12px}}
+@media(max-width:760px){
+.map-analytics-trigger{top:58px;right:10px;bottom:auto;min-width:unset;max-width:calc(100% - 20px);padding:9px 10px}
+.map-analytics-trigger-icon{width:32px;height:32px}.map-analytics-trigger b{font-size:11px}.map-analytics-trigger small{font-size:9px}
+.map-analytics-panel{position:fixed;top:calc(var(--topbar) + 8px);left:10px;right:10px;bottom:82px;width:auto;max-height:none;border-radius:18px;overscroll-behavior:contain}
+.map-analytics-head{padding:12px 13px 10px;flex:0 0 auto}.map-analytics-head .eyebrow{font-size:8px;letter-spacing:.12em;margin-bottom:4px}.map-analytics-head h3{font-size:18px}.map-analytics-head p{font-size:10px;margin-top:4px}.map-analytics-close{width:32px;height:32px}
+.map-analytics-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:9px 10px;flex:0 0 auto}.map-analytics-kpis>div{padding:8px}.map-analytics-kpis span,.map-analytics-kpis small{font-size:8.5px}.map-analytics-kpis b{font-size:15px}
+.map-analytics-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin:0 10px 8px;padding:4px;overflow:visible;flex:0 0 auto}.map-analytics-tabs button{min-width:0;padding:7px 4px;font-size:9px;white-space:normal;line-height:1.15}
+.map-analytics-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 10px 8px;overscroll-behavior:contain}
+.map-analytics-caption{position:sticky;top:0;z-index:2;background:rgba(255,255,255,.98);padding:7px 2px 8px;font-size:8px}
+.map-analytics-footer{flex:0 0 auto;padding:9px 10px 10px}.map-analytics-footer>span{font-size:8px}.map-analytics-footer button{font-size:9px}
+.map-analytics-row{padding:9px 27px 9px 9px}.map-analytics-row-top b{max-width:68%}
+}
