@@ -1,42 +1,46 @@
 # Checklist de publicación — Gestión de Ventas Diaria
 
-Baseline actual: **V0.6.4**.
+Baseline productivo protegido al 25/09/2026: **0.6.5-beta.16.3.14**.
 
-> Este checklist refleja el flujo productivo real usado actualmente. No asumir autodeploy desde `main`: un release solo se considera productivo después de confirmar Wrangler/Cloudflare.
+> Nunca usar este número como única fuente. Antes de cada release verificar `main`, `package.json`, `package-lock.json`, `release/production-baseline.json`, Supabase vivo y Cloudflare.
 
 ---
 
-# 1. Antes de desarrollar
+## 1. Antes de desarrollar
 
-- Confirmar versión productiva actual.
-- Leer `PROJECT_HANDOFF.md`.
-- Leer `docs/REQUIREMENTS_STATUS.md`.
+- Leer `docs/CHAT_CONTINUATION_CURRENT.md`.
 - Verificar `main` real en GitHub.
+- Confirmar versión productiva real.
 - Verificar Supabase si el cambio toca datos, vistas, funciones, RLS, migraciones o autenticación.
-- Crear rama feature desde `main` estable.
+- Crear rama desde `main` estable.
 - No modificar directamente `main` para cambios funcionales.
+- No reutilizar una rama histórica como base de un cambio nuevo.
 
-Si el cambio afecta rutas, visitas, cierre de jornada, Auth o RLS, coordinar una ventana segura y evitar pruebas destructivas con usuarios en operación.
+Si afecta rutas, visitas, Captación, Auth o RLS, coordinar una ventana segura y evitar pruebas destructivas con usuarios operando.
 
 ---
 
-# 2. Validación de desarrollo
+## 2. Validación de desarrollo
 
 Antes del PR:
 
-- ejecutar build;
-- revisar errores TypeScript/Vite;
-- probar localmente el flujo afectado;
-- validar responsive cuando aplique;
-- revisar permisos por perfil;
-- comprobar que no se agregaron secretos;
-- comprobar que no se modificaron datos maestros accidentalmente.
-
-Comando:
-
 ```bash
+npm run release:integrity
 npm run build
 ```
+
+Ambos deben terminar sin error.
+
+El control de integridad protege:
+
+- rutas principales;
+- Captación Operativa;
+- Tracking de Captación;
+- Jornadas;
+- Historial de Llamadas;
+- módulos logísticos;
+- migraciones críticas;
+- ausencia de vistas productivas `*_test`.
 
 Para desarrollo local:
 
@@ -44,113 +48,99 @@ Para desarrollo local:
 npm run dev
 ```
 
-Prueba aislada opcional:
-
-```bash
-npm run dev -- --host 127.0.0.1
-```
-
-V0.6.4 desregistra/limpia el Service Worker productivo en localhost para evitar que una caché vieja intercepte Vite.
-
-El warning actual de chunks >500 kB no bloquea build; el code splitting es deuda técnica no crítica.
+Hasta disponer de staging separado, localhost no debe usarse para QA con escritura contra Supabase productivo. Los guards backend deben bloquearlo.
 
 ---
 
-# 3. Cambios Supabase
+## 3. Cambios Supabase
 
 Si NO hay cambios de base de datos, omitir esta sección.
 
 Si hay DDL/migración:
 
 1. inspeccionar objetos reales de Supabase;
-2. revisar columnas, constraints, triggers, funciones, vistas y RLS afectadas;
+2. revisar columnas, constraints, triggers, funciones, vistas y RLS;
 3. revisar `supabase_migrations.schema_migrations`;
 4. comparar con archivos GitHub;
-5. crear solo una migración incremental;
-6. validar compatibilidad con producción vigente;
+5. crear solo migración incremental;
+6. validar compatibilidad;
 7. aplicar de forma controlada;
 8. comprobar grants y `security_invoker/security_definer`;
-9. comprobar que no se rompió RLS;
-10. documentar el resultado.
+9. comprobar RLS/Storage;
+10. documentar resultado.
 
-**Nunca hacer replay ciego, recreación destructiva o `db push` masivo solo porque los nombres de archivo no coincidan exactamente con el ledger.**
+Nunca hacer replay ciego, recreación destructiva o `db push` masivo por discrepancias de nombres.
+
+Toda tabla pública nueva debe revisar también la protección QA correspondiente.
 
 ---
 
-# 4. Pull Request
+## 4. Pull Request
 
 El PR debe indicar:
 
 - objetivo;
 - módulos afectados;
-- si cambia Supabase;
-- si cambia RLS/Auth;
-- migraciones aplicadas;
+- cambios Supabase;
+- cambios RLS/Auth;
+- migraciones;
 - riesgos;
-- pruebas realizadas;
+- pruebas;
 - qué debe validar el usuario;
-- si requiere cerrar/actualizar la app durante el release.
+- si requiere ventana operativa.
 
 Antes de merge:
 
 - CI/build SUCCESS;
-- validación local;
-- validación funcional del usuario cuando corresponda;
-- no dejar archivos temporales, datos sensibles ni artefactos innecesarios.
+- `release:integrity` SUCCESS;
+- QA funcional cuando corresponda;
+- sin secretos ni artefactos temporales;
+- confirmar que la rama está basada en `main` actual.
 
 ---
 
-# 5. Merge y sincronización local
+## 5. Merge y sincronización local
 
-Después de aprobar el PR:
+Después de aprobar:
 
 1. merge a `main`;
 2. GitHub Desktop → cambiar a `main`;
 3. `Fetch origin`;
-4. usar `Pull origin` si aparece;
-5. confirmar `0 changed files` antes del build productivo.
+4. `Pull origin` si aparece;
+5. confirmar working tree limpio.
 
-Entorno Windows observado:
+Equipo Windows observado:
 
 `C:\Users\KARAKA-PC\Documents\GitHub\Gestion_de_Ventas_Diaria`
 
-En ese equipo `git` no está disponible en PATH desde CMD; usar GitHub Desktop para ramas/fetch/pull. `npm`/Wrangler sí forman parte del flujo operativo observado.
-
-Existe un stash histórico relacionado con `package-lock.json`; no restaurarlo/eliminarlo/commitearlo incidentalmente durante un release.
+No restaurar stashes históricos incidentalmente durante un release.
 
 ---
 
-# 6. Build productivo
+## 6. Deploy productivo
 
-En CMD abierto en la carpeta correcta:
-
-```bash
-npm run build
-```
-
-Debe terminar con `built in ...` sin error.
-
-Comprobar que el encabezado de npm muestre la versión esperada, por ejemplo:
-
-```text
-> gestion-de-ventas-diaria@0.6.4 build
-```
-
-No continuar con deploy si el build falla.
-
----
-
-# 7. Deploy Cloudflare
-
-Después del build exitoso:
+Ejecutar únicamente:
 
 ```bash
 npm run deploy
 ```
 
-Wrangler usa el `dist/wrangler.json` generado por el build cuando corresponde.
+El `predeploy` ejecuta el Production Deploy Guard.
 
-Confirmar en la salida:
+Debe validar automáticamente:
+
+- rama = `main`;
+- working tree limpio;
+- fetch de `origin/main` exitoso;
+- HEAD local = `origin/main`;
+- historial contiene el baseline protegido;
+- versión no `test`;
+- package/lock sincronizados;
+- integridad anti-regresión.
+
+Si aparece `DEPLOY BLOQUEADO`, no usar `wrangler deploy` para saltar el control. Resolver primero la causa.
+
+Confirmar después:
 
 - assets cargados;
 - `Uploaded gestion-de-ventas-diaria`;
@@ -158,105 +148,93 @@ Confirmar en la salida:
 - URL productiva;
 - **Current Version ID**.
 
-URL actual:
+URL:
 
 `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
-Último Version ID V0.6.4 confirmado antes de este bloque documental:
+Baseline confirmado previo a nuevos releases:
 
-`9ec25487-eee2-432e-8d13-1c0b09c52028`
-
-No considerar un release desplegado solo por hacer merge en GitHub.
+- versión: **0.6.5-beta.16.3.14**
+- Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
 
 ---
 
-# 8. Smoke test de producción
+## 7. Smoke test de producción
 
 Después del deploy:
 
 - abrir URL productiva;
-- usar `Ctrl + F5` o reabrir si cambió frontend/PWA;
+- `Ctrl + F5`;
 - comprobar versión visible;
 - login;
 - Inicio;
 - módulo modificado;
-- permisos del rol relevante;
-- PDF/Excel si fueron afectados;
+- permisos;
+- exportaciones si aplican;
 - responsive si aplica.
 
-No ejecutar pruebas destructivas en producción innecesariamente.
-
-Para cambios de rutas/visitas validar especialmente:
+Para cambios operativos validar además:
 
 - no hay visita duplicada;
-- ruta correcta para la fecha;
-- cierre no permite visita/eventualidad activa;
-- pendientes mantienen semántica correcta;
+- ruta correcta;
+- no se cierra con actividad incompatible abierta;
+- Captación no infla traslado;
 - `ended_at` congela la jornada;
 - cobertura real no se confunde con cierre operativo.
 
+No ejecutar pruebas destructivas innecesarias.
+
 ---
 
-# 9. Cuándo pedir a usuarios cerrar o actualizar
+## 8. Cuándo pedir actualización a usuarios
 
-## Cambio visual/frontend normal
-
+### Cambio visual/frontend normal
 - usuarios pueden seguir trabajando;
-- después del deploy actualizar página o reabrir app;
-- normalmente no requiere logout.
+- al terminar el deploy, actualizar/reabrir.
 
-## Auth/RLS/base/reglas críticas
-
+### Auth/RLS/base/reglas críticas
 - coordinar ventana breve;
-- evitar operaciones críticas durante cambio;
+- evitar operaciones críticas durante el cambio;
 - puede requerir logout/login.
 
-## Rutas/visitas activas
-
-Evitar deploy profundo de lógica operativa mientras existan visitas/rutas críticas activas, salvo que el cambio esté confirmado como compatible.
-
-Antes de cada release comunicar claramente uno de estos mensajes:
-
-- `Pueden seguir trabajando; solo actualicen la página al terminar el deploy.`
-- `Eviten iniciar nuevas operaciones durante la actualización.`
-- `Cierren sesión/app temporalmente antes del cambio.`
+### Rutas/visitas/captaciones activas
+Evitar cambios profundos mientras existan operaciones críticas abiertas salvo compatibilidad confirmada.
 
 ---
 
-# 10. Documentación de cierre del release
+## 9. Cierre del release
 
 Después de un release productivo:
 
-- actualizar `PROJECT_HANDOFF.md`;
-- actualizar `docs/REQUIREMENTS_STATUS.md`;
+- actualizar `docs/CHAT_CONTINUATION_CURRENT.md`;
+- actualizar checkpoint fechado;
+- actualizar `PROJECT_HANDOFF.md` cuando corresponda;
 - actualizar `CHANGELOG.md`;
-- actualizar `docs/IMPLEMENTATION_STATUS.md` si cambió estado funcional;
-- registrar versión y Cloudflare Version ID;
-- registrar migraciones nuevas;
-- registrar bugs conocidos/regresión útil;
-- mover requerimientos completados desde Pendiente → Terminado.
+- registrar versión + Current Version ID;
+- registrar migraciones;
+- registrar bugs/regresiones conocidas;
+- actualizar `release/production-baseline.json` cuando el nuevo release quede validado como baseline estable.
 
-No es necesario actualizar el handoff por cada clic o microcambio; sí al cerrar releases y cambios importantes de arquitectura/reglas.
+No actualizar el baseline protegido antes de QA productivo exitoso.
 
 ---
 
-# 11. Seguridad y secretos
+## 10. Seguridad
 
-Nunca incluir en commits/documentación:
+Nunca incluir:
 
-- contraseñas de usuarios;
+- contraseñas;
 - tokens;
 - service role;
 - claves privadas;
-- secrets de Cloudflare/Supabase;
-- archivos maestros con datos de clientes;
+- secretos Cloudflare/Supabase;
+- archivos maestros de clientes;
 - `.env` privados.
 
-La clave pública/publishable del frontend debe estar protegida por RLS y nunca sustituye controles backend.
+Pendientes P0 de seguridad:
 
-Pendientes técnicos de seguridad a mantener visibles:
-
-- auditoría `access_profile/permission_overrides` vs `app_role/RLS`;
-- CORS restrictivo de Edge Functions al dominio productivo;
-- revisión Storage/SECURITY DEFINER;
-- protección formal de `main`.
+- staging/Development Branch;
+- reconciliación migrations ↔ Supabase;
+- RLS/Storage hardening;
+- branch protection de `main`;
+- rebuild/disaster recovery.
