@@ -16,7 +16,9 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - Se eliminó antes del merge el código experimental de `Calls.tsx` porque la ruta activa usa `CallsV2`.
 - Sin migraciones Supabase, RLS ni Edge Functions.
 - PR #79; Build validation #1132 SUCCESS; QA local aprobado el 24/09/2026.
-- Estado: **mergeado en main** mediante `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`; deploy Cloudflare y QA productivo pendientes.
+- Estado: **PRODUCTIVO** en Cloudflare desde el 24/09/2026.
+- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`.
+- QA productivo: pendiente.
 
 ## 0.6.5-beta.16.3.12 — Edición administrativa de planificaciones
 

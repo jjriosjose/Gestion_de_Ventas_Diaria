@@ -31,9 +31,10 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- versión desplegada: **0.6.5-beta.16.3.12**
-- Current Version ID: `7f68230c-8e26-444d-acb5-b9cdd5aaccc6`
-- deploy manual confirmado por el usuario el 21/09/2026 con Wrangler 4.125.0.
+- versión desplegada: **0.6.5-beta.16.3.13**
+- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`
+- deploy manual confirmado por el usuario el 24/09/2026 mediante `npm run deploy`.
+- el intento posterior de ejecutar `wrangler deploy` directamente en CMD falló por no estar Wrangler instalado globalmente; no afecta el deploy previo ya completado correctamente.
 
 Supabase:
 - proyecto: `Gestion de Ventas Diaria`
@@ -45,7 +46,7 @@ Supabase:
 Todos los datos operativos actuales siguen siendo **TEST** hasta declaración explícita del usuario de Go-Live.
 
 
-## Beta.16.3.13 — Historial detallado de llamadas — MERGEADO / DEPLOY CLOUDFLARE PENDIENTE
+## Beta.16.3.13 — Historial detallado de llamadas — PRODUCTIVO / QA PRODUCTIVO PENDIENTE
 
 Objetivo: permitir revisar en detalle las gestiones telefónicas por cliente y por Gestor, manteniendo contexto acumulado dentro del período filtrado.
 
@@ -64,8 +65,10 @@ Estado:
 - merge: `c5c6f64ac51cc9bac571af258a83d936cd0ab81d`;
 - Build validation #1132: **SUCCESS**;
 - QA local: **APROBADO**;
-- Cloudflare productivo continúa en **0.6.5-beta.16.3.12** hasta ejecutar `npm run deploy` desde `main` actualizado;
-- QA productivo 16.3.13: pendiente después del deploy.
+- Cloudflare productivo: **0.6.5-beta.16.3.13**;
+- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`;
+- deploy: **OK** el 24/09/2026;
+- QA productivo 16.3.13: pendiente.
 
 ## Beta.16.3.10 — Admin elimina tareas de Captación — PRODUCTIVO / QA PENDIENTE
 
@@ -139,6 +142,14 @@ Frontend:
 - QA funcional productivo: pendiente.
 
 ## Validaciones productivas recientes
+
+### 16.3.13
+- deploy Cloudflare: **OK**.
+- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`.
+- Historial detallado de llamadas: **QA productivo pendiente**.
+- Resumen general de período: **QA productivo pendiente**.
+- Resumen acumulado por cliente: **QA productivo pendiente**.
+- Visitas reales Showroom desde `showroom_sessions.started_at`: **QA productivo pendiente**.
 
 ### 16.3.12
 - deploy Cloudflare: **OK**.
@@ -219,10 +230,9 @@ Decisión actual:
 
 ## Próximo paso exacto
 
-1. Desplegar **0.6.5-beta.16.3.13** a Cloudflare desde `main` con `npm run deploy` y registrar el Current Version ID.
-2. Ejecutar QA productivo de Historial de Llamadas: detalle, filtros, resumen de período y resumen por cliente.
-3. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
-4. Diseñar staging/rebuild test.
-5. Iniciar hardening de seguridad por módulos y con pruebas por rol.
-6. Proteger `main` cuando el flujo de CI requerido esté definido.
+1. Ejecutar QA productivo de **0.6.5-beta.16.3.13** en Historial de Llamadas: detalle, filtros, resumen de período y resumen por cliente.
+2. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
+3. Diseñar staging/rebuild test.
+4. Iniciar hardening de seguridad por módulos y con pruebas por rol.
+5. Proteger `main` cuando el flujo de CI requerido esté definido.
 
