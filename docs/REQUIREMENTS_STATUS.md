@@ -1,5 +1,7 @@
 # Estado de requerimientos — Gestión de Ventas Diaria
 
+> **AVISO DE CONTINUIDAD — 25/09/2026:** esta matriz contiene requerimientos históricos y decisiones V0.6.5 tempranas. **No asumir que sus pendientes siguen pendientes ni que su baseline sigue vigente.** Verificar primero `docs/CHAT_CONTINUATION_CURRENT.md` y `docs/CHAT_CONTINUATION_2026-09-25.md`. Producción actual: **0.6.5-beta.16.3.14**.
+
 > Matriz viva para responder rápidamente **qué está terminado, qué está parcial y qué sigue pendiente**. Complementa `PROJECT_HANDOFF.md`; no lo sustituye.
 >
 > Última auditoría documental: **2026-08-25**. Baseline de aplicación auditado/productivo: **V0.6.4**.
