@@ -37,6 +37,8 @@ La fuente ejecutable del baseline está en:
 - PR #89: MERGED.
 - Build validation #1251: SUCCESS.
 - validación visual previa: PC y teléfono aprobada.
+- QA productivo posterior al deploy: **APROBADO** en PC y teléfono.
+- Login, Rutas, Mapa/Análisis territorial y demás módulos revisados sin fallas visibles.
 - deploy productivo confirmado el 25/09/2026.
 - Current Version ID: `d221fada-8015-4840-b01a-5c2ec4d88880`.
 - Supabase: sin cambios.
