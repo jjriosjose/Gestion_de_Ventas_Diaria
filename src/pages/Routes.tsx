@@ -1,5 +1,5 @@
 import { useEffect,useMemo,useRef,useState } from 'react'
-import { AlertTriangle,Ban,Camera,CheckCircle2,MapPin,Navigation,Play,Plus,RefreshCw,Route as RouteIcon,Square,Trash2,Upload,X } from 'lucide-react'
+import { AlertTriangle,Ban,Camera,CheckCircle2,MapPin,Navigation,Play,Plus,RefreshCw,Route as RouteIcon,Square,Target,Trash2,Upload,X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { currentPosition,googleMapsNavigation } from '../lib/geo'
