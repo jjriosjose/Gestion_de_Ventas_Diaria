@@ -14,7 +14,8 @@
 3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
 4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
 5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
-6. Módulo específico que se vaya a modificar.
+6. `docs/PRODUCTION_BASELINE.md`
+7. Módulo específico que se vaya a modificar.
 
 Prompt recomendado:
 `docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_14.md`
@@ -46,6 +47,9 @@ Nunca asumir que una funcionalidad, PR o migración existe solo porque fue menci
 - Captación Programada operacional: **PENDIENTE**
 - PR #85 QA Isolation frontend/local staging: **PAUSADO / CLOSED / NO MERGED**
 - guards QA backend y Storage: **YA VIVOS EN SUPABASE PRODUCTIVO**
+- release hardening PR #87: **MERGED**
+- Production Deploy Guard: **ACTIVO EN MAIN**
+- baseline ejecutable: `release/production-baseline.json`
 
 ## Incidente de datos importante
 
@@ -77,8 +81,10 @@ Hasta tener staging:
 - no desactivarlos para facilitar pruebas.
 
 Deploy Cloudflare:
-- manual;
+- manual con `npm run deploy`;
 - desde `main`;
+- protegido por `release:guard`;
+- no saltar el guard con `wrangler deploy`;
 - merge no equivale a deploy.
 
 ## Bloqueadores antes de Go-Live

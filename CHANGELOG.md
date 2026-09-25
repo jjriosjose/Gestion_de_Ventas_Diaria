@@ -6,6 +6,18 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 
 ---
 
+## Nota operacional — 25/09/2026 — Release hardening anti-regresión
+
+- PR #87 **MERGED**; merge `3e9b60239f84fdb8429135421eee48d0ea9bf2b1`.
+- Build validation #1214: **SUCCESS**.
+- No cambia versión de aplicación ni requiere deploy por sí solo.
+- Baseline protegido: **0.6.5-beta.16.3.14** / Cloudflare `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`.
+- Nuevo `release/production-baseline.json`.
+- CI ejecuta `npm run release:integrity` y falla si desaparecen capacidades/migraciones protegidas o aparecen referencias productivas `*_test`.
+- `npm run deploy` ejecuta `release:guard` y bloquea rama distinta de `main`, working tree sucio, `main` desalineado con `origin/main`, historial sin baseline, versión TEST o package/lock desincronizados.
+- `docs/CLOUDFLARE_DEPLOY.md` y `docs/DEPLOYMENT_CHECKLIST.md` fueron actualizados desde referencias antiguas 16.3.9/V0.6.4.
+- Regla: no usar `wrangler deploy` para saltar la protección.
+
 ## Nota operacional — 25/09/2026 — Aislamiento QA backend
 
 - Supabase productivo recibió las protecciones `20260925160308_qa_data_isolation_production_write_guard` y `20260925160509_qa_data_isolation_storage_guard`.
@@ -33,7 +45,7 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - Estado: **PRODUCTIVO** en Cloudflare desde el 25/09/2026; Current Version ID `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`.
 - Las captaciones/prospectos QA del 25/09 fueron retirados mediante `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`.
 - Esa limpieza eliminó también por error una visita real de Virmania a `TIENDA AMARILLA, SRL`; fue reconstruida inmediatamente desde `audit_log` mediante `20260925154251_repair_virmania_real_visit_after_qa_cleanup_20260925`.
-- Estado final validado: `TIENDA AMARILLA, SRL` 10:35–11:09 como primera visita; `EL BOMBAZO` 11:34 como segunda visita actualmente abierta; 0 captaciones QA restauradas.
+- Estado final validado tras la reparación: `TIENDA AMARILLA, SRL` 10:35–11:09 como primera visita; `EL BOMBAZO` como segunda visita y posteriormente finalizada; la secuencia continuó con `ALMACENES EL ENCANTO (STGO)`. No asumir el estado actual sin consultar Supabase; 0 captaciones QA restauradas.
 - El GPS original de TIENDA AMARILLA fue restaurado; el evento de calidad geográfica se recreó como `PENDIENTE` sin inventar campos detectados no auditados.
 - Captación Programada completa queda fuera de alcance y será la siguiente fase.
 - Regla añadida: próximas pruebas funcionales con escritura deben ejecutarse contra Supabase Development Branch/staging, no contra producción.
