@@ -3,7 +3,7 @@ export type TrackingGeoClass='ON_SITE'|'NEAR'|'OUTSIDE'|'DISTANT'|'UNRELIABLE'|'
 
 export const TRACKING_ROUTE_COLORS=['#2563eb','#159a66','#ea580c','#7c3aed','#0891b2','#c026d3','#a16207','#475569'] as const
 
-export const ACTIVE_TRACKING_STATUSES=['EN_VISITA','EN_TRASLADO','EVENTUALIDAD','PENDIENTE_CIERRE']
+export const ACTIVE_TRACKING_STATUSES=['EN_VISITA','EN_CAPTACION','EN_TRASLADO','EVENTUALIDAD','PENDIENTE_CIERRE']
 
 export function routeColorFor(employeeId:string,employeeIds:string[]){
   const ids=Array.from(new Set(employeeIds)).sort()
