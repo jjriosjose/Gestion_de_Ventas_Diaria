@@ -73,6 +73,11 @@ La UI productiva 16.3.13 sigue consultando las vistas anteriores.
 - merge a `main`;
 - deploy Cloudflare.
 
+## Ajuste UX test.2
+- al pulsar **Llegué / iniciar captación**, se registra GPS/hora y el modal se cierra;
+- la jornada vuelve a Rutas mostrando la captación ACTIVA;
+- el formulario completo de resultado, contacto, fotos y observaciones se abre únicamente al pulsar **Finalizar captación**.
+
 ## QA mínimo
 1. Abrir rama `feature/capture-operational-v2-test`.
 2. Iniciar una Ruta Planificada o Jornada Libre de prueba.
