@@ -28,14 +28,15 @@ Repositorio: `jjriosjose/Gestion_de_Ventas_Diaria`
 - PR #82: **MERGED**
 - Build validation #1188: **SUCCESS**.
 - QA local 16.3.14: **APROBADO por el usuario el 25/09/2026**.
-- Cloudflare todavía ejecuta **0.6.5-beta.16.3.13** hasta el deploy manual.
+- Cloudflare productivo: **0.6.5-beta.16.3.14**.
+- deploy manual confirmado por el usuario el 25/09/2026.
 
 Cloudflare:
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
-- versión desplegada: **0.6.5-beta.16.3.13**
-- Current Version ID: `c44788d9-b66b-49b2-984b-219f7bee9e83`
-- deploy manual confirmado por el usuario el 24/09/2026 mediante `npm run deploy`.
-- el intento posterior de ejecutar `wrangler deploy` directamente en CMD falló por no estar Wrangler instalado globalmente; no afecta el deploy previo ya completado correctamente.
+- versión desplegada: **0.6.5-beta.16.3.14**
+- Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`
+- deploy manual confirmado por el usuario el 25/09/2026 mediante `npm run deploy`.
+- `Fetch origin` no mostró `Pull origin` porque la copia local ya estaba alineada con `origin/main`; el deploy sí tomó 16.3.14, confirmado por la funcionalidad Captación visible en producción.
 
 Supabase:
 - proyecto: `Gestion de Ventas Diaria`
@@ -48,7 +49,7 @@ Todos los datos operativos actuales siguen siendo **TEST** hasta declaración ex
 
 
 
-## Beta.16.3.14 — Captación Operativa dentro de Rutas — MERGEADO / DEPLOY CLOUDFLARE PENDIENTE
+## Beta.16.3.14 — Captación Operativa dentro de Rutas — PRODUCTIVO / QA PRODUCTIVO EN CURSO
 
 Objetivo: permitir captación oportunista dentro de una Ruta Planificada o Jornada Libre sin crear una jornada paralela y con seguimiento completo en Tracking/Jornadas.
 
@@ -77,7 +78,8 @@ Hardening:
 Backend:
 - migración `20260925024317_capture_operational_v2_test_foundation`: aplicada;
 - migración `20260925145033_capture_operational_v2_production_hardening`: aplicada;
-- Supabase conserva los datos TEST; no hubo limpieza destructiva.
+- migración `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`: aplicada para retirar exclusivamente la jornada QA de Virmania del 25/09 y sus dependencias TEST.
+- verificación posterior: 0 jornada QA, 0 captaciones QA, 0 prospectos QA y 0 visita QA; el cliente real `TIENDA AMARILLA, SRL` no fue eliminado.
 
 Estado:
 - versión **0.6.5-beta.16.3.14**;
@@ -86,9 +88,11 @@ Estado:
 - Build validation #1188: **SUCCESS**;
 - QA local: **APROBADO**;
 - captaciones abiertas al cierre del QA: **0**;
-- Cloudflare productivo: **0.6.5-beta.16.3.13**;
-- deploy 16.3.14: **PENDIENTE**;
-- QA productivo 16.3.14: pendiente después del deploy.
+- Cloudflare productivo: **0.6.5-beta.16.3.14**;
+- Current Version ID: `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`;
+- deploy 16.3.14: **OK**;
+- QA productivo 16.3.14: **EN CURSO**;
+- datos generados durante QA local: **LIMPIADOS DE PRODUCCIÓN**.
 
 Fuera de alcance actual:
 - ejecución completa de **Captación Programada** como jornada `CAPTACION`; será la siguiente fase.
@@ -237,7 +241,7 @@ Deploy Cloudflare confirmado actualmente es manual con `npm run deploy`; merge a
 ## P0/P1 abiertos
 
 1. **Reproducibilidad Supabase**: migraciones remotas vs archivos GitHub no están reconciliadas uno-a-uno. Antes de disaster recovery/Go-Live se requiere schema diff y rebuild test.
-2. **Staging**: no existe Supabase branch/staging separado. Local puede consumir producción.
+2. **Staging P0**: no existe Supabase branch/staging separado. El QA local de 16.3.14 escribió datos TEST en producción y fue necesario limpiarlos con la migración `20260925152837`. **No realizar nuevas pruebas funcionales con escritura desde localhost contra Supabase productivo.** Crear Supabase Development Branch antes de la próxima fase de Captación Programada.
 3. **Security/RLS**: SELECT demasiado amplio en varias tablas; Storage de fotos/evidencias necesita scoping por rol/propiedad.
 4. **SECURITY DEFINER**: Supabase Advisor mantiene hallazgos en vistas/RPC.
 5. **QA automatizado**: insuficiente.
@@ -264,7 +268,8 @@ Decisión actual:
 
 ## Reglas críticas permanentes
 
-- No limpiar datos TEST sin plan + backup + aprobación.
+- No limpiar datos TEST sin plan + validación de dependencias + aprobación.
+- **No ejecutar QA local con escritura contra Supabase productivo.** Para nuevas pruebas usar Supabase Development Branch/staging; hasta crearlo, limitar localhost a validaciones sin escritura.
 - No repetir migraciones por memoria.
 - No modificar/recrear la Jornada Libre histórica de Rendy reparada el 16/09.
 - No otorgar Admin a Gestores para resolver acceso de Reportes.
@@ -277,11 +282,12 @@ Decisión actual:
 
 ## Próximo paso exacto
 
-1. Desplegar **0.6.5-beta.16.3.14** a Cloudflare desde `main` usando `npm run deploy` y registrar el Current Version ID.
-2. Ejecutar QA productivo de Captación Operativa en Rutas, Tracking y Jornadas.
-3. Ejecutar QA productivo pendiente de **0.6.5-beta.16.3.13** en Historial de Llamadas.
-4. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
-5. Diseñar staging/rebuild test.
-6. Iniciar hardening de seguridad por módulos y con pruebas por rol.
-7. Proteger `main` cuando el flujo de CI requerido esté definido.
+1. Confirmar visualmente que la jornada/captaciones/prospectos QA del 25/09 ya no aparecen tras refrescar producción.
+2. Crear **Supabase Development Branch / staging** antes de continuar con pruebas funcionales de Captación Programada.
+3. Completar QA productivo de Captación Operativa usando únicamente datos válidos o una prueba controlada explícitamente autorizada.
+4. Ejecutar QA productivo pendiente de **0.6.5-beta.16.3.13** en Historial de Llamadas.
+5. Ejecutar la fase de reconciliación de migraciones descrita en `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md` **sin modificar producción**.
+6. Diseñar rebuild test.
+7. Iniciar hardening de seguridad por módulos y con pruebas por rol.
+8. Proteger `main` cuando el flujo de CI requerido esté definido.
 
