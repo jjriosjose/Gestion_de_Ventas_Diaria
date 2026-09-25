@@ -16,9 +16,9 @@ const time=(value?:string|null)=>value?new Date(value).toLocaleTimeString('es-DO
 const age=(minutes?:number|null)=>minutes==null?'Sin registro':minutes<1?'Ahora':minutes<60?`Hace ${minutes} min`:`Hace ${Math.floor(minutes/60)} h ${minutes%60} min`
 const pct=(n:number,d:number)=>d?Math.round(n/d*1000)/10:0
 const uniq=(values:Array<string|null|undefined>)=>Array.from(new Set(values.filter(Boolean) as string[])).sort((a,b)=>a.localeCompare(b,'es'))
-const statusLabel=(s:string)=>({EN_VISITA:'En visita',EN_TRASLADO:'En traslado',EVENTUALIDAD:'Eventualidad',PENDIENTE_CIERRE:'Pendiente cierre',PLANIFICADA:'Planificada',FINALIZADA:'Finalizada',NO_EJECUTADA:'No ejecutada'} as Record<string,string>)[s]||s.replaceAll('_',' ')
+const statusLabel=(s:string)=>({EN_VISITA:'En visita',EN_CAPTACION:'En captación',EN_TRASLADO:'En traslado',EVENTUALIDAD:'Eventualidad',PENDIENTE_CIERRE:'Pendiente cierre',PLANIFICADA:'Planificada',FINALIZADA:'Finalizada',NO_EJECUTADA:'No ejecutada'} as Record<string,string>)[s]||s.replaceAll('_',' ')
 const statusClass=(s:string)=>s.toLowerCase().replaceAll('_','-')
-const eventTypeLabel=(s:string)=>({ROUTE_START:'Inicio ruta',VISIT_START:'Llegada cliente',VISIT_END:'Salida cliente',INCIDENT_START:'Inicio eventualidad',INCIDENT_END:'Fin eventualidad',ROUTE_END:'Cierre ruta'} as Record<string,string>)[s]||s.replaceAll('_',' ')
+const eventTypeLabel=(s:string)=>({ROUTE_START:'Inicio ruta',VISIT_START:'Llegada cliente',VISIT_END:'Salida cliente',CAPTURE_START:'Inicio captación',CAPTURE_END:'Fin captación',INCIDENT_START:'Inicio eventualidad',INCIDENT_END:'Fin eventualidad',ROUTE_END:'Cierre ruta'} as Record<string,string>)[s]||s.replaceAll('_',' ')
 const eventKindClass=(s:string)=>s.toLowerCase()
 const eventSort=(a:TrackingEvent,b:TrackingEvent)=>new Date(a.event_at).getTime()-new Date(b.event_at).getTime()
 const prettyDate=(value:string)=>new Date(`${value}T12:00:00`).toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'})
@@ -50,13 +50,28 @@ export function Tracking(){
    const[a,b,c]=await Promise.all([
     supabase.from('executive_tracking_snapshot_v2').select('*').eq('route_date',requestDate).order('full_name'),
     supabase.from('executive_tracking_stops_v1').select('*').eq('route_date',requestDate).order('employee_id').order('stop_order'),
-    supabase.from('executive_tracking_events_v1').select('*').eq('route_date',requestDate).order('event_at',{ascending:true})
+    supabase.from('executive_tracking_events_v2_test').select('*').eq('route_date',requestDate).order('event_at',{ascending:true})
    ])
    if(requestId!==loadSequence.current)return
    const err=a.error||b.error||c.error
    if(err){setError(err.message);return}
-   const snapshotRows=(a.data||[]) as TrackingSnapshotV2[]
-   setSnapshots(snapshotRows);setStops((b.data||[]) as TrackingStop[]);setEvents(((c.data||[]) as TrackingEvent[]).sort(eventSort));setLastRefresh(new Date())
+   const eventRows=((c.data||[]) as TrackingEvent[]).sort(eventSort)
+   const snapshotRows=((a.data||[]) as TrackingSnapshotV2[]).map(snapshot=>{
+    const latest=[...eventRows].reverse().find(event=>event.route_plan_id===snapshot.route_plan_id)
+    if(!latest)return snapshot
+    const latestTime=new Date(latest.event_at).getTime(),snapshotTime=snapshot.last_event_at?new Date(snapshot.last_event_at).getTime():-1
+    if(latestTime<snapshotTime)return snapshot
+    const captureActive=latest.event_type==='CAPTURE_START'
+    const captureEnded=latest.event_type==='CAPTURE_END'
+    return{...snapshot,
+      tracking_status:captureActive?'EN_CAPTACION':captureEnded&&snapshot.tracking_status==='EN_TRASLADO'?'EN_TRASLADO':snapshot.tracking_status,
+      last_event_id:latest.event_id,last_event_type:latest.event_type,last_event_at:latest.event_at,
+      last_latitude:latest.has_gps?latest.latitude:null,last_longitude:latest.has_gps?latest.longitude:null,
+      last_accuracy_m:latest.accuracy_m,last_subject_name:latest.subject_name,last_event_label:latest.event_label,
+      last_gps_quality:latest.gps_quality,last_gps_reliable:latest.has_gps,last_raw_has_gps:latest.raw_has_gps
+    } as TrackingSnapshotV2
+   })
+   setSnapshots(snapshotRows);setStops((b.data||[]) as TrackingStop[]);setEvents(eventRows);setLastRefresh(new Date())
    if(snapshotRows.length===0){
     const previous=await supabase.from('executive_tracking_snapshot_v2').select('route_date').lt('route_date',requestDate).order('route_date',{ascending:false}).limit(1)
     if(requestId!==loadSequence.current)return
