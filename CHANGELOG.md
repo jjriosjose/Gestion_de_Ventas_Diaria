@@ -20,8 +20,10 @@ Historial funcional de **Gestión de Ventas Diaria — Almacenes Karaka**.
 - Vistas productivas finales: `executive_tracking_events_v2` y `executive_route_journeys_v5` (`security_invoker=true`).
 - Migraciones aplicadas: `20260925024317_capture_operational_v2_test_foundation` y `20260925145033_capture_operational_v2_production_hardening`.
 - PR #82; Build validation #1188 SUCCESS; QA local aprobado el 25/09/2026.
-- Estado: **mergeado en main** mediante `43520095e9349314e3974bd0f4dc19d0cb552824`; deploy Cloudflare y QA productivo pendientes.
+- Estado: **PRODUCTIVO** en Cloudflare desde el 25/09/2026; Current Version ID `9f5528db-cf99-4a17-92b3-4ff85d9e9e98`.
+- Los datos de QA local que habían quedado visibles en producción fueron retirados mediante `20260925152837_cleanup_capture_operational_v2_qa_data_20260925`; verificación posterior en 0 registros QA.
 - Captación Programada completa queda fuera de alcance y será la siguiente fase.
+- Regla añadida: próximas pruebas funcionales con escritura deben ejecutarse contra Supabase Development Branch/staging, no contra producción.
 
 ## 0.6.5-beta.16.3.13 — Historial detallado de llamadas y métricas por período
 
