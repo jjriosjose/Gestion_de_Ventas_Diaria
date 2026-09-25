@@ -67,6 +67,7 @@ export function RouteCaptureModal({sessionId,activeInteraction,onClose,onChanged
       if(error)throw error
       setInteraction(data)
       await onChanged(data)
+      onClose()
     }catch(e){alert(e instanceof Error?e.message:'No se pudo iniciar la captación')}
     finally{setBusy(false)}
   }
@@ -138,7 +139,7 @@ export function RouteCaptureModal({sessionId,activeInteraction,onClose,onChanged
     {!interaction?<div className="route-capture-start">
       <div className="capture-v2-info"><MapPin/><div><b>Una sola jornada operativa</b><span>Esta captación quedará asociada a la Ruta Planificada o Jornada Libre actualmente activa y aparecerá como evento independiente en Tracking.</span></div></div>
       <label>Nombre del negocio / referencia *<input autoFocus value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Ej.: Colmado La Esperanza"/></label>
-      <div className="modal-actions"><button className="secondary" disabled={busy} onClick={onClose}>Cancelar</button><button className="primary" disabled={busy||!subject.trim()} onClick={()=>void start()}><Target size={17}/>{busy?'Capturando GPS...':'Registrar llegada e iniciar'}</button></div>
+      <div className="modal-actions"><button className="secondary" disabled={busy} onClick={onClose}>Cancelar</button><button className="primary" disabled={busy||!subject.trim()} onClick={()=>void start()}><Target size={17}/>{busy?'Capturando GPS...':'Llegué / iniciar captación'}</button></div>
     </div>:<>
       <div className="capture-v2-live"><div className="capture-v2-pulse"><i/></div><div><span>CAPTACIÓN ACTIVA</span><b>{interaction.subject_name||subject}</b><small>Inicio {new Date(interaction.started_at).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})} · {duration(interaction.started_at)}</small></div><Clock3/></div>
       <div className="form-grid">
