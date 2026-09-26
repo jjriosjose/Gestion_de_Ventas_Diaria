@@ -2,41 +2,33 @@
 
 Fecha: **26/09/2026 (RD)**
 
-> **ESTADO VIVO MÁS RECIENTE — 0.6.5-beta.16.3.17 PRODUCTIVO**
+> **ESTADO VIVO MÁS RECIENTE — 0.6.5-beta.16.3.18 PRODUCTIVO**
 >
-> Leer a continuación: `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_17.md`
+> Leer a continuación: `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_18.md`
 >
-> Prompt actual: `docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_17.md`
+> Prompt actual: `docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_18.md`
 >
-> Producción validada: **0.6.5-beta.16.3.17**
+> Producción validada: **0.6.5-beta.16.3.18**
 >
-> Versión visible validada: **v0.6.5 · 16.3.17**
+> Versión visible: **v0.6.5 · 16.3.18**
 >
-> Cloudflare Current Version ID: `e8789ba6-3d3a-4c33-9d43-0206b56339a2`
+> Cloudflare Current Version ID: `5c63eaec-d61d-41d0-a903-be90b0501cd0`
 >
-> PR #94 Reportes: **MERGED / PRODUCTIVO / QA APROBADO**
+> PR #97 Navigation System V2: **MERGED / PRODUCTIVO**
 >
-> PR #96 versión visible: **MERGED / PRODUCTIVO / QA APROBADO**
->
-> Baseline ejecutable: `release/production-baseline.json` → **0.6.5-beta.16.3.17**
+> Baseline ejecutable: `release/production-baseline.json` → **0.6.5-beta.16.3.18**
 >
 > Todo cambio futuro debe diseñarse como sistema SaaS vendible a empresas: tenant-neutral, escalable, seguro, auditable y configurable.
->
-> La información 16.3.15 / 16.3.16-test.6 que aparece más abajo queda como historial de continuidad y NO representa el estado productivo actual.
 
 ## Orden de lectura obligatorio
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_17.md`
-3. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md` *(histórico de desarrollo previo)*
-4. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md` *(baseline anterior)*
-5. `docs/TECHNICAL_AUDIT_2026-09-20.md`
-6. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
-7. `docs/SUPABASE_CAPACITY_2026-09-20.md`
-8. Documentos específicos del módulo que se vaya a modificar.
+2. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_18.md`
+3. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_17.md` *(baseline anterior)*
+4. documentos técnicos específicos del módulo a modificar.
 
 Prompt listo para un chat nuevo:
-`docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_17.md`
+`docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_18.md`
 
 `PROJECT_HANDOFF.md` es el índice estable y debe apuntar a este checkpoint.
 
