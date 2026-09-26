@@ -53,3 +53,21 @@
     max-width:165px;
   }
 }
+
+/* Reportes SaaS: detalle temporal adaptativo */
+.beta11-report .period-detail-head{align-items:flex-start}
+.beta11-report .period-detail-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.beta11-report .monthly-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}
+.beta11-report .monthly-detail-card{appearance:none;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);padding:14px;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.beta11-report .monthly-detail-card:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--brand) 40%,var(--border));box-shadow:0 8px 22px rgba(15,23,42,.06)}
+.beta11-report .monthly-detail-card div{min-width:0}
+.beta11-report .monthly-detail-card b{display:block;font-size:13px;text-transform:capitalize}
+.beta11-report .monthly-detail-card span{display:block;margin-top:2px;font-size:10px;color:var(--text-muted)}
+.beta11-report .monthly-detail-card strong{font-size:17px;color:var(--brand);white-space:nowrap;font-variant-numeric:tabular-nums}
+.beta11-report .monthly-detail-card small{grid-column:1/-1;color:var(--text-muted);font-size:10px;line-height:1.45}
+.beta11-report .monthly-detail-card em{grid-column:1/-1;font-style:normal;font-size:9px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.04em}
+@media(max-width:700px){
+  .beta11-report .monthly-detail-grid{grid-template-columns:1fr}
+  .beta11-report .period-detail-actions{width:100%;margin-top:7px}
+  .beta11-report .period-detail-actions button{width:100%;justify-content:center}
+}
