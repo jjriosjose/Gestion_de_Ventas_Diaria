@@ -130,7 +130,37 @@ export function ReportsV2(){
 
  const pendingShowroomByDay=useMemo(()=>{const byDay=new Map<string,number>(),byEmployeeDay=new Map<string,number>();filteredShowroomSessions.filter(row=>row.ended_at&&(row.purchased===true||row.outcome==='COMPRA')&&!(Number(row.purchase_amount)>0)).forEach(row=>{const day=new Date(row.started_at).toLocaleDateString('en-CA',{timeZone:'America/Santo_Domingo'}),employeeId=row.attended_by_employee_id||row.manager_employee_id;byDay.set(day,(byDay.get(day)||0)+1);if(employeeId)byEmployeeDay.set(`${employeeId}|${day}`,(byEmployeeDay.get(`${employeeId}|${day}`)||0)+1)});return{byDay,byEmployeeDay}},[filteredShowroomSessions])
  const pendingVisitsByDay=useMemo(()=>{const byDay=new Map<string,number>(),byEmployeeDay=new Map<string,number>();pendingVisitPurchases.forEach(row=>{const day=new Date(row.started_at).toLocaleDateString('en-CA',{timeZone:'America/Santo_Domingo'});byDay.set(day,(byDay.get(day)||0)+1);byEmployeeDay.set(`${row.employee_id}|${day}`,(byEmployeeDay.get(`${row.employee_id}|${day}`)||0)+1)});return{byDay,byEmployeeDay}},[pendingVisitPurchases])
- const selectedDaily=useMemo(()=>{if(selectedEmployee)return filteredCommercial.filter(r=>r.employee_id===selectedEmployee).map(r=>({...r,purchase_clients:Number(r.purchase_clients_all??r.purchase_clients??0),sales_amount:Number(r.sales_amount_all??r.sales_amount??0),pending_showroom_amounts:pendingShowroomByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0,pending_street_amounts:pendingVisitsByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0,pending_amounts:(pendingShowroomByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0)+(pendingVisitsByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0))).sort((a,b)=>a.day.localeCompare(b.day));return[...commercialByDay.values()].map(r=>({employee_id:'ALL',day:r.day,full_name:'Todos los colaboradores',employee_type:'General',purchase_clients:r.Compras,sales_amount:r.Ventas,prospects_captured:r.Prospectos,calls:r.LlamadasGestion,call_purchase_clients:r.ComprasLlamadas,pending_showroom_amounts:pendingShowroomByDay.byDay.get(r.day)||0,pending_street_amounts:pendingVisitsByDay.byDay.get(r.day)||0,pending_amounts:(pendingShowroomByDay.byDay.get(r.day)||0)+(pendingVisitsByDay.byDay.get(r.day)||0))).sort((a,b)=>a.day.localeCompare(b.day))},[filteredCommercial,selectedEmployee,commercialByDay,pendingShowroomByDay,pendingVisitsByDay])
+ const selectedDaily=useMemo(()=>{
+  if(selectedEmployee){
+   return filteredCommercial
+    .filter(r=>r.employee_id===selectedEmployee)
+    .map(r=>({
+     ...r,
+     purchase_clients:Number(r.purchase_clients_all??r.purchase_clients??0),
+     sales_amount:Number(r.sales_amount_all??r.sales_amount??0),
+     pending_showroom_amounts:pendingShowroomByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0,
+     pending_street_amounts:pendingVisitsByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0,
+     pending_amounts:(pendingShowroomByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0)+(pendingVisitsByDay.byEmployeeDay.get(`${r.employee_id}|${r.day}`)||0),
+    }))
+    .sort((a,b)=>a.day.localeCompare(b.day))
+  }
+  return [...commercialByDay.values()]
+   .map(r=>({
+    employee_id:'ALL',
+    day:r.day,
+    full_name:'Todos los colaboradores',
+    employee_type:'General',
+    purchase_clients:r.Compras,
+    sales_amount:r.Ventas,
+    prospects_captured:r.Prospectos,
+    calls:r.LlamadasGestion,
+    call_purchase_clients:r.ComprasLlamadas,
+    pending_showroom_amounts:pendingShowroomByDay.byDay.get(r.day)||0,
+    pending_street_amounts:pendingVisitsByDay.byDay.get(r.day)||0,
+    pending_amounts:(pendingShowroomByDay.byDay.get(r.day)||0)+(pendingVisitsByDay.byDay.get(r.day)||0),
+   }))
+   .sort((a,b)=>a.day.localeCompare(b.day))
+ },[filteredCommercial,selectedEmployee,commercialByDay,pendingShowroomByDay,pendingVisitsByDay])
  const clear=()=>{setEmployeeType('');setEmployeeFilter('');setSelectedEmployee('');setJourneyStatus('');setClientType('');setRegion('');setProvince('');setMunicipality('')}
  const vendorExport=vendorRows.map(r=>({Vendedor:r.full_name,Jornadas:r.journeys,Planificados:r.planned_clients,'Visitados plan':r.visited_clients,'Visitas adicionales':r.additional_visits,'Total visitas':r.total_visits,Captaciones:r.captures,'Actividades comerciales':r.activities,'Cobertura plan %':r.plan_coverage_pct,'Cobertura libre %':r.free_coverage_pct,'Cobertura operativa %':r.coverage_pct,'Cierre op. %':r.resolution_pct,'Tiempo calle':duration(r.street_seconds),'Atención clientes':duration(r.attention_seconds),'Promedio visita':duration(r.avg_visit_seconds),'Traslado/espera':duration(r.transit_seconds),'Distancia GPS':km(r.distance),'Monto pendiente':r.pending_amounts,Compras:r.purchase_clients,Ventas:r.sales_amount}))
  const managerExport=managerRows.map(r=>({Gestor:r.full_name,'Días activos':r.active_days,Llamadas:r.calls,Entrantes:r.inbound,Salientes:r.outbound,Contactados:r.contacted,'Contacto %':r.contact_pct,'Tiempo llamadas':duration(r.call_seconds),'Promedio llamada':duration(r.avg_call_seconds),Citas:r.appointments,Confirmadas:r.confirmed,'Showroom atendidos':r.showroom,'Tiempo showroom':duration(r.showroom_seconds),Seguimientos:r.followups,'Compras llamada':r.call_purchase_clients,'Compras showroom':r.showroom_purchase_clients,'Monto showroom pendiente':r.pending_showroom_amounts,'Ventas showroom':r.showroom_sales_amount,'Compras total':r.purchase_clients,Ventas:r.sales_amount}))
