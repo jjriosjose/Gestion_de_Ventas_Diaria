@@ -1,4 +1,4 @@
-import { useMemo,useState } from 'react'
+import { useMemo,useState,type CSSProperties } from 'react'
 import {
   Accessibility,BadgeInfo,Building2,Check,KeyRound,Monitor,Palette,RotateCcw,Save,ShieldCheck,Smartphone,Sun,Moon,UploadCloud
 } from 'lucide-react'
@@ -106,7 +106,7 @@ export function Settings(){
     '--preview-primary':isHex(branding.primary)?branding.primary:'#c71f2d',
     '--preview-secondary':isHex(branding.secondary)?branding.secondary:'#9f1723',
     '--preview-accent':isHex(branding.accent)?branding.accent:'#1f3a5f',
-  }) as React.CSSProperties,[branding.primary,branding.secondary,branding.accent])
+  }) as CSSProperties,[branding.primary,branding.secondary,branding.accent])
 
   return <div className="page-stack settings-v2-page">
     <div className="page-head settings-v2-head">
