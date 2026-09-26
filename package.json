@@ -1,7 +1,7 @@
 {
   "name": "gestion-de-ventas-diaria",
   "private": true,
-  "version": "0.6.5-beta.16.3.17",
+  "version": "0.6.5-beta.16.3.18",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "deploy": "npm run build && wrangler deploy",
     "release:integrity": "node scripts/release-integrity-check.mjs",
     "release:guard": "node scripts/production-deploy-guard.mjs",
-    "predeploy": "npm run release:guard"
+    "predeploy": "npm run release:guard",
+    "dev:lan": "vite --host 0.0.0.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
