@@ -1,1 +1,73 @@
 .beta11-report .report-domain{gap:9px}.beta11-report .report-domain+.report-domain{margin-top:4px;padding-top:4px}.beta11-report .commercial-domain .metric-grid{max-width:100%}.beta11-report .report-team-table{min-width:1040px}.beta11-report .report-vendor-table{min-width:1380px}.beta11-report .report-manager-table{min-width:1660px}.beta11-report .report-role-section+.report-role-section{margin-top:12px}.beta11-report .report-scope-note{margin-top:10px;padding:9px 10px;border-radius:9px;background:var(--surface-soft);font-size:10px;color:var(--text-muted)}.beta11-report .report-scope-note b{color:var(--text)}.beta11-report .daily-detail-card strong{font-size:16px;white-space:nowrap;font-variant-numeric:tabular-nums}.beta11-report .metric-money{min-width:0}.beta11-report .metric-money .metric-card-copy>strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.beta11-report .report-role-section td small{display:block;margin-top:2px;color:var(--text-muted);font-size:10px}@media(max-width:700px){.beta11-report .commercial-domain .metric-grid{grid-template-columns:1fr}.beta11-report .metric-money .metric-card-copy>strong{font-size:24px}.beta11-report .report-vendor-table,.beta11-report .report-manager-table{min-width:1180px}}
+
+/* Reportes: identidad del colaborador legible durante scroll horizontal */
+.beta11-report .report-manager-table{min-width:1840px}
+.beta11-report .report-vendor-table{min-width:1540px}
+.beta11-report .report-manager-table th:first-child,
+.beta11-report .report-manager-table td:first-child,
+.beta11-report .report-vendor-table th:first-child,
+.beta11-report .report-vendor-table td:first-child{
+  position:sticky;
+  left:0;
+  z-index:3;
+  width:190px;
+  min-width:190px;
+  max-width:190px;
+  background:var(--panel);
+  box-shadow:8px 0 12px -12px rgba(15,23,42,.38);
+}
+.beta11-report .report-manager-table thead th:first-child,
+.beta11-report .report-vendor-table thead th:first-child{
+  z-index:5;
+  background:var(--surface-soft);
+}
+.beta11-report .report-manager-table td:first-child b,
+.beta11-report .report-vendor-table td:first-child b{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:11px;
+}
+.beta11-report .report-manager-table td:first-child small,
+.beta11-report .report-vendor-table td:first-child small{
+  display:block;
+  max-width:170px;
+  line-height:1.25;
+  white-space:normal;
+}
+.beta11-report .report-manager-table tbody tr:hover td:first-child,
+.beta11-report .report-manager-table tbody tr.selected-report-row td:first-child,
+.beta11-report .report-vendor-table tbody tr:hover td:first-child,
+.beta11-report .report-vendor-table tbody tr.selected-report-row td:first-child{
+  background:var(--surface-soft);
+}
+@media(max-width:700px){
+  .beta11-report .report-manager-table,
+  .beta11-report .report-vendor-table{min-width:1480px}
+  .beta11-report .report-manager-table th:first-child,
+  .beta11-report .report-manager-table td:first-child,
+  .beta11-report .report-vendor-table th:first-child,
+  .beta11-report .report-vendor-table td:first-child{
+    width:165px;
+    min-width:165px;
+    max-width:165px;
+  }
+}
+
+/* Reportes SaaS: detalle temporal adaptativo */
+.beta11-report .period-detail-head{align-items:flex-start}
+.beta11-report .period-detail-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.beta11-report .monthly-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}
+.beta11-report .monthly-detail-card{appearance:none;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);padding:14px;text-align:left;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}
+.beta11-report .monthly-detail-card:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--brand) 40%,var(--border));box-shadow:0 8px 22px rgba(15,23,42,.06)}
+.beta11-report .monthly-detail-card div{min-width:0}
+.beta11-report .monthly-detail-card b{display:block;font-size:13px;text-transform:capitalize}
+.beta11-report .monthly-detail-card span{display:block;margin-top:2px;font-size:10px;color:var(--text-muted)}
+.beta11-report .monthly-detail-card strong{font-size:17px;color:var(--brand);white-space:nowrap;font-variant-numeric:tabular-nums}
+.beta11-report .monthly-detail-card small{grid-column:1/-1;color:var(--text-muted);font-size:10px;line-height:1.45}
+.beta11-report .monthly-detail-card em{grid-column:1/-1;font-style:normal;font-size:9px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.04em}
+@media(max-width:700px){
+  .beta11-report .monthly-detail-grid{grid-template-columns:1fr}
+  .beta11-report .period-detail-actions{width:100%;margin-top:7px}
+  .beta11-report .period-detail-actions button{width:100%;justify-content:center}
+}
