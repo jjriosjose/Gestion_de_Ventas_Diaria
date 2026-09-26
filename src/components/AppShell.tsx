@@ -107,11 +107,11 @@ export function AppShell(){
     {groups.map(group=>{
       const items=group.items.filter(item=>allowed(item[3]))
       if(!items.length)return null
-      if(collapsed)return <div className="nav-v2-rail-group" key={group.id}>{items.map(item=>renderItem(item,true))}</div>
+      if(collapsed)return <div className={"nav-v2-rail-group nav-v2-group-"+group.id} key={group.id}>{items.map(item=>renderItem(item,true))}</div>
       const open=openGroup===group.id
       const containsActive=group.id===activeGroupId
       const GroupIcon=group.Icon
-      return <section className={'nav-v2-group '+(open?'open ':'')+(containsActive?'contains-active':'')} key={group.id}>
+      return <section className={'nav-v2-group nav-v2-group-'+group.id+' '+(open?'open ':'')+(containsActive?'contains-active':'')} key={group.id}>
         <button type="button" className="nav-v2-group-trigger" onClick={()=>toggleGroup(group.id)} aria-expanded={open} aria-controls={'nav-group-'+group.id}>
           <span className="nav-v2-group-icon"><GroupIcon size={17} strokeWidth={1.85}/></span>
           <span>{group.label}</span>
