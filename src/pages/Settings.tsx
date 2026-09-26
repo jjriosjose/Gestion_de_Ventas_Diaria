@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect,useState } from 'react'
 import { BadgeInfo,Building2,Check,KeyRound,Monitor,Moon,Palette,Save,ShieldCheck,Smartphone,Sun } from 'lucide-react'
 import { useTheme,type ThemeName } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import '../styles/operational-v059.css'
 import '../styles/settings-v2.css'
 import { APP_VERSION } from '../lib/appVersion'
+import { TENANT_IDENTITY } from '../config/productIdentity'
 
 export function Settings(){
   const {theme,setTheme}=useTheme()
@@ -13,6 +14,16 @@ export function Settings(){
   const [pass,setPass]=useState('')
   const [confirm,setConfirm]=useState('')
   const [busy,setBusy]=useState(false)
+  const [systemDark,setSystemDark]=useState(()=>window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  useEffect(()=>{
+    const media=window.matchMedia('(prefers-color-scheme: dark)')
+    const sync=()=>setSystemDark(media.matches)
+    media.addEventListener('change',sync)
+    return()=>media.removeEventListener('change',sync)
+  },[])
+
+  const previewTheme=theme==='system'?(systemDark?'dark':'light'):theme==='karaka'?'light':theme
 
   const themes:[ThemeName,string,typeof Monitor,string][]=[
     ['system','Sistema',Monitor,'Sigue automáticamente el modo del dispositivo'],
@@ -81,30 +92,30 @@ export function Settings(){
 
           <div className="organization-brand-card">
             <div className="organization-brand-main">
-              <div className="organization-logo"><img src="/logo-karaka.png" alt="Almacenes Karaka"/></div>
+              <div className="organization-logo"><img src={TENANT_IDENTITY.logoUrl} alt={TENANT_IDENTITY.companyName}/></div>
               <div className="organization-brand-copy">
                 <span>ORGANIZACIÓN</span>
-                <strong>Almacenes Karaka</strong>
-                <small>Gestión de Ventas</small>
+                <strong>{TENANT_IDENTITY.companyName}</strong>
+                <small>{TENANT_IDENTITY.productName}</small>
               </div>
             </div>
             <div className="organization-brand-colors" aria-label="Paleta corporativa">
-              <span style={{background:'#c71f2d'}} title="Color principal"/>
-              <span style={{background:'#9f1723'}} title="Color secundario"/>
-              <span style={{background:'#1f3a5f'}} title="Color de apoyo"/>
+              <span style={{background:TENANT_IDENTITY.colors.primary}} title="Color principal"/>
+              <span style={{background:TENANT_IDENTITY.colors.secondary}} title="Color secundario"/>
+              <span style={{background:TENANT_IDENTITY.colors.support}} title="Color de apoyo"/>
             </div>
             <div className="organization-brand-status"><ShieldCheck size={15}/><span>Administrado por la plataforma</span></div>
           </div>
 
           <div className="branding-preview branding-preview-readonly">
-            <div className="branding-preview-label">Vista de referencia</div>
-            <div className="branding-preview-shell">
+            <div className="branding-preview-label">Vista de referencia · {previewTheme==='dark'?'Oscuro':previewTheme==='executive'?'Ejecutivo':'Claro'}</div>
+            <div className={'branding-preview-shell preview-'+previewTheme}>
               <aside>
-                <div className="branding-preview-brand"><img src="/logo-karaka.png" alt=""/><div><b>Gestión de Ventas</b><span>Almacenes Karaka</span></div></div>
+                <div className="branding-preview-brand"><img src={TENANT_IDENTITY.logoUrl} alt=""/><div><b>{TENANT_IDENTITY.productName}</b><span>{TENANT_IDENTITY.companyName}</span></div></div>
                 <i className="active"/><i/><i/><i/>
               </aside>
               <main>
-                <header><span>ALMACENES KARAKA</span><b>Panel ejecutivo</b></header>
+                <header><span>{TENANT_IDENTITY.companyName.toUpperCase()}</span><b>Panel ejecutivo</b></header>
                 <div className="branding-preview-content">
                   <div className="branding-preview-kpi"><span>Ventas del mes</span><strong>RD$ 1.28M</strong><small>+12.4% vs. período anterior</small></div>
                   <div className="branding-preview-kpi"><span>Cobertura</span><strong>84%</strong><small>156 clientes gestionados</small></div>
