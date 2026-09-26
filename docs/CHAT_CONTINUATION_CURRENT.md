@@ -10,16 +10,17 @@ Fecha: **25/09/2026 (RD)**
 ## Orden de lectura obligatorio
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
-3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
-4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
-5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
-6. Para Logística/TMS: `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`, `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` y documentos `LOGISTICS_*.md`.
-7. Para Rutas/Jornadas: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md` y `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`.
-8. Para retomar QA/staging: `docs/QA_DATA_ISOLATION_V1.md`.
+2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md`
+3. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md` *(baseline productivo 16.3.15)*
+4. `docs/TECHNICAL_AUDIT_2026-09-20.md`
+5. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
+6. `docs/SUPABASE_CAPACITY_2026-09-20.md`
+7. Para Logística/TMS: `docs/LOGISTICS_DELIVERY_V1_FUNCTIONAL_DESIGN.md`, `docs/LOGISTICS_DELIVERY_V1_IMPLEMENTATION_PLAN.md` y documentos `LOGISTICS_*.md`.
+8. Para Rutas/Jornadas: `docs/V065_BETA16_2_JOURNEY_ROUTE_LIFECYCLE.md` y `docs/V065_BETA16_3_ROUTE_ADMIN_RESOLUTION.md`.
+9. Para retomar QA/staging: `docs/QA_DATA_ISOLATION_V1.md`.
 
 Prompt listo para un chat nuevo:
-`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_16_TEST6.md`
 
 `PROJECT_HANDOFF.md` es el índice estable y debe apuntar a este checkpoint.
 
@@ -56,6 +57,59 @@ Supabase:
 - plan actual: **Free**
 - Go-Live real: **NO declarado**
 - los datos operativos siguen considerándose de prueba hasta declaración explícita del usuario
+
+## Desarrollo activo — Reportes 0.6.5-beta.16.3.16-test.6
+
+**NO PRODUCTIVO.**
+
+Rama:
+`feature/reports-daily-showroom-fix-test`
+
+PR #94:
+- **OPEN / DRAFT / NO MERGE**
+- head verificado: `ad78ef4bcf780bd18c8b153a45b681950910c6a1`
+- Build validation #1301: **SUCCESS**
+- Supabase: sin cambios
+- migraciones: ninguna
+- deploy: NO
+
+Cambios ya implementados y validados:
+- elimina selección invisible de colaborador en Reportes;
+- Todos los colaboradores muestra realmente el resumen general;
+- drill-down solo por selección explícita;
+- Showroom atendido/tiempo/compras/ventas se atribuye a quien realizó la atención;
+- Citas se conservan por responsabilidad;
+- compras sin importe muestran **Monto pendiente**, no RD$0;
+- pendientes separados por Calle / Showroom;
+- columna Gestor/Vendedor legible y sticky;
+- períodos >45 días muestran resumen mensual con drill-down a días;
+- períodos <=45 días conservan tarjetas diarias;
+- Excel analítico multihoja para uso empresarial.
+
+Validaciones del usuario:
+- 25/09 general: **5 compras**;
+- monto registrado: **RD$3,532,014.70**;
+- **2 montos pendientes**: 1 Calle + 1 Showroom;
+- resumen mensual por rango: correcto;
+- tabla Gestores: correcta y más legible;
+- Excel: **“quedó muy bien”**.
+
+Excel multihoja:
+- Parametros
+- Resumen Vendedores
+- Resumen Gestores
+- Comercial Diario
+- Jornadas Calle
+- CRM Diario
+- Showroom Detalle
+- Visitas Detalle
+- Llamadas Detalle
+
+Principio acordado:
+> Todo cambio futuro debe diseñarse pensando en una aplicación SaaS vendible a empresas: tenant-neutral, escalable, segura, auditable y con datos reutilizables analíticamente.
+
+Continuidad detallada:
+`docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md`
 
 ## Release hardening — YA MERGEADO EN MAIN
 
@@ -324,8 +378,9 @@ Si el usuario TODAVÍA NO activó membresía:
 
 ## Continuidad preparada para próximo chat
 
-- checkpoint actual: `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
-- prompt actual: `docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
+- checkpoint de desarrollo actual: `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md`
+- prompt actual: `docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_16_TEST6.md`
+- baseline productivo vigente: `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
 - checkpoint anterior `docs/CHAT_CONTINUATION_2026-09-25.md`: histórico de 16.3.14; no usar como estado vivo.
 - baseline ejecutable: `release/production-baseline.json`
 - baseline humano: `docs/PRODUCTION_BASELINE.md`
