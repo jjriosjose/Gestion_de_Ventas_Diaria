@@ -2,33 +2,35 @@
 
 Fecha: **26/09/2026 (RD)**
 
-> **ESTADO VIVO MÁS RECIENTE — 0.6.5-beta.16.3.18 PRODUCTIVO**
+> **ESTADO VIVO MÁS RECIENTE — 0.6.5-beta.16.3.19 PRODUCTIVO**
 >
-> Leer a continuación: `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_18.md`
+> Leer a continuación: `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_19.md`
 >
-> Prompt actual: `docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_18.md`
+> Prompt actual: `docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_19.md`
 >
-> Producción validada: **0.6.5-beta.16.3.18**
+> Producción validada: **0.6.5-beta.16.3.19**
 >
-> Versión visible: **v0.6.5 · 16.3.18**
+> Versión visible: **v0.6.5 · 16.3.19**
 >
-> Cloudflare Current Version ID: `5c63eaec-d61d-41d0-a903-be90b0501cd0`
+> Cloudflare Current Version ID: `196a50d2-f1b0-455b-9f40-4c65d888b59b`
 >
-> PR #97 Navigation System V2: **MERGED / PRODUCTIVO**
+> PR #98 Appearance V2: **MERGED / PRODUCTIVO**
 >
-> Baseline ejecutable: `release/production-baseline.json` → **0.6.5-beta.16.3.18**
+> Baseline ejecutable: `release/production-baseline.json` → **0.6.5-beta.16.3.19**
+>
+> bitstechcloud queda preparada como marca futura de plataforma, pero no visible en la instalación actual de Almacenes Karaka.
 >
 > Todo cambio futuro debe diseñarse como sistema SaaS vendible a empresas: tenant-neutral, escalable, seguro, auditable y configurable.
 
 ## Orden de lectura obligatorio
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_18.md`
-3. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_17.md` *(baseline anterior)*
+2. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_19.md`
+3. `docs/CHAT_CONTINUATION_2026-09-26_BETA16_3_18.md` *(baseline anterior)*
 4. documentos técnicos específicos del módulo a modificar.
 
 Prompt listo para un chat nuevo:
-`docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_18.md`
+`docs/CONTINUATION_PROMPT_2026-09-26_BETA16_3_19.md`
 
 `PROJECT_HANDOFF.md` es el índice estable y debe apuntar a este checkpoint.
 
