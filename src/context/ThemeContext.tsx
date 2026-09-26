@@ -6,6 +6,14 @@ export type ThemeName='karaka'|'light'|'dark'|'executive'|'system'
 type TV={theme:ThemeName;setTheme:(t:ThemeName)=>void;accent:string;setAccent:(v:string)=>void}
 const C=createContext<TV|null>(null)
 
+const PRESET_ACCENTS:Record<ThemeName,string>={
+  karaka:'#c71f2d',
+  light:'#c71f2d',
+  dark:'#d92b3b',
+  executive:'#1f3a5f',
+  system:'#c71f2d',
+}
+
 function resolveTheme(theme:ThemeName){
   if(theme!=='system')return theme
   return window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'
@@ -17,7 +25,7 @@ export function ThemeProvider({children}:{children:ReactNode}){
     const saved=localStorage.getItem('gvd_theme') as ThemeName|null
     return saved||'karaka'
   })
-  const [accent,setAccentState]=useState(()=>localStorage.getItem('gvd_accent')||'#c71f2d')
+  const [accent,setAccentState]=useState(()=>PRESET_ACCENTS[(localStorage.getItem('gvd_theme') as ThemeName)||'karaka'])
 
   const apply=(t:ThemeName,a:string)=>{
     document.documentElement.dataset.theme=resolveTheme(t)
@@ -40,9 +48,16 @@ export function ThemeProvider({children}:{children:ReactNode}){
     if(employee?.auth_user_id)await supabase.from('employees').update({theme_preferences:{theme:t,accent:a}}).eq('id',employee.id)
   }
 
+  const selectTheme=(t:ThemeName)=>{
+    const nextAccent=PRESET_ACCENTS[t]
+    setThemeState(t)
+    setAccentState(nextAccent)
+    void persist(t,nextAccent)
+  }
+
   const v=useMemo(()=>({
     theme,
-    setTheme:(t:ThemeName)=>{setThemeState(t);void persist(t,accent)},
+    setTheme:selectTheme,
     accent,
     setAccent:(a:string)=>{setAccentState(a);void persist(theme,a)},
   }),[theme,accent,employee?.id])
