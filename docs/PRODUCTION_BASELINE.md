@@ -6,56 +6,52 @@ Este documento identifica el último estado productivo validado que no debe perd
 
 ## Aplicación
 
-- versión: **0.6.5-beta.16.3.17**
-- versión visible: **v0.6.5 · 16.3.17**
-- commit `main` de referencia: `082cc66c104375d4367b1a7335f6d33b3519e231`
-- Cloudflare Version ID: `e8789ba6-3d3a-4c33-9d43-0206b56339a2`
+- versión: **0.6.5-beta.16.3.18**
+- versión visible: **v0.6.5 · 16.3.18**
+- commit `main` de referencia: `ca5a459a517266636d2e128e3aa0d8313c954728`
+- Cloudflare Version ID: `5c63eaec-d61d-41d0-a903-be90b0501cd0`
 - URL: `https://gestion-de-ventas-diaria.jjriosjose.workers.dev`
 
 La fuente ejecutable del baseline está en:
 
 `release/production-baseline.json`
 
+## Release 16.3.18 — Navigation System V2
+
+- PR #97: **MERGED**.
+- Build validation `main` #1344: **SUCCESS**.
+- QA previo en rama de prueba: **APROBADO por el usuario**.
+- deploy productivo: **26/09/2026**.
+- Cloudflare Current Version ID: `5c63eaec-d61d-41d0-a903-be90b0501cd0`.
+- Supabase: sin cambios.
+- Migraciones: ninguna.
+- Auth/RLS: sin cambios.
+- lógica comercial: sin cambios.
+
+### Capacidades incluidas
+
+- sidebar con grupos colapsables:
+  - Operación;
+  - Gestión comercial;
+  - Logística;
+  - Inteligencia;
+  - Administración;
+- Inicio siempre visible;
+- iconografía Lucide con tiles y mayor contraste;
+- grupo activo visible y navegación preservada por permisos;
+- grupos activos también pueden cerrarse manualmente;
+- modo colapsado convertido en **icon rail real**;
+- tooltips en icon rail;
+- drawer móvil compatible con la misma estructura;
+- versión visible con build para trazabilidad.
+
 ## Capacidades protegidas por CI
 
-- rutas/módulos principales en `App.tsx`;
-- Captación Operativa dentro de Rutas;
-- estado/eventos de Captación en Tracking;
-- detalle completo de Captaciones;
-- métricas de Captación en Jornadas;
-- Historial detallado de Llamadas;
-- rutas de Logística;
-- Login con Logística / TMS y Tracking;
-- Reportes V2 con resumen general correcto, atribución Showroom, pendientes y detalle temporal adaptativo;
-- Excel analítico multihoja;
-- versión visible con build de release;
-- Configuración → Acerca del sistema;
-- estados vacíos compactos de Rutas en móvil;
-- análisis territorial responsive del Mapa;
-- migraciones críticas y QA guards;
-- prohibición de vistas `*_test` en código productivo.
-
-## Release 16.3.16 — Reportes
-
-- PR #94: **MERGED**.
-- Build validation de `main` #1307: **SUCCESS**.
-- QA productivo: **APROBADO por el usuario**.
-- Reportes: resumen general, atribución Showroom, pendientes Calle/Showroom, resumen mensual >45 días y detalle diario <=45 días.
-- Excel analítico multihoja validado.
-- Supabase: sin cambios.
-- Migraciones: ninguna.
-
-## Release 16.3.17 — trazabilidad visual de versión
-
-- PR #96: **MERGED**.
-- Build validation de `main` #1313: **SUCCESS**.
-- versión técnica: **0.6.5-beta.16.3.17**.
-- versión visible confirmada en producción: **v0.6.5 · 16.3.17**.
-- Cloudflare Current Version ID: `e8789ba6-3d3a-4c33-9d43-0206b56339a2`.
-- cambio limitado a trazabilidad/versionado visible.
-- Supabase: sin cambios.
-- Migraciones: ninguna.
-- lógica comercial: sin cambios.
+Además de las capacidades históricas ya protegidas:
+- `src/components/AppShell.tsx` debe conservar Navigation System V2;
+- `src/styles/navigation-v2.css` debe conservar el icon rail y grupos colapsables;
+- rutas y permisos existentes no deben perderse;
+- referencias productivas a vistas `*_test` continúan prohibidas.
 
 ## Production Deploy Guard
 
