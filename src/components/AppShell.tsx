@@ -89,7 +89,6 @@ export function AppShell(){
 
   const toggleGroup=(id:string)=>{
     if(collapsed){setCollapsed(false);setOpenGroup(id);return}
-    if(id===activeGroupId&&openGroup===id)return
     setOpenGroup(current=>current===id?'':id)
   }
 
