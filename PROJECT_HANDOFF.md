@@ -10,15 +10,16 @@
 ## LEER PRIMERO
 
 1. `docs/CHAT_CONTINUATION_CURRENT.md`
-2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`
-3. `docs/TECHNICAL_AUDIT_2026-09-20.md`
-4. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
-5. `docs/SUPABASE_CAPACITY_2026-09-20.md`
-6. `docs/PRODUCTION_BASELINE.md`
-7. Módulo específico que se vaya a modificar.
+2. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md`
+3. `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md` *(baseline productivo)*
+4. `docs/TECHNICAL_AUDIT_2026-09-20.md`
+5. `docs/DB_MIGRATION_RECONCILIATION_2026-09-20.md`
+6. `docs/SUPABASE_CAPACITY_2026-09-20.md`
+7. `docs/PRODUCTION_BASELINE.md`
+8. Módulo específico que se vaya a modificar.
 
 Prompt recomendado:
-`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_15.md`
+`docs/CONTINUATION_PROMPT_2026-09-25_BETA16_3_16_TEST6.md`
 
 ## Fuente de verdad
 
@@ -56,6 +57,33 @@ Nunca asumir que una funcionalidad, PR o migración existe solo porque fue menci
 - QA productivo 16.3.15: **APROBADO en PC y teléfono**
 - PR #91 cierre de baseline: **MERGED**
 - PR #92 cierre de QA productivo: **MERGED**
+
+## Desarrollo activo al llenarse el chat
+
+- rama: `feature/reports-daily-showroom-fix-test`
+- PR #94: **OPEN / DRAFT / NO MERGE**
+- versión: **0.6.5-beta.16.3.16-test.6**
+- head: `ad78ef4bcf780bd18c8b153a45b681950910c6a1`
+- Build validation #1301: **SUCCESS**
+- producción sigue en **0.6.5-beta.16.3.15**
+- no Supabase / no migraciones / no deploy
+
+Reportes prueba ya incluye:
+- resumen general correcto;
+- atribución Showroom por quien atendió;
+- montos pendientes Calle/Showroom;
+- tablas empresariales con nombre sticky;
+- resumen mensual automático para rangos >45 días;
+- drill-down mensual → diario;
+- Excel analítico multihoja.
+
+Validaciones confirmadas por el usuario:
+- 25/09: 5 compras, RD$3,532,014.70, 2 pendientes;
+- resumen mensual correcto;
+- Excel “quedó muy bien”.
+
+Leer:
+`docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md`
 
 ## Incidente de datos importante
 
@@ -108,4 +136,4 @@ Deploy Cloudflare:
 
 ## Prompt de continuidad recomendado
 
-> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_15.md`. Verifica GitHub main, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.15. PR #85 está pausado/cerrado y no debe mergearse por memoria. Verifica las migraciones QA guards ya vivas en Supabase. Resume primero estado real, P0/P1 y siguiente paso. No limpies datos ni repitas migraciones por memoria.
+> Continúa Gestión de Ventas Diaria del repositorio `jjriosjose/Gestion_de_Ventas_Diaria`. Lee COMPLETO `docs/CHAT_CONTINUATION_CURRENT.md` y después `docs/CHAT_CONTINUATION_2026-09-25_BETA16_3_16_TEST6.md`. Verifica GitHub main, PR #94, Supabase y Cloudflare antes de modificar. Producción esperada: 0.6.5-beta.16.3.15; desarrollo activo esperado: 0.6.5-beta.16.3.16-test.6 en `feature/reports-daily-showroom-fix-test`. No confundas la prueba con producción y no mergees PR #94 por memoria.
