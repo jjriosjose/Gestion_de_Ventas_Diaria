@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "production_version": "0.6.5-beta.16.3.17",
-  "confirmed_main_commit": "082cc66c104375d4367b1a7335f6d33b3519e231",
-  "cloudflare_version_id": "e8789ba6-3d3a-4c33-9d43-0206b56339a2",
+  "production_version": "0.6.5-beta.16.3.18",
+  "confirmed_main_commit": "ca5a459a517266636d2e128e3aa0d8313c954728",
+  "cloudflare_version_id": "5c63eaec-d61d-41d0-a903-be90b0501cd0",
   "confirmed_at": "2026-09-26",
   "required_files": {
     "src/App.tsx": [
@@ -86,6 +86,18 @@
       "map-analytics-panel",
       "map-analytics-body",
       "@media(max-width:760px)"
+    ],
+    "src/components/AppShell.tsx": [
+      "nav-system-v2",
+      "Gestión comercial",
+      "nav-v2-group-trigger",
+      "nav-v2-rail-group"
+    ],
+    "src/styles/navigation-v2.css": [
+      "Navigation System V2",
+      "true collapsed icon rail",
+      ".nav-v2-group-trigger",
+      ".nav-system-v2.collapsed .nav-v2-item"
     ]
   },
   "required_migrations": [
