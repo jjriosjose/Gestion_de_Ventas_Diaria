@@ -9,6 +9,7 @@ import './styles/v063.css'
 import './styles/adaptive-layout.css'
 import './styles/crm-operations.css'
 import './styles/logistics-history-filters.css'
+import './styles/navigation-v2.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><AuthProvider><App/></AuthProvider></React.StrictMode>)
 
