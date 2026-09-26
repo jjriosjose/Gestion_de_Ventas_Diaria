@@ -57,7 +57,7 @@ function addSheet(wb:ExcelJS.Workbook,name:string,rows:Record<string,unknown>[],
 export async function exportRoleReportXlsx(title:string,data:AnalyticalReportWorkbook){
   const wb=new ExcelJS.Workbook()
   wb.creator='Gestion de Ventas Diaria'
-  wb.company='Almacenes Karaka'
+  wb.company='Gestion de Ventas Diaria'
   wb.created=new Date()
   wb.modified=new Date()
   wb.subject='Exportación analítica de Reportes'
