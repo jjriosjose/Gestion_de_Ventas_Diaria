@@ -1,1 +1,55 @@
 .beta11-report .report-domain{gap:9px}.beta11-report .report-domain+.report-domain{margin-top:4px;padding-top:4px}.beta11-report .commercial-domain .metric-grid{max-width:100%}.beta11-report .report-team-table{min-width:1040px}.beta11-report .report-vendor-table{min-width:1380px}.beta11-report .report-manager-table{min-width:1660px}.beta11-report .report-role-section+.report-role-section{margin-top:12px}.beta11-report .report-scope-note{margin-top:10px;padding:9px 10px;border-radius:9px;background:var(--surface-soft);font-size:10px;color:var(--text-muted)}.beta11-report .report-scope-note b{color:var(--text)}.beta11-report .daily-detail-card strong{font-size:16px;white-space:nowrap;font-variant-numeric:tabular-nums}.beta11-report .metric-money{min-width:0}.beta11-report .metric-money .metric-card-copy>strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.beta11-report .report-role-section td small{display:block;margin-top:2px;color:var(--text-muted);font-size:10px}@media(max-width:700px){.beta11-report .commercial-domain .metric-grid{grid-template-columns:1fr}.beta11-report .metric-money .metric-card-copy>strong{font-size:24px}.beta11-report .report-vendor-table,.beta11-report .report-manager-table{min-width:1180px}}
+
+/* Reportes: identidad del colaborador legible durante scroll horizontal */
+.beta11-report .report-manager-table{min-width:1840px}
+.beta11-report .report-vendor-table{min-width:1540px}
+.beta11-report .report-manager-table th:first-child,
+.beta11-report .report-manager-table td:first-child,
+.beta11-report .report-vendor-table th:first-child,
+.beta11-report .report-vendor-table td:first-child{
+  position:sticky;
+  left:0;
+  z-index:3;
+  width:190px;
+  min-width:190px;
+  max-width:190px;
+  background:var(--panel);
+  box-shadow:8px 0 12px -12px rgba(15,23,42,.38);
+}
+.beta11-report .report-manager-table thead th:first-child,
+.beta11-report .report-vendor-table thead th:first-child{
+  z-index:5;
+  background:var(--surface-soft);
+}
+.beta11-report .report-manager-table td:first-child b,
+.beta11-report .report-vendor-table td:first-child b{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:11px;
+}
+.beta11-report .report-manager-table td:first-child small,
+.beta11-report .report-vendor-table td:first-child small{
+  display:block;
+  max-width:170px;
+  line-height:1.25;
+  white-space:normal;
+}
+.beta11-report .report-manager-table tbody tr:hover td:first-child,
+.beta11-report .report-manager-table tbody tr.selected-report-row td:first-child,
+.beta11-report .report-vendor-table tbody tr:hover td:first-child,
+.beta11-report .report-vendor-table tbody tr.selected-report-row td:first-child{
+  background:var(--surface-soft);
+}
+@media(max-width:700px){
+  .beta11-report .report-manager-table,
+  .beta11-report .report-vendor-table{min-width:1480px}
+  .beta11-report .report-manager-table th:first-child,
+  .beta11-report .report-manager-table td:first-child,
+  .beta11-report .report-vendor-table th:first-child,
+  .beta11-report .report-vendor-table td:first-child{
+    width:165px;
+    min-width:165px;
+    max-width:165px;
+  }
+}
