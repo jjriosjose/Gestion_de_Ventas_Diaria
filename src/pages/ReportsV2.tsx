@@ -31,6 +31,18 @@ const inclusiveDays=(from:string,to:string)=>Math.max(1,Math.floor((Date.parse(`
 const unique=(values:string[])=>[...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'))
 const sum=(rows:any[],key:string)=>rows.reduce((acc,row)=>acc+Number(row[key]||0),0)
 const operationalRole=(value?:string)=>value==='Vendedor'||value==='Gestor'
+const isoLocal=(value?:string|null)=>value?new Date(value).toLocaleString('es-DO',{timeZone:'America/Santo_Domingo'}):''
+async function fetchAllPages(fetchPage:(from:number,to:number)=>PromiseLike<{data:any[]|null;error:any}>){
+ const pageSize=1000,all:any[]=[]
+ for(let from=0;;from+=pageSize){
+  const {data,error}=await fetchPage(from,from+pageSize-1)
+  if(error)throw error
+  const rows=data||[]
+  all.push(...rows)
+  if(rows.length<pageSize)break
+ }
+ return all
+}
 const statusLabel:Record<string,string>={NO_INICIADA:'No ejecutada',PLANIFICADA:'Planificada',PROGRAMADA:'Programada',FINALIZADA_PARCIAL:'Finalizada parcial',FINALIZADA:'Finalizada',PENDIENTE_CIERRE:'Pendiente de cierre',ACTIVA:'Activa hoy'}
 
 function periodBounds(mode:PeriodMode,date:string,month:string,from:string,to:string){
@@ -50,7 +62,7 @@ export function ReportsV2(){
  const executive=['Administrador','Supervisor','Gestor'].includes(profile)
  const ownRole:CommercialRole=employee?.employee_type==='Vendedor'||employee?.employee_type==='Gestor'?employee.employee_type:''
  const [mode,setMode]=useState<PeriodMode>(executive?'MONTH':'DAY'),[date,setDate]=useState(today()),[month,setMonth]=useState(currentMonth()),[from,setFrom]=useState(today()),[to,setTo]=useState(today())
- const [commercialRows,setCommercialRows]=useState<any[]>([]),[journeys,setJourneys]=useState<any[]>([]),[crmRows,setCrmRows]=useState<any[]>([]),[showroomSessions,setShowroomSessions]=useState<any[]>([]),[visitPurchases,setVisitPurchases]=useState<any[]>([]),[employees,setEmployees]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[pdfBusy,setPdfBusy]=useState(false)
+ const [commercialRows,setCommercialRows]=useState<any[]>([]),[journeys,setJourneys]=useState<any[]>([]),[crmRows,setCrmRows]=useState<any[]>([]),[showroomSessions,setShowroomSessions]=useState<any[]>([]),[visitPurchases,setVisitPurchases]=useState<any[]>([]),[employees,setEmployees]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[pdfBusy,setPdfBusy]=useState(false),[excelBusy,setExcelBusy]=useState(false)
  const [employeeType,setEmployeeType]=useState<CommercialRole>(''),[employeeFilter,setEmployeeFilter]=useState(''),[selectedEmployee,setSelectedEmployee]=useState(''),[detailMonth,setDetailMonth]=useState(''),[journeyStatus,setJourneyStatus]=useState(''),[clientType,setClientType]=useState(''),[region,setRegion]=useState(''),[province,setProvince]=useState(''),[municipality,setMunicipality]=useState('')
  const range=useMemo(()=>periodBounds(mode,date,month,from,to),[mode,date,month,from,to])
  const effectiveType:CommercialRole=executive?employeeType:ownRole
@@ -189,10 +201,102 @@ export function ReportsV2(){
  const vendorExport=vendorRows.map(r=>({Vendedor:r.full_name,Jornadas:r.journeys,Planificados:r.planned_clients,'Visitados plan':r.visited_clients,'Visitas adicionales':r.additional_visits,'Total visitas':r.total_visits,Captaciones:r.captures,'Actividades comerciales':r.activities,'Cobertura plan %':r.plan_coverage_pct,'Cobertura libre %':r.free_coverage_pct,'Cobertura operativa %':r.coverage_pct,'Cierre op. %':r.resolution_pct,'Tiempo calle':duration(r.street_seconds),'Atención clientes':duration(r.attention_seconds),'Promedio visita':duration(r.avg_visit_seconds),'Traslado/espera':duration(r.transit_seconds),'Distancia GPS':km(r.distance),'Monto pendiente':r.pending_amounts,Compras:r.purchase_clients,Ventas:r.sales_amount}))
  const managerExport=managerRows.map(r=>({Gestor:r.full_name,'Días activos':r.active_days,Llamadas:r.calls,Entrantes:r.inbound,Salientes:r.outbound,Contactados:r.contacted,'Contacto %':r.contact_pct,'Tiempo llamadas':duration(r.call_seconds),'Promedio llamada':duration(r.avg_call_seconds),Citas:r.appointments,Confirmadas:r.confirmed,'Showroom atendidos':r.showroom,'Tiempo showroom':duration(r.showroom_seconds),Seguimientos:r.followups,'Compras llamada':r.call_purchase_clients,'Compras showroom':r.showroom_purchase_clients,'Monto showroom pendiente':r.pending_showroom_amounts,'Ventas showroom':r.showroom_sales_amount,'Compras total':r.purchase_clients,Ventas:r.sales_amount}))
  const hasReport=vendorRows.length>0||managerRows.length>0
+ const downloadExcel=async()=>{
+  setExcelBusy(true)
+  try{
+   const periodStart=`${range.from}T00:00:00-04:00`,periodEnd=`${dayAfter(range.to)}T00:00:00-04:00`
+   const employeeMatches=(id?:string|null,type?:string|null)=>{
+    if(!id)return false
+    if(!executive&&employee?.id&&id!==employee.id)return false
+    if(employeeFilter&&id!==employeeFilter)return false
+    if(effectiveType&&type&&type!==effectiveType)return false
+    if(effectiveType&&!type){
+     const local=employees.find(e=>e.id===id)
+     if(local?.employee_type&&local.employee_type!==effectiveType)return false
+    }
+    return true
+   }
+   const [rawVisits,rawCalls,rawShowroom]=await Promise.all([
+    showStreet?fetchAllPages((fromRow,toRow)=>supabase.from('visits').select(`id,route_session_id,client_id,employee_id,visit_kind,planned,started_at,ended_at,received,purchase_result,purchase_amount,result,no_purchase_reason,contact_name,next_action,follow_up_date,notes,start_latitude,start_longitude,start_accuracy_m,distance_to_target_start_m,end_latitude,end_longitude,end_accuracy_m,distance_to_target_end_m,employee:employees!visits_employee_id_fkey(full_name,job_title,employee_type),client:clients!visits_client_id_fkey(company_code,legal_name,client_type,region,province,municipality)`).gte('started_at',periodStart).lt('started_at',periodEnd).order('started_at').range(fromRow,toRow)):Promise.resolve([]),
+    showCrm?fetchAllPages((fromRow,toRow)=>supabase.from('calls').select(`id,client_id,employee_id,occurred_at,result,duration_seconds,contact_name,phone_used,appointment_created,notes,next_action,follow_up_date,call_direction,purchase_amount,employee:employees!calls_employee_id_fkey(full_name,job_title,employee_type),client:clients!calls_client_id_fkey(company_code,legal_name,client_type,region,province,municipality)`).gte('occurred_at',periodStart).lt('occurred_at',periodEnd).order('occurred_at').range(fromRow,toRow)):Promise.resolve([]),
+    showCrm?fetchAllPages((fromRow,toRow)=>supabase.from('showroom_sessions').select(`id,client_id,manager_employee_id,attended_by_employee_id,started_at,ended_at,outcome,purchased,purchase_amount,attended_by_name,notes,next_action,follow_up_date,responsible:employees!showroom_sessions_manager_employee_id_fkey(full_name,job_title,employee_type),attended:employees!showroom_sessions_attended_by_employee_id_fkey(full_name,job_title,employee_type),client:clients!showroom_sessions_client_id_fkey(company_code,legal_name,client_type,region,province,municipality)`).gte('started_at',periodStart).lt('started_at',periodEnd).order('started_at').range(fromRow,toRow)):Promise.resolve([]),
+   ])
+
+   const allowedSessions=new Set(filteredJourneys.map(j=>j.route_session_id).filter(Boolean))
+   const streetFilterActive=Boolean(journeyStatus||clientType||region||province||municipality)
+   const visits=rawVisits.filter((row:any)=>{
+    const emp=Array.isArray(row.employee)?row.employee[0]:row.employee
+    const cli=Array.isArray(row.client)?row.client[0]:row.client
+    if(!employeeMatches(row.employee_id,emp?.employee_type))return false
+    if(journeyStatus&&row.route_session_id&&!allowedSessions.has(row.route_session_id))return false
+    if(streetFilterActive&&row.route_session_id&&!allowedSessions.has(row.route_session_id))return false
+    if(clientType&&cli?.client_type!==clientType)return false
+    if(region&&cli?.region!==region)return false
+    if(province&&cli?.province!==province)return false
+    if(municipality&&cli?.municipality!==municipality)return false
+    return true
+   })
+   const calls=rawCalls.filter((row:any)=>{const emp=Array.isArray(row.employee)?row.employee[0]:row.employee;return employeeMatches(row.employee_id,emp?.employee_type)})
+   const showroom=rawShowroom.filter((row:any)=>{
+    const attended=Array.isArray(row.attended)?row.attended[0]:row.attended
+    const responsible=Array.isArray(row.responsible)?row.responsible[0]:row.responsible
+    const credited=row.attended_by_employee_id||row.manager_employee_id
+    return employeeMatches(credited,attended?.employee_type||responsible?.employee_type)
+   })
+
+   const commercialDailyExport=filteredCommercial.map(r=>({
+    Fecha:r.day,'ID colaborador':r.employee_id,Colaborador:r.full_name,'Tipo colaborador':r.employee_type,Puesto:r.job_title||'',
+    'Clientes planificados':Number(r.planned_clients||0),'Clientes visitados':Number(r.visited_clients||0),'Clientes recibidos':Number(r.received_clients||0),
+    'Compras calle':Number(r.visit_purchase_clients||0),'Compras llamadas':Number(r.call_purchase_clients||0),'Compras showroom':Number(r.showroom_purchase_clients||0),'Compras total':Number(r.purchase_clients_all??r.purchase_clients??0),
+    'Venta calle':Number(r.visit_sales_amount||0),'Venta llamadas':Number(r.call_sales_amount||0),'Venta showroom':Number(r.showroom_sales_amount||0),'Venta total':Number(r.sales_amount_all??r.sales_amount??0),
+    Llamadas:Number(r.calls||0),Contactados:Number(r.calls_contacted||0),Entrantes:Number(r.inbound_calls||0),Salientes:Number(r.outbound_calls||0),Citas:Number(r.appointments||0),'Showroom atendidos':Number(r.showroom_attended||0),
+    Captaciones:Number(r.prospects_captured||0),'Rutas iniciadas':Number(r.routes_started||0),'Rutas completadas':Number(r.routes_completed||0),'Segundos visitas':Number(r.visit_seconds||0),'Segundos showroom':Number(r.showroom_seconds||0),'Segundos jornada':Number(r.operational_seconds||0),
+   }))
+   const journeyExport=filteredJourneys.map(j=>({
+    Fecha:j.route_date,'ID colaborador':j.employee_id,Colaborador:j.full_name,'Tipo colaborador':j.employee_type,Puesto:j.job_title||'','Tipo jornada':j.plan_type||j.route_mode||'',Título:j.title||'',Estado:j.derived_status,
+    'Clientes planificados':Number(j.planned_clients||0),'Clientes visitados':Number(j.visited_clients||0),'Visitas adicionales':Number(j.additional_visits||0),'Visitas completadas':Number(j.total_completed_visits||0),Captaciones:Number(j.capture_count||0),'Actividades comerciales':Number(j.commercial_activity_count||0),
+    'Cobertura %':Number(j.coverage_pct||0),'Resolución %':Number(j.resolution_pct||0),'Segundos calle':Number(j.route_window_seconds||0),'Segundos atención':Number(j.visit_seconds||0),'Segundos traslado/espera':Number(j.transit_wait_estimated_seconds||0),'Distancia metros':Number(j.estimated_distance_m||0),
+    Región:(j.official_regions||[]).join(' | '),Provincia:(j.official_provinces||[]).join(' | '),Municipio:(j.official_municipalities||[]).join(' | '),'Tipos cliente':(j.client_types||[]).join(' | '),'ID sesión':j.route_session_id||'',
+   }))
+   const crmDailyExport=filteredCrm.map(r=>({
+    Fecha:r.day,'ID colaborador':r.employee_id,Colaborador:r.full_name,'Tipo colaborador':r.employee_type,Puesto:r.job_title||'',Llamadas:Number(r.calls||0),Contactados:Number(r.calls_contacted||0),'Sin respuesta':Number(r.calls_no_answer||0),Ocupado:Number(r.calls_busy||0),'Teléfono inválido':Number(r.calls_invalid_phone||0),'Llamar luego':Number(r.calls_later||0),
+    'Segundos llamadas':Number(r.call_seconds||0),'Citas total':Number(r.appointments_total||0),'Citas confirmadas':Number(r.appointments_confirmed||0),'Citas atendidas':Number(r.appointments_attended||0),'Citas no show':Number(r.appointments_no_show||0),'Citas reprogramadas':Number(r.appointments_reprogrammed||0),
+    Seguimientos:Number(r.followups_total||0),'Seguimientos completados':Number(r.followups_completed||0),'Seguimientos pendientes':Number(r.followups_pending||0),'Seguimientos vencidos':Number(r.followups_overdue||0),'Segundos gestión':Number(r.management_seconds||0),
+   }))
+
+   const visitExport=visits.map((r:any)=>{const emp=Array.isArray(r.employee)?r.employee[0]:r.employee,cli=Array.isArray(r.client)?r.client[0]:r.client;return{
+    'ID visita':r.id,Fecha:isoLocal(r.started_at),'Fin':isoLocal(r.ended_at),'ID colaborador':r.employee_id,Colaborador:emp?.full_name||'',Puesto:emp?.job_title||'','Tipo colaborador':emp?.employee_type||'',
+    'Código cliente':cli?.company_code||'','Cliente':cli?.legal_name||'','Tipo cliente':cli?.client_type||'',Región:cli?.region||'',Provincia:cli?.province||'',Municipio:cli?.municipality||'','Tipo visita':r.visit_kind||'',Planificada:Boolean(r.planned),Recibido:Boolean(r.received),
+    'Resultado compra':r.purchase_result||'','Monto compra':Number(r.purchase_amount||0),Resultado:r.result||'','Razón no compra':r.no_purchase_reason||'','Contacto':r.contact_name||'','Próxima acción':r.next_action||'','Fecha seguimiento':r.follow_up_date||'',Notas:r.notes||'',
+    'Latitud inicio':r.start_latitude??null,'Longitud inicio':r.start_longitude??null,'Precisión inicio metros':Number(r.start_accuracy_m||0),'Distancia objetivo inicio metros':Number(r.distance_to_target_start_m||0),
+    'Latitud fin':r.end_latitude??null,'Longitud fin':r.end_longitude??null,'Precisión fin metros':Number(r.end_accuracy_m||0),'Distancia objetivo fin metros':Number(r.distance_to_target_end_m||0),'ID sesión ruta':r.route_session_id||'',
+   }})
+   const callExport=calls.map((r:any)=>{const emp=Array.isArray(r.employee)?r.employee[0]:r.employee,cli=Array.isArray(r.client)?r.client[0]:r.client;return{
+    'ID llamada':r.id,Fecha:isoLocal(r.occurred_at),'ID colaborador':r.employee_id,Colaborador:emp?.full_name||'',Puesto:emp?.job_title||'','Tipo colaborador':emp?.employee_type||'','Código cliente':cli?.company_code||'',Cliente:cli?.legal_name||'','Tipo cliente':cli?.client_type||'',Región:cli?.region||'',Provincia:cli?.province||'',Municipio:cli?.municipality||'',
+    Dirección:r.call_direction||'',Resultado:r.result||'','Duración segundos':Number(r.duration_seconds||0),'Contacto':r.contact_name||'','Teléfono usado':r.phone_used||'','Generó cita':Boolean(r.appointment_created),'Monto compra':Number(r.purchase_amount||0),'Próxima acción':r.next_action||'','Fecha seguimiento':r.follow_up_date||'',Notas:r.notes||'',
+   }})
+   const showroomExport=showroom.map((r:any)=>{const attended=Array.isArray(r.attended)?r.attended[0]:r.attended,responsible=Array.isArray(r.responsible)?r.responsible[0]:r.responsible,cli=Array.isArray(r.client)?r.client[0]:r.client;return{
+    'ID showroom':r.id,Inicio:isoLocal(r.started_at),Fin:isoLocal(r.ended_at),'Gestor responsable':responsible?.full_name||'','Atendido por':attended?.full_name||r.attended_by_name||'','ID responsable':r.manager_employee_id||'','ID atendió':r.attended_by_employee_id||'','Código cliente':cli?.company_code||'',Cliente:cli?.legal_name||'','Tipo cliente':cli?.client_type||'',Región:cli?.region||'',Provincia:cli?.province||'',Municipio:cli?.municipality||'',
+    Resultado:r.outcome||'',Compró:Boolean(r.purchased),'Monto compra':Number(r.purchase_amount||0),'Monto pendiente':Boolean((r.purchased===true||r.outcome==='COMPRA')&&!(Number(r.purchase_amount)>0)),'Próxima acción':r.next_action||'','Fecha seguimiento':r.follow_up_date||'',Notas:r.notes||'',
+   }})
+
+   const parameters=[
+    {Campo:'Tipo exportación',Valor:'Analítica detallada'},
+    {Campo:'Desde',Valor:range.from},{Campo:'Hasta',Valor:range.to},{Campo:'Período UI',Valor:mode},
+    {Campo:'Tipo colaborador',Valor:effectiveType||'Todos'},{Campo:'Colaborador',Valor:employeeFilter?(employees.find(e=>e.id===employeeFilter)?.full_name||employeeFilter):'Todos los colaboradores'},
+    {Campo:'Estado jornada',Valor:journeyStatus||'Todos'},{Campo:'Tipo cliente ruta',Valor:clientType||'Todos'},{Campo:'Región oficial',Valor:region||'Todas'},{Campo:'Provincia oficial',Valor:province||'Todas'},{Campo:'Municipio oficial',Valor:municipality||'Todos'},
+    {Campo:'Generado',Valor:new Date().toLocaleString('es-DO',{timeZone:'America/Santo_Domingo'})},
+   ]
+
+   await exportRoleReportXlsx(`Reporte_Analitico_${range.from}_${range.to}`,{
+    parameters,vendors:vendorExport,managers:managerExport,commercialDaily:commercialDailyExport,journeys:journeyExport,crmDaily:crmDailyExport,showroom:showroomExport,visits:visitExport,calls:callExport,
+   })
+  }catch(e){alert(e instanceof Error?e.message:'No se pudo generar el Excel analítico.')}finally{setExcelBusy(false)}
+ }
  const downloadPdf=async()=>{setPdfBusy(true);try{await exportScreenPdf('reports-pdf-root',`Reporte_Ejecutivo_${range.from}_${range.to}.pdf`,`Reporte ejecutivo ${range.from} - ${range.to}`)}catch(e){alert(e instanceof Error?e.message:'No se pudo generar el PDF.')}finally{setPdfBusy(false)}}
 
  return <div id="reports-pdf-root" className="page-stack executive-report period-report beta11-report">
-  <div data-pdf-section="true" className="page-head"><div><span className="eyebrow">{executive?'INTELIGENCIA COMERCIAL · MULTIPERÍODO':'MI DESEMPEÑO'}</span><h2>{executive?'Reporte ejecutivo':'Mi reporte'}</h2><p>Indicadores separados por función: Calle para Vendedores y CRM/Showroom para Gestores, con resultado comercial unificado.</p></div><div data-pdf-exclude="true" className="button-row"><button className="secondary" disabled={!hasReport} onClick={()=>void exportRoleReportXlsx(`Reporte_${range.from}_${range.to}`,vendorExport,managerExport)}><FileSpreadsheet size={17}/> Excel</button><button className="secondary" disabled={!hasReport||pdfBusy} onClick={()=>void downloadPdf()}><Download size={17}/> {pdfBusy?'Generando...':'PDF'}</button></div></div>
+  <div data-pdf-section="true" className="page-head"><div><span className="eyebrow">{executive?'INTELIGENCIA COMERCIAL · MULTIPERÍODO':'MI DESEMPEÑO'}</span><h2>{executive?'Reporte ejecutivo':'Mi reporte'}</h2><p>Indicadores separados por función: Calle para Vendedores y CRM/Showroom para Gestores, con resultado comercial unificado.</p></div><div data-pdf-exclude="true" className="button-row"><button className="secondary" disabled={!hasReport||excelBusy} onClick={()=>void downloadExcel()}><FileSpreadsheet size={17}/> {excelBusy?'Generando...':'Excel'}</button><button className="secondary" disabled={!hasReport||pdfBusy} onClick={()=>void downloadPdf()}><Download size={17}/> {pdfBusy?'Generando...':'PDF'}</button></div></div>
   <section data-pdf-section="true" className="panel report-filter-panel filter-stack"><div className="filter-row"><label>Período<select value={mode} onChange={e=>setMode(e.target.value as PeriodMode)}><option value="DAY">Día</option><option value="WEEK">Semana</option><option value="MONTH">Mes</option><option value="RANGE">Rango</option></select></label>{mode==='DAY'&&<label>Fecha<input type="date" max={today()} value={date} onChange={e=>setDate(e.target.value)}/></label>}{mode==='WEEK'&&<label>Semana de<input type="date" max={today()} value={date} onChange={e=>setDate(e.target.value)}/></label>}{mode==='MONTH'&&<label>Mes<input type="month" max={currentMonth()} value={month} onChange={e=>setMonth(e.target.value)}/></label>}{mode==='RANGE'&&<><label>Desde<input type="date" max={today()} value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Hasta<input type="date" min={from} max={today()} value={to} onChange={e=>setTo(e.target.value)}/></label></>}{executive&&<><label>Tipo colaborador<select value={employeeType} onChange={e=>{setEmployeeType(e.target.value as CommercialRole);setEmployeeFilter('')}}><option value="">Todos</option><option value="Vendedor">Vendedores</option><option value="Gestor">Gestores</option></select></label><label>Colaborador<select value={employeeFilter} onChange={e=>setEmployeeFilter(e.target.value)}><option value="">Todos los colaboradores</option>{employeeOptions.map(e=><option key={e.id} value={e.id}>{e.full_name}</option>)}</select></label></>}</div>{showStreet&&<div className="filter-row secondary-row"><label>Estado jornada<select value={journeyStatus} onChange={e=>setJourneyStatus(e.target.value)}><option value="">Todos</option>{Object.entries(statusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>Tipo cliente ruta<select value={clientType} onChange={e=>setClientType(e.target.value)}><option value="">Todos</option>{clientTypeOptions.map(v=><option key={v}>{v}</option>)}</select></label><label>Región oficial<select value={region} onChange={e=>setRegion(e.target.value)}><option value="">Todas</option>{regionOptions.map(v=><option key={v}>{v}</option>)}</select></label><label>Provincia oficial<select value={province} onChange={e=>setProvince(e.target.value)}><option value="">Todas</option>{provinceOptions.map(v=><option key={v}>{v}</option>)}</select></label><label>Municipio oficial<select value={municipality} onChange={e=>setMunicipality(e.target.value)}><option value="">Todos</option>{municipalityOptions.map(v=><option key={v}>{v}</option>)}</select></label></div>}<div className="journey-filter-foot"><span>{range.from} → {range.to}{showStreet?` · ${filteredJourneys.length} jornada(s)`:''}{showCrm?` · ${filteredCrm.length} registro(s) CRM`:''}</span>{executive&&<button data-pdf-exclude="true" className="secondary compact" onClick={clear}><FilterX size={15}/> Limpiar filtros</button>}</div>{routeScoped&&<div className="report-scope-note"><b>Alcance territorial:</b> los filtros de región/provincia/municipio afectan exclusivamente la operación de Calle. CRM/Showroom y el resultado comercial permanecen por colaborador y período para no atribuir ventas a un territorio sin evidencia transaccional suficiente.</div>}</section>
   {error&&<div data-pdf-section="true" className="panel journey-alert danger"><AlertTriangle/><div><b>No fue posible cargar el reporte</b><span>{error}</span></div></div>}
   {loading?<div className="panel empty-state"><b>Calculando indicadores...</b></div>:<>
