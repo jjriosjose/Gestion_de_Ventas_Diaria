@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "production_version": "0.6.5-beta.16.3.18",
-  "confirmed_main_commit": "ca5a459a517266636d2e128e3aa0d8313c954728",
-  "cloudflare_version_id": "5c63eaec-d61d-41d0-a903-be90b0501cd0",
+  "production_version": "0.6.5-beta.16.3.19",
+  "confirmed_main_commit": "23eac5dcd18a94523fc3699ebb9d3fd8f3058644",
+  "cloudflare_version_id": "196a50d2-f1b0-455b-9f40-4c65d888b59b",
   "confirmed_at": "2026-09-26",
   "required_files": {
     "src/App.tsx": [
@@ -75,7 +75,9 @@
       "buildDisplay"
     ],
     "src/pages/Settings.tsx": [
-      "Acerca del sistema",
+      "Modo de interfaz",
+      "Identidad de la organización",
+      "Vista de referencia",
       "APP_VERSION"
     ],
     "src/styles/open-field-journeys.css": [
@@ -98,6 +100,25 @@
       "true collapsed icon rail",
       ".nav-v2-group-trigger",
       ".nav-system-v2.collapsed .nav-v2-item"
+    ],
+    "src/context/ThemeContext.tsx": [
+      "system",
+      "PRESET_ACCENTS",
+      "resolveTheme"
+    ],
+    "src/config/productIdentity.ts": [
+      "PLATFORM_IDENTITY",
+      "bitstechcloud",
+      "publicBrandingEnabled",
+      "TENANT_IDENTITY",
+      "Almacenes Karaka"
+    ],
+    "src/styles/settings-v2.css": [
+      "Appearance & Branding V2",
+      "controlled presets",
+      "preview follows the selected interface preset",
+      ".branding-preview-shell.preview-dark",
+      ".branding-preview-shell.preview-executive"
     ]
   },
   "required_migrations": [
