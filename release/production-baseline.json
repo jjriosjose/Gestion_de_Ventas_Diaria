@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "production_version": "0.6.5-beta.16.3.15",
-  "confirmed_main_commit": "5395400e4469636b258f67c03eb2eb69416c9d5a",
-  "cloudflare_version_id": "d221fada-8015-4840-b01a-5c2ec4d88880",
-  "confirmed_at": "2026-09-25",
+  "production_version": "0.6.5-beta.16.3.17",
+  "confirmed_main_commit": "082cc66c104375d4367b1a7335f6d33b3519e231",
+  "cloudflare_version_id": "e8789ba6-3d3a-4c33-9d43-0206b56339a2",
+  "confirmed_at": "2026-09-26",
   "required_files": {
     "src/App.tsx": [
       "path=\"clientes\"",
