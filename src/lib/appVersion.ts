@@ -16,7 +16,7 @@ export const APP_VERSION={
   channelLabel,
   build,
   isTest,
-  display:`v${productVersion}${channelLabel?` ${channelLabel}`:''}`,
-  compact:`v${productVersion}`,
+  display:`v${productVersion}${channelLabel?` ${channelLabel}`:''}${build?` · ${build}`:''}`,
+  compact:`v${productVersion}${build?` · ${build}`:''}`,
   buildDisplay:build||'Release',
 } as const
