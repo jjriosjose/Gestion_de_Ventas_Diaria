@@ -86,3 +86,59 @@
   .organization-brand-card{grid-template-columns:1fr}
   .organization-brand-status{justify-self:start}
 }
+
+
+/* test.3 — preview follows the selected interface preset */
+.branding-preview-shell{
+  --preview-bg:#f4f6f9;
+  --preview-surface:#ffffff;
+  --preview-surface-2:#f2f4f7;
+  --preview-text:#171a20;
+  --preview-muted:#6c7480;
+  --preview-border:#e4e7ec;
+  --preview-brand:#c71f2d;
+  background:var(--preview-bg);
+  color:var(--preview-text);
+}
+.branding-preview-shell aside,
+.branding-preview-shell header,
+.branding-preview-kpi{background:var(--preview-surface);border-color:var(--preview-border)}
+.branding-preview-shell aside{border-right-color:var(--preview-border)}
+.branding-preview-brand{border-bottom-color:var(--preview-border)}
+.branding-preview-brand b,
+.branding-preview-shell header b,
+.branding-preview-kpi strong{color:var(--preview-text)}
+.branding-preview-brand span,
+.branding-preview-kpi span,
+.branding-preview-kpi small{color:var(--preview-muted)}
+.branding-preview-shell aside i{background:var(--preview-surface-2)}
+.branding-preview-shell aside i.active{background:color-mix(in srgb,var(--preview-brand) 12%,var(--preview-surface));border-left-color:var(--preview-brand)}
+.branding-preview-shell header span{color:var(--preview-brand)}
+.branding-preview-content button{background:var(--preview-brand)}
+.branding-preview-shell.preview-dark{
+  --preview-bg:#0e1116;
+  --preview-surface:#171b22;
+  --preview-surface-2:#232a34;
+  --preview-text:#f5f7fb;
+  --preview-muted:#a5afbc;
+  --preview-border:#303946;
+  --preview-brand:#d92b3b;
+}
+.branding-preview-shell.preview-executive{
+  --preview-bg:#e9eef5;
+  --preview-surface:#ffffff;
+  --preview-surface-2:#edf3fa;
+  --preview-text:#111827;
+  --preview-muted:#667085;
+  --preview-border:#d7deea;
+  --preview-brand:#1f3a5f;
+}
+.branding-preview-shell.preview-light{
+  --preview-bg:#f4f6f9;
+  --preview-surface:#ffffff;
+  --preview-surface-2:#f2f4f7;
+  --preview-text:#171a20;
+  --preview-muted:#6c7480;
+  --preview-border:#e4e7ec;
+  --preview-brand:#c71f2d;
+}
